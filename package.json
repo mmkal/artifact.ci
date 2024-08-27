@@ -2,6 +2,7 @@
   "name": "artifact-browser",
   "version": "1.0.0",
   "description": "",
+  "packageManager": "pnpm@9.7.1",
   "main": "index.js",
   "scripts": {
     "dev": "next dev",
