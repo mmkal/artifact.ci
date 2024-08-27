@@ -70,7 +70,7 @@ const tryGet = async (request: NextRequest) => {
     return new NextResponse(
       `
         <div>workflow ${run} not found in repo ${owner}/${repo}. You may need to sign in.</div>
-                  <a href="${href}">Sign in</a>
+        <a href="${href}">Sign in</a>
       `,
       {status: 404, headers: {'content-type': 'text/html'}},
     )
