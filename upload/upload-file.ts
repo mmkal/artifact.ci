@@ -7,7 +7,7 @@ export const uploadFile = async (params: {filepath: string; prefix: string}) => 
     handleUploadUrl: '/api/artifact/upload/signed-url',
   })
 
-  console.log({result})
+  console.log({params, result})
 }
 
 if (require.main === module) {
