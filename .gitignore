@@ -8,3 +8,6 @@ package-lock.json
 yarn.lock
 .sst
 .next
+
+.env
+.env.*

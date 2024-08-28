@@ -5,7 +5,7 @@ import {lookup as mimeTypeLookup} from 'mime-types'
 import type {NextRequest} from 'next/server'
 import {NextResponse} from 'next/server'
 import * as path from 'node:path'
-import {getSessionGithubToken} from '../../api/auth/[...nextauth]/route'
+import {auth} from '../../../../auth'
 
 export const GET = async (request: NextRequest) => {
   try {
@@ -19,11 +19,15 @@ export const GET = async (request: NextRequest) => {
 }
 
 const tryGet = async (request: NextRequest) => {
-  const token = request.cookies.get('gh_token')?.value || (await getSessionGithubToken())
-  console.log({token})
+  // if (Math.random()) return NextResponse.json({auth: await auth()})
+  const token =
+    request.cookies.get('gh_token')?.value || // allow setting gh_token directly for testing
+    (await auth().then(s => (s as {} as Record<string, string>).jwt_access_token)) // most users will rely on this instead
+
   if (!token) return NextResponse.json({message: 'missing token'}, {status: 400})
 
-  const [_empty, _prefix, owner, repo, run, artifact, ...rest] = request.nextUrl.pathname.split('/')
+  const pathnamePrefix = request.nextUrl.pathname.match(/^.*\/browse\//)?.[0] || ''
+  const [owner, repo, run, artifact, ...rest] = request.nextUrl.pathname.replace(pathnamePrefix, '').split('/')
   const filepath = rest.join('/').replace(/\/$/, '')
 
   const octokit = new Octokit({auth: token, log: console})
@@ -129,8 +133,8 @@ const tryGet = async (request: NextRequest) => {
     )
   }
 
-  const entryUrl = (e: {entryName: string}) =>
-    `${request.nextUrl.origin}/${_prefix}/${owner}/${repo}/${run}/${artifact}/${e.entryName}`
+  const entryUrl = ({entryName}: {entryName: string}) =>
+    request.nextUrl.origin + `${pathnamePrefix}/${owner}/${repo}/${run}/${artifact}/${entryName}`
 
   const matchedEntry = entries.find(e => e.name && e.entryName === filepath)
 

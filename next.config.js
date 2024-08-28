@@ -3,6 +3,9 @@ const baseConfig = {
   reactStrictMode: true,
   eslint: {ignoreDuringBuilds: true},
   typescript: {ignoreBuildErrors: true},
+  experimental: {
+    serverActions: true,
+  },
 }
 
 const withNextra = require('nextra')({
