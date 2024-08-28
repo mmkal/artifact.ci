@@ -11,6 +11,9 @@ export const uploadFile = async (params: {filepath: string; prefix: string}) => 
 }
 
 if (require.main === module) {
+  Object.assign(global, {
+    window: {location: new URL('https://artifact-browser.vercel.app')},
+  })
   console.log({
     filepath: process.env.UPLOAD_FILE_PATH!,
     prefix: process.env.UPLOAD_FILE_PREFIX!,
