@@ -8,6 +8,10 @@ inputs:
     description: Name of the artifact to upload
     required: false
     default: artifact
+  origin:
+    description: The origin of the server to upload the artifact to
+    required: false
+    default: 'https://artifact-browser.vercel.app'
 runs:
   using: composite
   steps:
@@ -21,4 +25,17 @@ runs:
       shell: bash
       run: |
         echo 'View your artifact here:'
-        echo 'https://artifact-brwoser.vercel.app/artifact/browse/${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}'
+        echo '${{ inputs.origin }}/artifact/browse/${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}'
+    - name: install blob
+      shell: bash
+      run: npm install @vercel/blob tsx
+    - name: prep
+      shell: bash
+      run: |
+        echo foo > foo.txt
+    - id: upload-blob
+      env:
+        UPLOAD_FILE_PATH: foo.txt
+        UPLOAD_FILE_PREFIX: ${{ inputs.origin }}/prefix/blah
+      run: |
+        npx tsx upload/upload-file.ts
