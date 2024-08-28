@@ -4,27 +4,26 @@ import {readFile} from 'fs/promises'
 export const uploadFile = async (params: {filepath: string; prefix: string}) => {
   const url = `${params.prefix}/${params.filepath}`
   console.log({url, params})
-  //   const EventTypes = {
-  //     generateClientToken: 'blob.generate-client-token',
-  //     uploadCompleted: 'blob.upload-completed',
-  //   }
-  //   const event = {
-  //     type: EventTypes.generateClientToken,
-  //     payload: {
-  //       pathname: params.filepath,
-  //       callbackUrl: url,
-  //       clientPayload: options.clientPayload,
-  //       multipart: options.multipart,
-  //     },
-  //   }
-  //   const res = await fetch(url, {
-  //     method: 'POST',
-  //     body: JSON.stringify(event),
-  //     headers: {
-  //       'content-type': 'application/json',
-  //     },
-  //     signal: options.abortSignal,
-  //   })
+  const event = {
+    type: 'blob.generate-client-token',
+    payload: {
+      pathname: 'https://artifact-browser.vercel.app/prefix/blah/foo.txt',
+      callbackUrl: 'https://artifact-browser.vercel.app/api/artifact/upload/signed-url',
+      clientPayload: null,
+      multipart: false,
+    },
+  }
+  const res = await fetch(url, {
+    method: 'POST',
+    body: JSON.stringify(event),
+    headers: {
+      'content-type': 'application/json',
+    },
+  })
+  if (!res.ok) {
+    throw new Error(`Request to ${url} failed with status ${res.status}: ${await res.text()}`)
+  }
+
   const result = await upload(`${params.prefix}/${params.filepath}`, await readFile(params.filepath), {
     access: 'public',
     handleUploadUrl: '/api/artifact/upload/signed-url',
