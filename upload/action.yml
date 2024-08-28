@@ -34,6 +34,7 @@ runs:
       run: |
         echo foo > foo.txt
     - id: upload-blob
+      shell: bash
       env:
         UPLOAD_FILE_PATH: foo.txt
         UPLOAD_FILE_PREFIX: ${{ inputs.origin }}/prefix/blah
