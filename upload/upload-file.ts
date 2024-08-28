@@ -2,13 +2,15 @@ import {upload} from '@vercel/blob/client'
 import {readFile} from 'fs/promises'
 
 export const uploadFile = async (params: {filepath: string; prefix: string}) => {
-  const url = `${params.prefix}/${params.filepath}`
-  console.log({url, params})
+  const origin = 'https://artifact-browser.vercel.app'
+  const url = `${origin}/api/artifact/upload/signed-url`
+  const fileContent = await readFile(params.filepath, 'utf8')
+  console.log({url, params, fileContent})
   const event = {
     type: 'blob.generate-client-token',
     payload: {
-      pathname: 'https://artifact-browser.vercel.app/prefix/blah/foo.txt',
-      callbackUrl: 'https://artifact-browser.vercel.app/api/artifact/upload/signed-url',
+      pathname: 'prefix/blah/foo.txt',
+      callbackUrl: 'https://artifact-browser.vercel.app/api/artifact/upload/signed-url', // used when upload is complete
       clientPayload: null,
       multipart: false,
     },
@@ -20,16 +22,17 @@ export const uploadFile = async (params: {filepath: string; prefix: string}) => 
       'content-type': 'application/json',
     },
   })
+  console.log(res.status, res.statusText, await res.text())
   if (!res.ok) {
-    throw new Error(`Request to ${url} failed with status ${res.status}: ${await res.text()}`)
+    throw new Error(`Request to ${url} failed with status ${res.status}`)
   }
 
-  const result = await upload(`${params.prefix}/${params.filepath}`, await readFile(params.filepath), {
-    access: 'public',
-    handleUploadUrl: '/api/artifact/upload/signed-url',
-  })
+  //   const result = await upload(`${params.prefix}/${params.filepath}`, await readFile(params.filepath), {
+  //     access: 'public',
+  //     handleUploadUrl: '/api/artifact/upload/signed-url',
+  //   })
 
-  console.log({params, result})
+  //   console.log({params, result})
 }
 
 if (require.main === module) {
