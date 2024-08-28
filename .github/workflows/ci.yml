@@ -16,3 +16,15 @@ jobs:
       - name: print artifact url
         run: |
           echo "http://localhost:3000/artifact/browse/${{github.repository}}/${{github.run_id}}/hello-test-output"
+  run2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir test-output
+          echo hello > test-output/hello.txt
+          echo world > test-output/world.txt
+      - uses: ./upload
+        with:
+          name: hello-test-output-2
+          path: test-output-2

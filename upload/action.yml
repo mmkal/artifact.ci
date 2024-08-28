@@ -1,0 +1,47 @@
+name: upload artifact action
+description: 'Manages a deps branch and synchronizes with main branch'
+inputs:
+  path:
+    description: A file, directory or wildcard pattern that describes what to upload
+    required: true
+  name:
+    description: Name of the artifact to upload
+    required: false
+    default: artifact
+runs:
+  using: composite
+  steps:
+    - id: upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+    - id: print
+      name: print url
+      shell: bash
+      run: |
+        echo "http://localhost:3000/artifact/browse/${{ github.repository }}/${{ github.run_id }}/$name"
+        script: |
+          const { deps_branch, main_branch } = process.env;
+          try {
+            await github.rest.repos.getBranch({
+              ...context.repo,
+              branch: deps_branch,
+            });
+            console.log(`Branch ${deps_branch} exists.`);
+          } catch (error) {
+            if (error.status !== 404) {
+              throw error
+            }
+            console.log(`Branch ${deps_branch} does not exist. Creating it from head of ${main_branch}...`);
+            const {data: mainBranch} = await github.rest.repos.getBranch({
+              ...context.repo,
+              branch: main_branch,
+            });
+            await github.rest.git.createRef({
+              ...context.repo,
+              ref: `refs/heads/${deps_branch}`,
+              sha: mainBranch.commit.sha,
+            });
+            console.log(`Branch ${deps_branch} created from head of ${main_branch}: ${mainBranch.commit.sha}.`);
+          }
