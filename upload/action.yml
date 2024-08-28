@@ -39,5 +39,5 @@ runs:
       shell: bash
       env:
         UPLOAD_FILE_PATH: foo.txt
-        UPLOAD_FILE_PREFIX: ${{ inputs.origin }}/prefix/blah
+        UPLOAD_FILE_PREFIX: prefix/blah
       run: npx tsx upload/upload-file.ts
