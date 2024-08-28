@@ -2,16 +2,6 @@ import {handleUpload, type HandleUploadBody} from '@vercel/blob/client'
 import {NextResponse} from 'next/server'
 
 export async function POST(request: Request): Promise<NextResponse> {
-  if (Math.random()) {
-    return NextResponse.json(
-      {
-        error: 'Random error',
-        request: request.url,
-        json: await request.json().catch(e => 'no: ' + e),
-      },
-      {status: 500},
-    )
-  }
   const body = (await request.json()) as HandleUploadBody
 
   try {

@@ -1,12 +1,12 @@
-import {upload} from '@vercel/blob/client'
+/* eslint-disable no-var */
 import {readFile} from 'fs/promises'
 
 export const uploadFile = async (params: {filepath: string; prefix: string}) => {
-  const origin = 'https://artifact-browser.vercel.app'
-  const url = `${origin}/api/artifact/upload/signed-url`
   const fileContent = await readFile(params.filepath, 'utf8')
+  const origin = 'https://artifact-browser.vercel.app'
+  const url = `${origin}/artifact/upload/signed-url`
   console.log({url, params, fileContent})
-  const event = {
+  var event = {
     type: 'blob.generate-client-token',
     payload: {
       pathname: 'prefix/blah/foo.txt',
@@ -15,14 +15,20 @@ export const uploadFile = async (params: {filepath: string; prefix: string}) => 
       multipart: false,
     },
   }
-  const res = await fetch(url, {
+  var res = await fetch(url, {
     method: 'POST',
     body: JSON.stringify(event),
     headers: {
       'content-type': 'application/json',
     },
   })
-  console.log(url, res.status, res.statusText, JSON.stringify({text: await res.text()}))
+  console.log(
+    url,
+    res.status,
+    res.statusText,
+    Object.fromEntries(res.headers),
+    JSON.stringify({text: await res.text()}),
+  )
   if (!res.ok) {
     throw new Error(`Request to ${url} failed with status ${res.status}`)
   }
