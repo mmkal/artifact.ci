@@ -1,7 +1,8 @@
 import {upload} from '@vercel/blob/client'
+import {readFile} from 'fs/promises'
 
 export const uploadFile = async (params: {filepath: string; prefix: string}) => {
-  const result = await upload(`${params.prefix}/${params.filepath}`, null, {
+  const result = await upload(`${params.prefix}/${params.filepath}`, await readFile(params.filepath), {
     access: 'public',
     handleUploadUrl: '/api/artifact/upload/signed-url',
   })
