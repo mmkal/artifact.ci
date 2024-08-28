@@ -40,9 +40,11 @@ export const uploadFile = async (params: {filepath: string; prefix: string}) => 
   //     throw new Error(`Request to ${url} failed with status ${res.status}`)
   //   }
 
+  console.log('uploading', `${params.prefix}/${params.filepath}`, params)
   const result = await upload(`${params.prefix}/${params.filepath}`, await readFile(params.filepath), {
     access: 'public',
     handleUploadUrl: '/artifact/upload/signed-url',
+    contentType: 'text/plain',
   })
 
   console.log({params, result})
