@@ -1,3 +1,4 @@
+import {NextRequest} from 'next/server'
 import NextAuth from 'next-auth'
 import DefaultGithub from 'next-auth/providers/github'
 
@@ -25,3 +26,11 @@ export const {handlers, signIn, signOut, auth} = NextAuth({
     },
   },
 })
+
+export const getGithubAccessToken = async (request: NextRequest) => {
+  const cookieToken = request?.cookies.get('gh_token')?.value
+  if (cookieToken) return cookieToken
+
+  const session = await auth()
+  return (session as {jwt_access_token?: string} | null)?.jwt_access_token
+}

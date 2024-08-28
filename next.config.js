@@ -4,7 +4,10 @@ const baseConfig = {
   eslint: {ignoreDuringBuilds: true},
   typescript: {ignoreBuildErrors: true},
   experimental: {
-    serverActions: true,
+    serverActions: {
+      allowedOrigins: ['http://localhost:3000', 'http://localhost:3001', 'https://*.vercel.app'],
+      bodySizeLimit: '100mb',
+    },
   },
 }
 

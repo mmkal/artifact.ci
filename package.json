@@ -13,9 +13,10 @@
   },
   "dependencies": {
     "@octokit/rest": "^20.0.1",
+    "@vercel/blob": "^0.23.4",
     "adm-zip": "^0.5.10",
     "mime-types": "^2.1.35",
-    "next": "^13.4.19",
+    "next": "^14.2.7",
     "next-auth": "5.0.0-beta.20",
     "nextra": "^2.12.3",
     "nextra-theme-docs": "^2.12.3",

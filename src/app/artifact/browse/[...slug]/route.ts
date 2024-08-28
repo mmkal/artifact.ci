@@ -5,7 +5,7 @@ import {lookup as mimeTypeLookup} from 'mime-types'
 import type {NextRequest} from 'next/server'
 import {NextResponse} from 'next/server'
 import * as path from 'node:path'
-import {auth} from '../../../../auth'
+import {auth, getGithubAccessToken} from '../../../../auth'
 
 export const GET = async (request: NextRequest) => {
   try {
@@ -20,11 +20,9 @@ export const GET = async (request: NextRequest) => {
 
 const tryGet = async (request: NextRequest) => {
   // if (Math.random()) return NextResponse.json({auth: await auth()})
-  const token =
-    request.cookies.get('gh_token')?.value || // allow setting gh_token directly for testing
-    (await auth().then(s => (s as {} as Record<string, string>).jwt_access_token)) // most users will rely on this instead
+  const token = await getGithubAccessToken(request)
 
-  if (!token) return NextResponse.json({message: 'missing token'}, {status: 400})
+  if (!token) return NextResponse.json({message: 'Unauthorized - no token'}, {status: 401})
 
   const pathnamePrefix = request.nextUrl.pathname.match(/^.*\/browse\//)?.[0] || ''
   const [owner, repo, run, artifact, ...rest] = request.nextUrl.pathname.replace(pathnamePrefix, '').split('/')
@@ -44,13 +42,13 @@ const tryGet = async (request: NextRequest) => {
     .catch(error => {
       const e = error as Error & {status?: number; response?: {url: string}}
       if (e.status === 401) {
-        throw new Error(`${e.response?.url} ${e.status}: token=${token}`)
+        throw new Error(`${e.response?.url} ${e.status}: token=${token}`, {cause: e})
       }
       throw e
     })
 
   if (!me) {
-    return NextResponse.json({message: 'not logged in', tokenStart: token.slice(0, 7)}, {status: 401})
+    return NextResponse.json({message: 'Not authenticated with GitHub', tokenStart: token.slice(0, 7)}, {status: 401})
   }
 
   const {data: artifacts} = await octokit.rest.actions
