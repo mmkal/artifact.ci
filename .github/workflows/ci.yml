@@ -26,5 +26,5 @@ jobs:
           echo world > test-output/world.txt
       - uses: ./upload
         with:
-          name: hello-test-output-2
-          path: test-output-2
+          name: hello-2-test-output
+          path: test-output
