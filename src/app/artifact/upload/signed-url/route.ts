@@ -1,3 +1,4 @@
+import {Octokit} from '@octokit/rest'
 import {handleUpload, type HandleUploadBody} from '@vercel/blob/client'
 import {NextResponse} from 'next/server'
 
@@ -9,12 +10,24 @@ export async function POST(request: Request): Promise<NextResponse> {
       body,
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
-        // Generate a client token for the browser to upload the file
-        // ⚠️ Authenticate and authorize users before generating the token.
-        // Otherwise, you're allowing anonymous uploads.
         console.log('onBeforeGenerateToken', pathname, clientPayload)
+        const token =
+          typeof clientPayload === 'string' && clientPayload.startsWith('{')
+            ? (JSON.parse(clientPayload).githubToken as string)
+            : null
+
+        if (!token) return NextResponse.json({message: 'Bad request - no token'}, {status: 400})
+
+        const octokit = new Octokit({auth: token, log: console})
+
+        const {data: authedGitHubUser} = await octokit.rest.users.getAuthenticated()
+
+        if (!authedGitHubUser) {
+          // return NextResponse.json({message: `Unauthorized - couldn't get user from token`}, {status: 401})
+        }
 
         return {
+          // todo: allow more, maybe for paid users?
           allowedContentTypes: [
             'image/jpeg',
             'image/png',
@@ -26,8 +39,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             'application/json',
           ],
           tokenPayload: JSON.stringify({
-            // optional, sent to your server on upload completion
-            // you could pass a user id from auth, or a value from clientPayload
+            authedGitHubUser,
           }),
         }
       },

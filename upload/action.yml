@@ -33,12 +33,16 @@ runs:
       shell: bash
       run: |
         echo foo > foo.txt
-        sed -i 's/const res = await _undici.fetch.call/console.log({url, options}, event);const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
+        sed -i 's/const res = await _undici.fetch.call/console.log("fetching", {url, options}, event);const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
     - id: upload-blob
       shell: bash
       env:
         UPLOAD_FILE_PATH: foo.txt
         UPLOAD_FILE_PREFIX: ${{ inputs.origin }}/prefix/blah
       run: |
-        npx tsx upload/upload-file.ts
-
+        const {upload} = await import('@vercel/blob/client')
+        await upload(`${process.env.UPLOAD_FILE_PREFIX}/${process.env.UPLOAD_FILE_PATH}`, await readFile(process.env.UPLOAD_FILE_PATH), {
+          access: 'public',
+          handleUploadUrl: '/artifact/upload/signed-url',
+          contentType: 'text/plain',
+        })
