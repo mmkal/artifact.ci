@@ -21,8 +21,22 @@ const Github: typeof DefaultGithub = options => {
 export const {handlers, signIn, signOut, auth} = NextAuth({
   providers: [Github],
   callbacks: {
+    async jwt({token, account}) {
+      if (token.account_access_token) {
+        token.note = `jwt callback: account_access_token already set`
+      } else if (account) {
+        token.account_access_token = account.access_token
+        token.note = `jwt callback: added account_access_token`
+      } else {
+        token.note = `jwt callback: didn't add account_access_token`
+      }
+      return token
+    },
     async session({session, token}) {
-      return Object.assign(session, {jwt_access_token: token.access_token as string})
+      return Object.assign(session, {
+        jwt_access_token: (token.account_access_token as string) || null,
+        token_note: token.note,
+      })
     },
   },
 })
