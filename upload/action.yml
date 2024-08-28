@@ -34,6 +34,7 @@ runs:
       run: |
         echo foo > foo.txt
         sed -i 's/const res = await _undici.fetch.call/console.log("fetching", {url, options}, event);const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
+        sed -i 's/res.ok/console.log({ res: await res.clone().text() }) || res.ok/g' node_modules/@vercel/blob/dist/client.cjs
     - id: upload-blob
       shell: bash
       env:
