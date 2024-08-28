@@ -12,7 +12,6 @@ export const uploadFile = async (params: {filepath: string; prefix: string}) => 
     contentType: 'text/plain',
     clientPayload: JSON.stringify({githubToken: process.env.GITHUB_TOKEN}),
   })
-
   console.log({params, result})
 }
 
