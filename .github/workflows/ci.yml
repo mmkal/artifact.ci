@@ -1,0 +1,18 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          mkdir test-output
+          echo hello > test-output/hello.txt
+          echo world > test-output/world.txt
+      - uses: actions/upload-artifact@v3
+        with:
+          name: hello-test-output
+          path: test-output
+      - name: print artifact url
+        run: |
+          echo "http://localhost:3000/artifact/browse/${{github.repository}}/${{github.run_id}}/hello-test-output"

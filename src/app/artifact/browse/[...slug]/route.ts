@@ -5,7 +5,7 @@ import {lookup as mimeTypeLookup} from 'mime-types'
 import type {NextRequest} from 'next/server'
 import {NextResponse} from 'next/server'
 import * as path from 'node:path'
-import {auth, getGithubAccessToken} from '../../../../auth'
+import {getGithubAccessToken} from '../../../../auth'
 
 export const GET = async (request: NextRequest) => {
   try {
