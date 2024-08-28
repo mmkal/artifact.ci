@@ -39,10 +39,4 @@ runs:
       env:
         UPLOAD_FILE_PATH: foo.txt
         UPLOAD_FILE_PREFIX: ${{ inputs.origin }}/prefix/blah
-      run: |
-        const {upload} = await import('@vercel/blob/client')
-        await upload(`${process.env.UPLOAD_FILE_PREFIX}/${process.env.UPLOAD_FILE_PATH}`, await readFile(process.env.UPLOAD_FILE_PATH), {
-          access: 'public',
-          handleUploadUrl: '/artifact/upload/signed-url',
-          contentType: 'text/plain',
-        })
+      run: npx tsx upload/upload-file.ts
