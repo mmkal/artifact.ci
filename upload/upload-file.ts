@@ -22,7 +22,7 @@ export const uploadFile = async (params: {filepath: string; prefix: string}) => 
       'content-type': 'application/json',
     },
   })
-  console.log(res.status, res.statusText, await res.text())
+  console.log(url, res.status, res.statusText, JSON.stringify({text: await res.text()}))
   if (!res.ok) {
     throw new Error(`Request to ${url} failed with status ${res.status}`)
   }
