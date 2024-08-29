@@ -11,7 +11,7 @@ inputs:
   origin:
     description: The origin of the server to upload the artifact to
     required: false
-    default: 'https://artifact.ci'
+    default: 'https://artifact-browser.vercel.app' # todo: update to artifact.ci - for some reason there's a content-length mismatch when using artifact.ci
   github-token:
     description: The GitHub token to use for the upload
     required: false
@@ -34,10 +34,12 @@ runs:
       run: corepack enable && pnpm install
     - name: prep
       shell: bash
-      run: |
-        echo foo > foo.txt
-        sed -i 's/const res = await _undici.fetch.call/console.log("fetching", {url, options, event});const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
-        sed -i 's/res.ok/(res.ok || console.log({ res: await res.clone().text() }))/g' node_modules/@vercel/blob/dist/client.cjs
+      run: echo foo > foo.txt
+    # - name: patch @vercel/blob for debugging
+    #   shell: bash
+    #   run: |
+    #     sed -i 's/const res = await _undici.fetch.call/console.log("fetching", {url, options, event});const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
+    #     sed -i 's/res.ok/(res.ok || console.log({ res: await res.clone().text() }))/g' node_modules/@vercel/blob/dist/client.cjs
     - id: upload-blob
       uses: actions/github-script@v6
       env:
@@ -50,21 +52,22 @@ runs:
 
           const inputs = ${{ toJson(inputs) }}
           const githubToken = inputs['github-token']
-          const origin = 'https://artifact-browser.vercel.app' // todo: use inputs.origin - for some reason there's a content-length mismatch when using artifact.ci
+          const origin = inputs.origin
           const pathPrefix = '${{ github.repository }}/${{ github.run_id }}/' + inputs.name
 
-          console.log({githubToken, inputs, pathPrefix, origin})
+          console.log({githubToken, inputs, pathPrefix})
 
           console.log('lazy url:')
-          console.log(`${origin}/artifact/browse/${pathPrefix}`)
+          console.log(`${inputs.origin}/artifact/browse/${pathPrefix}`)
 
           Object.assign(global, {
-            window: {location: new URL(origin)}, // create a global `window` object to trick @vercel/blob/client into working. for some reason it refuses to run outside of the browser but it's just a `fetch` wrapper
+            window: {location: new URL(inputs.origin)}, // create a global `window` object to trick @vercel/blob/client into working. for some reason it refuses to run outside of the browser but it's just a `fetch` wrapper
           })
 
           const stat = await fs.stat(inputs.path)
           const globPattern = stat.isDirectory() ? `${inputs.path}/**/*` : inputs.path
           console.log({globPattern})
+
           const results = {}
           const globber = await glob.create(globPattern)
           for await (const filepath of globber.globGenerator()) {
@@ -83,5 +86,5 @@ runs:
           }
           console.log(`alright go to:`)
           Object.keys(results).forEach(blobPath => {
-            console.log(`${origin}/artifact/blob/${blobPath}`)
+            console.log(`${inputs.origin}/artifact/blob/${blobPath}`)
           })
