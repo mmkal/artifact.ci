@@ -1,3 +1,11 @@
+const {z} = require('zod')
+
+const Env = z.object({
+  STORAGE_ORIGIN: z.string().url(),
+})
+
+const env = Env.parse(process.env)
+
 /** @type {import('next').NextConfig} */
 const baseConfig = {
   reactStrictMode: true,
@@ -13,7 +21,7 @@ const baseConfig = {
     return [
       {
         source: '/artifact/blob/:filepath*',
-        destination: 'https://8kc5vtdgp65u3far.public.blob.vercel-storage.com/:filepath*',
+        destination: `${env.STORAGE_ORIGIN}/:filepath*`,
       },
     ]
   },
