@@ -24,6 +24,7 @@ jobs:
           mkdir test-output
           echo hello > test-output/hello.txt
           echo world > test-output/world.txt
+          echo 'console.log("hi")' > test-output/hi.js
       - uses: ./upload
         with:
           name: hello-2-test-output
