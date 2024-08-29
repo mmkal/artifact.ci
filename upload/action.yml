@@ -82,6 +82,8 @@ runs:
           const results = {}
           const globber = await glob.create(globPattern)
           for await (const filepath of globber.globGenerator()) {
+            const stat = await fs.stat(filepath)
+            if (stat.isDirectory()) continue
             const blobPath = pathPrefix + filepath.replace(process.cwd(), '')
             console.log(`uploading file ${filepath} to ${blobPath}`)
             const result = await upload(blobPath, await fs.readFile(filepath), {
