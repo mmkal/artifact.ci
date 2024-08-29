@@ -36,8 +36,8 @@ runs:
       shell: bash
       run: |
         echo foo > foo.txt
-        sed -i 's/const res = await _undici.fetch.call/console.log("fetching", {url, options}, event);const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
-        sed -i 's/res.ok/(console.log({ res: await res.clone().text() }) || res.ok)/g' node_modules/@vercel/blob/dist/client.cjs
+        sed -i 's/const res = await _undici.fetch.call/console.log("fetching", {url, options, event});const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
+        sed -i 's/res.ok/(res.ok || console.log({ res: await res.clone().text() }))/g' node_modules/@vercel/blob/dist/client.cjs
     - id: upload-blob
       uses: actions/github-script@v6
       env:
@@ -49,12 +49,12 @@ runs:
           const {lookup: mimeTypeLookup} = require('mime-types')
 
           // todo: use core.getInput, not sure why values were blank last time I tried
-          const githubToken = '${{ inputs.github-token }}'
-          const inputPath = '${{ inputs.path }}'
-          const origin = 'https://artifact-browser.vercel.app'
-          const pathPrefix = '${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}'
+          const inputs = ${{ toJson(inputs) }}
+          const githubToken = inputs['github-token']
+          const origin = 'https://artifact-browser.vercel.app' // todo: use inputs.origin - for some reason there's a content-length mismatch when using artifact.ci
+          const pathPrefix = '${{ github.repository }}/${{ github.run_id }}/' + inputs.name
 
-          console.log({githubToken, inputPath, pathPrefix, origin})
+          console.log({githubToken, inputs, pathPrefix, origin})
 
           console.log('lazy url:')
           console.log(`${origin}/artifact/browse/${pathPrefix}`)
@@ -63,8 +63,8 @@ runs:
             window: {location: new URL(origin)}, // create a global `window` object to trick @vercel/blob/client into working. for some reason it refuses to run outside of the browser but it's just a `fetch` wrapper
           })
 
-          const stat = await fs.stat(inputPath)
-          const globPattern = stat.isDirectory() ? `${inputPath}/**/*` : inputPath
+          const stat = await fs.stat(inputs.path)
+          const globPattern = stat.isDirectory() ? `${inputs.path}/**/*` : inputs.path
           console.log({globPattern})
           const results = {}
           const globber = await glob.create(globPattern)
