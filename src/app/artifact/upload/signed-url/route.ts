@@ -51,7 +51,6 @@ export async function POST(request: Request): Promise<NextResponse> {
         // todo(paid): allow more stringent checks like making sure the ref exists
 
         return {
-          // todo: allow more, maybe for paid users?
           allowedContentTypes: [
             'image/jpeg',
             'image/png',
@@ -61,6 +60,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             'text/css',
             'text/javascript',
             'application/json',
+            '*/*', // todo(paid): only allow this for paid users?
           ],
           addRandomSuffix: false, // todo(paid): allow this to be configurable
           tokenPayload: JSON.stringify({
