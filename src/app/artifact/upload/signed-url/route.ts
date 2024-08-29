@@ -62,6 +62,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             'text/javascript',
             'application/json',
           ],
+          addRandomSuffix: false, // todo(paid): allow this to be configurable
           tokenPayload: JSON.stringify({
             repo: repoData && {
               html_url: repoData.html_url,
