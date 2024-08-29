@@ -11,7 +11,7 @@ inputs:
   origin:
     description: The origin of the server to upload the artifact to
     required: false
-    default: 'https://artifact-browser.vercel.app'
+    default: 'https://artifact.ci'
   github-token:
     description: The GitHub token to use for the upload
     required: false
@@ -37,7 +37,7 @@ runs:
       run: |
         echo foo > foo.txt
         sed -i 's/const res = await _undici.fetch.call/console.log("fetching", {url, options}, event);const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
-        sed -i 's/res.ok/(console.log({ res: await res.clone().text() }) || res.ok)/g' node_modules/@vercel/blob/dist/client.cjs
+        sed -i 's/res.ok/(res.ok || console.log({ res: await res.clone().text() }))/g' node_modules/@vercel/blob/dist/client.cjs
     - id: upload-blob
       uses: actions/github-script@v6
       env:
@@ -62,9 +62,8 @@ runs:
           const uploadFilePrefix = '${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}'
 
           Object.assign(global, {
-            window: {location: new URL('https://artifact-browser.vercel.app')}, // create a global `window` object to trick @vercel/blob/client into working. for some reason it refuses to run outside of the browser but it's just a `fetch` wrapper
+            window: {location: new URL('https://artifact.ci')}, // create a global `window` object to trick @vercel/blob/client into working. for some reason it refuses to run outside of the browser but it's just a `fetch` wrapper
           })
-          console.log(`https://artifact-browser.vercel.app/artifact/blob/${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}`)
 
           const stat = await fs.stat(inputPath)
           const globPattern = stat.isDirectory() ? `${inputPath}/**/*` : inputPath
@@ -89,5 +88,5 @@ runs:
 
           console.log(`alright go to:`)
           Object.keys(results).forEach(filepath => {
-            console.log(`https://artifact-browser.vercel.app/artifact/blob/${filepath}`)
+            console.log(`https://artifact.ci/artifact/blob/${filepath}`)
           })
