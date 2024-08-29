@@ -18,6 +18,11 @@ const Github: typeof DefaultGithub = options => {
   }
 }
 
+export interface AugmentedSession {
+  jwt_access_token: string | null
+  token_note: string | null
+}
+
 export const {handlers, signIn, signOut, auth} = NextAuth({
   providers: [Github],
   callbacks: {
@@ -35,8 +40,8 @@ export const {handlers, signIn, signOut, auth} = NextAuth({
     async session({session, token}) {
       return Object.assign(session, {
         jwt_access_token: (token.account_access_token as string) || null,
-        token_note: token.note,
-      })
+        token_note: token.note as string | null,
+      } satisfies AugmentedSession)
     },
   },
 })
@@ -46,5 +51,5 @@ export const getGithubAccessToken = async (request: NextRequest) => {
   if (cookieToken) return cookieToken
 
   const session = await auth()
-  return (session as {jwt_access_token?: string} | null)?.jwt_access_token
+  return (session as {} as AugmentedSession)?.jwt_access_token
 }
