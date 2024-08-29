@@ -17,14 +17,15 @@ const baseConfig = {
       bodySizeLimit: '100mb',
     },
   },
-  rewrites: async () => {
-    return [
-      {
-        source: '/artifact/blob/:filepath*',
-        destination: `${env.STORAGE_ORIGIN}/:filepath*`,
-      },
-    ]
-  },
+  // unfortunately, rewrites won't work for now - vercel storage doesn't let you view html/other browser-renderable content inline: https://vercel.com/docs/storage/vercel-blob#security
+  // rewrites: async () => {
+  //   return [
+  //     {
+  //       source: '/artifact/blob/:filepath*',
+  //       destination: `${env.STORAGE_ORIGIN}/:filepath*`,
+  //     },
+  //   ]
+  // },
 }
 
 const withNextra = require('nextra')({
