@@ -23,7 +23,6 @@ export async function POST(request: Request): Promise<NextResponse> {
           githubToken: z.string(),
           owner: z.string().regex(/^[^/]+$/),
           repo: z.string().regex(/^[^/]+$/),
-          ref: z.string().regex(/^refs\/heads\//),
           run_id: z.number(),
         })
         const parsedClientPayload = ClientPayloadSchema.safeParse(
@@ -36,7 +35,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           )
         }
 
-        const {githubToken, owner, repo, ref} = parsedClientPayload.data
+        const {githubToken, owner, repo} = parsedClientPayload.data
 
         const github = new Octokit({auth: githubToken, log: console})
 
@@ -51,18 +50,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           )
         }
 
-        const {data: refData} = await github.rest.git
-          .getRef({owner, repo, ref}) //
-          .catch(nullify404)
-
-        if (!refData) {
-          throw new ResponseError(
-            NextResponse.json(
-              {message: `ref ${ref} not found, you may not have access`}, //
-              {status: 404},
-            ),
-          )
-        }
+        // todo(paid): allow more stringent checks like making sure the ref exists
 
         return {
           // todo: allow more, maybe for paid users?
