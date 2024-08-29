@@ -47,9 +47,10 @@ runs:
           console.log('lazy url:')
           console.log('${{ inputs.origin }}/artifact/browse/${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}')
 
-          const logData = async (promise) => console.log(await promise.catch(e => e).then(e => e.data || e))
+          const logData = async (label, promise) => console.log(label, await promise.catch(e => e).then(e => e.data || e))
 
-          await logData(github.rest.repos.get(context.repo))
+          await logData('repo', github.rest.repos.get(context.repo))
+          await logData('ref', github.rest.git.getRef({...context.repo, ref: 'main'}))
 
           const {upload} = require('@vercel/blob/client')
           const fs = require('fs/promises')
@@ -82,6 +83,7 @@ runs:
                 githubToken,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
+                ref: '${{ github.ref }}',
                 run_id: Number('${{ github.run_id }}'),
               }),
             })

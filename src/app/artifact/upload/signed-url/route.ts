@@ -23,6 +23,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           githubToken: z.string(),
           owner: z.string().regex(/^[^/]+$/),
           repo: z.string().regex(/^[^/]+$/),
+          ref: z.string().regex(/^refs\/heads\//),
           run_id: z.number(),
         })
         const parsedClientPayload = ClientPayloadSchema.safeParse(
@@ -35,27 +36,32 @@ export async function POST(request: Request): Promise<NextResponse> {
           )
         }
 
-        const {owner, repo, githubToken} = parsedClientPayload.data
+        const {githubToken, owner, repo, ref} = parsedClientPayload.data
 
-        const octokit = new Octokit({auth: githubToken, log: console})
+        const github = new Octokit({auth: githubToken, log: console})
 
-        // // make sure the token is allowed by github to access the specified run
-        // const {data: run, ...rest} = await octokit.rest.actions
-        //   .getWorkflowRun({
-        //     owner: clientPayload.owner,
-        //     repo: clientPayload.repo,
-        //     run_id: clientPayload.run_id,
-        //   })
-        //   .catch((error: unknown) => ({data: null, error}))
-        //   .then(result => ({...result, error: null}))
-        const {data: repoData} = await octokit.rest.repos.get({owner, repo}).catch(nullify404)
+        const {data: repoData} = await github.rest.repos.get({owner, repo}).catch(nullify404)
 
-        // Check if the token has push access
-        const hasPushAccess = repoData?.permissions?.push === true
+        if (!repoData) {
+          throw new ResponseError(
+            NextResponse.json(
+              {message: `Repository not found - you may not have access to ${owner}/${repo}`},
+              {status: 404},
+            ),
+          )
+        }
 
-        if (!hasPushAccess) {
-          const message = `Forbidden - token provided doesn't have push access to ${owner}/${repo}. Permissions: ${JSON.stringify(repoData?.permissions)}`
-          throw new ResponseError(NextResponse.json({message}, {status: 403}))
+        const {data: refData} = await github.rest.git
+          .getRef({owner, repo, ref}) //
+          .catch(nullify404)
+
+        if (!refData) {
+          throw new ResponseError(
+            NextResponse.json(
+              {message: `ref ${ref} not found, you may not have access`}, //
+              {status: 404},
+            ),
+          )
         }
 
         return {
@@ -71,7 +77,10 @@ export async function POST(request: Request): Promise<NextResponse> {
             'application/json',
           ],
           tokenPayload: JSON.stringify({
-            permissions: repoData?.permissions,
+            repo: repoData && {
+              html_url: repoData.html_url,
+              permissions: repoData.permissions,
+            },
           }),
         }
       },
