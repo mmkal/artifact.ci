@@ -48,7 +48,6 @@ runs:
           const fs = require('fs/promises')
           const {lookup: mimeTypeLookup} = require('mime-types')
 
-          // todo: use core.getInput, not sure why values were blank last time I tried
           const inputs = ${{ toJson(inputs) }}
           const githubToken = inputs['github-token']
           const origin = 'https://artifact-browser.vercel.app' // todo: use inputs.origin - for some reason there's a content-length mismatch when using artifact.ci
