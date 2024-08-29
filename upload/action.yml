@@ -84,5 +84,10 @@ runs:
               }),
             })
             console.log(`uploaded file ${filepath} to ${blobPath}`, result)
-            results[filepath] = result
+            results[blobPath] = result
           }
+
+          console.log(`alright go to:`)
+          Object.keys(results).forEach(filepath => {
+            console.log(`https://artifact-browser.vercel.app/artifact/blob/${filepath}`)
+          })

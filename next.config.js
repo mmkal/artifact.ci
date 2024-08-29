@@ -9,6 +9,14 @@ const baseConfig = {
       bodySizeLimit: '100mb',
     },
   },
+  rewrites: async () => {
+    return [
+      {
+        source: '/artifact/blob/:filepath*',
+        destination: 'https://8kc5vtdgp65u3far.public.blob.vercel-storage.com/:filepath*',
+      },
+    ]
+  },
 }
 
 const withNextra = require('nextra')({
