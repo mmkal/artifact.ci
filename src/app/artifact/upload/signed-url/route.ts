@@ -21,9 +21,6 @@ export async function POST(request: Request): Promise<NextResponse> {
         console.log('onBeforeGenerateToken', pathname, payload)
         const ClientPayloadSchema = z.object({
           githubToken: z.string(),
-          owner: z.string().regex(/^[^/]+$/),
-          repo: z.string().regex(/^[^/]+$/),
-          run_id: z.number(),
         })
         const parsedClientPayload = ClientPayloadSchema.safeParse(
           typeof payload === 'string' ? JSON.parse(payload) : payload,
@@ -35,7 +32,8 @@ export async function POST(request: Request): Promise<NextResponse> {
           )
         }
 
-        const {githubToken, owner, repo} = parsedClientPayload.data
+        const {githubToken} = parsedClientPayload.data
+        const [owner, repo] = pathname.split('/')
 
         const github = new Octokit({auth: githubToken, log: console})
 

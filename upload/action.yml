@@ -73,7 +73,7 @@ runs:
           const results = {}
           const globber = await glob.create(globPattern)
           for await (const filepath of globber.globGenerator()) {
-            const blobPath = `${{ github.repository }}/${filepath}`
+            const blobPath = '${{ github.repository }}/${{ github.run_id }}' + filepath.replace(process.cwd(), '')
             console.log(`uploading file ${filepath} to ${blobPath}`)
             const result = await upload(blobPath, await fs.readFile(filepath), {
               access: 'public', // todo: allow access level override?
@@ -81,10 +81,6 @@ runs:
               contentType: mimeTypeLookup(filepath) || 'text/plain', // todo: allow mime type override?
               clientPayload: JSON.stringify({
                 githubToken,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                ref: '${{ github.ref }}',
-                run_id: Number('${{ github.run_id }}'),
               }),
             })
             console.log(`uploaded file ${filepath} to ${blobPath}`, result)
