@@ -44,36 +44,29 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       with:
         script: |
+          console.log('lazy url:')
+          console.log('${{ inputs.origin }}/artifact/browse/${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}')
+          const logData = async (label, promise) => console.log(label, await promise.catch(e => e).then(e => e.data || e))
+          await logData('repo', github.rest.repos.get(context.repo))
+          await logData('ref', github.rest.git.getRef({...context.repo, ref: 'main'}))
           const {upload} = require('@vercel/blob/client')
           const fs = require('fs/promises')
           const {lookup: mimeTypeLookup} = require('mime-types')
-
           // todo: use core.getInput, not sure why values were blank last time I tried
-          console.log({
-            inputs: ${{ toJson(inputs) }},
-          })
-          const inputs = ${{ toJson(inputs) }} // core.getInput doesn't seem to work: https://github.com/actions/toolkit/issues/1089
-          const githubToken = inputs['github-token']
-          const uploadFilePrefix = `${{ github.repository }}/${{ github.run_id }}/${inputs.name}`
-
-          console.log('lazy url:')
-          console.log(`${inputs.origin}/artifact/browse/${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}`)
-
+          const githubToken = '${{ inputs.github-token }}'
+          const inputPath = '${{ inputs.path }}'
+          const uploadFilePrefix = '${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}'
           Object.assign(global, {
-            window: {location: new URL(inputs.origin)}, // https://github.com/vercel/storage/issues/638#issuecomment-2317910077 - create a global `window` object to trick @vercel/blob/client into working. for some reason it refuses to run outside of the browser but it's just a `fetch` wrapper
+            window: {location: new URL('https://artifact-browser.vercel.app')}, // create a global `window` object to trick @vercel/blob/client into working. for some reason it refuses to run outside of the browser but it's just a `fetch` wrapper
           })
-
-          const stat = await fs.stat(inputs.path).catch(e => {
-            if (e.code === 'ENOENT') return null
-            throw e
-          })
-          const globPattern = stat?.isDirectory() ? `${inputs.path}/**/*` : inputs.path
+          console.log(`https://artifact-browser.vercel.app/artifact/blob/${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}`)
+          const stat = await fs.stat(inputPath)
+          const globPattern = stat.isDirectory() ? `${inputPath}/**/*` : inputPath
           console.log({globPattern})
-
           const results = {}
           const globber = await glob.create(globPattern)
           for await (const filepath of globber.globGenerator()) {
-            const blobPath = `${{ github.repository }}/${{ github.run_id }}${filepath.replace(process.cwd(), '')}`.replace(/[^\w-]/g, '')
+            const blobPath = '${{ github.repository }}/${{ github.run_id }}' + filepath.replace(process.cwd(), '')
             console.log(`uploading file ${filepath} to ${blobPath}`)
             const result = await upload(blobPath, await fs.readFile(filepath), {
               access: 'public', // todo: allow access level override?
@@ -86,8 +79,7 @@ runs:
             console.log(`uploaded file ${filepath} to ${blobPath}`, result)
             results[blobPath] = result
           }
-
-          console.log(`Got ${Object.keys(results).length} results. Visit them at:`)
+          console.log(`alright go to:`)
           Object.keys(results).forEach(filepath => {
-            console.log(`${inputs.origin}/artifact/blob/${filepath}`)
+            console.log(`https://artifact-browser.vercel.app/artifact/blob/${filepath}`)
           })
