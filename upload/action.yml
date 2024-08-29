@@ -1,5 +1,5 @@
 name: upload artifact action
-description: 'Manages a deps branch and synchronizes with main branch'
+description: Drop in replacement for actions/upload-artifact which provides a browsable link to the artifact
 inputs:
   path:
     description: A file, directory or wildcard pattern that describes what to upload
@@ -77,9 +77,7 @@ runs:
               access: 'public', // todo: allow access level override?
               handleUploadUrl: '/artifact/upload/signed-url',
               contentType: mimeTypeLookup(filepath) || 'text/plain', // todo: allow mime type override?
-              clientPayload: JSON.stringify({
-                githubToken,
-              }),
+              clientPayload: JSON.stringify({githubToken}),
             })
             console.log(`uploaded file ${filepath} to ${blobPath}`, result)
             results[blobPath] = result
