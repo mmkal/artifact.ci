@@ -30,12 +30,6 @@ const tryGet = async (request: NextRequest) => {
 
   const octokit = new Octokit({auth: token, log: console})
 
-  /** Takes an error and returns {data: null} if it's a 404 or rethrows otherwise. */
-  const nullify404 = (error: {status?: number} | null): {data: null} => {
-    if (error?.status !== 404) throw error as Error
-    return {data: null}
-  }
-
   const {data: me} = await octokit.rest.users
     .getAuthenticated()
     .catch(nullify404)
@@ -178,4 +172,10 @@ const tryGet = async (request: NextRequest) => {
       },
     },
   )
+}
+
+/** Takes an error and returns {data: null} if it's a 404 or rethrows otherwise. */
+export const nullify404 = (error: {status?: number} | null): {data: null} => {
+  if (error?.status !== 404) throw error as Error
+  return {data: null}
 }

@@ -28,3 +28,4 @@ jobs:
         with:
           name: hello-2-test-output
           path: test-output
+          github-token: ${{ secrets.GITHUB_TOKEN }}

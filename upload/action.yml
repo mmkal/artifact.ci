@@ -12,6 +12,9 @@ inputs:
     description: The origin of the server to upload the artifact to
     required: false
     default: 'https://artifact-browser.vercel.app'
+  github-token:
+    description: The GitHub token to use for the upload
+    required: false
 runs:
   using: composite
   steps:
@@ -26,9 +29,9 @@ runs:
       run: |
         echo 'View your artifact here:'
         echo '${{ inputs.origin }}/artifact/browse/${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}'
-    - name: install blob
+    - name: install
       shell: bash
-      run: npm install @vercel/blob tsx
+      run: corepack enable && pnpm install
     - name: prep
       shell: bash
       run: |
@@ -36,8 +39,52 @@ runs:
         sed -i 's/const res = await _undici.fetch.call/console.log("fetching", {url, options}, event);const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
         sed -i 's/res.ok/(console.log({ res: await res.clone().text() }) || res.ok)/g' node_modules/@vercel/blob/dist/client.cjs
     - id: upload-blob
-      shell: bash
+      uses: actions/github-script@v6
       env:
-        UPLOAD_FILE_PATH: foo.txt
-        UPLOAD_FILE_PREFIX: prefix/blah
-      run: npx tsx upload/upload-file.ts
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      with:
+        script: |
+          console.log('lazy url:')
+          console.log('${{ inputs.origin }}/artifact/browse/${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}')
+
+          const logData = async (promise) => console.log(await promise.catch(e => e).then(e => e.data || e))
+
+          await logData(github.rest.repos.get(context.repo))
+
+          const {upload} = require('@vercel/blob/client')
+          const fs = require('fs/promises')
+          const {lookup: mimeTypeLookup} = require('mime-types')
+
+          // todo: use core.getInput, not sure why values were blank last time I tried
+          const githubToken = '${{ inputs.github-token }}'
+          const inputPath = '${{ inputs.path }}'
+          const uploadFilePrefix = '${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}'
+
+          Object.assign(global, {
+            window: {location: new URL('https://artifact-browser.vercel.app')}, // create a global `window` object to trick @vercel/blob/client into working. for some reason it refuses to run outside of the browser but it's just a `fetch` wrapper
+          })
+          console.log(`https://artifact-browser.vercel.app/artifact/blob/${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}`)
+
+          const stat = await fs.stat(inputPath)
+          const globPattern = stat.isDirectory() ? `${inputPath}/**/*` : inputPath
+          console.log({globPattern})
+
+          const results = {}
+          const globber = await glob.create(globPattern)
+          for await (const filepath of globber.globGenerator()) {
+            const blobPath = `${{ github.repository }}/${filepath}`
+            console.log(`uploading file ${filepath} to ${blobPath}`)
+            const result = await upload(blobPath, await fs.readFile(filepath), {
+              access: 'public', // todo: allow access level override?
+              handleUploadUrl: '/artifact/upload/signed-url',
+              contentType: mimeTypeLookup(filepath) || 'text/plain', // todo: allow mime type override?
+              clientPayload: JSON.stringify({
+                githubToken,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: Number('${{ github.run_id }}'),
+              }),
+            })
+            console.log(`uploaded file ${filepath} to ${blobPath}`, result)
+            results[filepath] = result
+          }
