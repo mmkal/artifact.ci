@@ -1,5 +1,6 @@
 import {Octokit} from '@octokit/rest'
 import {handleUpload, type HandleUploadBody} from '@vercel/blob/client'
+import {lookup as mimeLookup} from 'mime-types'
 import {NextResponse} from 'next/server'
 import {z} from 'zod'
 import {nullify404} from '../../browse/[...slug]/route'
@@ -10,6 +11,18 @@ class ResponseError extends Error {
   }
 }
 
+const allowedContentTypes = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'text/plain',
+  'text/html',
+  'text/css',
+  'text/javascript',
+  'application/json',
+  '*/*', // todo(paid): only allow this for paid users?
+]
+
 export async function POST(request: Request): Promise<NextResponse> {
   const body = (await request.json()) as HandleUploadBody
 
@@ -19,6 +32,18 @@ export async function POST(request: Request): Promise<NextResponse> {
       request,
       onBeforeGenerateToken: async (pathname, payload) => {
         console.log('onBeforeGenerateToken', pathname, payload)
+
+        const mimeType = mimeLookup(pathname) || ''
+
+        if (!allowedContentTypes.includes(mimeType)) {
+          throw new ResponseError(
+            NextResponse.json(
+              {message: `Unsupported content type for ${pathname} - ${mimeType}`}, //
+              {status: 400},
+            ),
+          )
+        }
+
         const ClientPayloadSchema = z.object({
           githubToken: z.string(),
         })
@@ -51,17 +76,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         // todo(paid): allow more stringent checks like making sure the ref exists
 
         return {
-          allowedContentTypes: [
-            'image/jpeg',
-            'image/png',
-            'image/gif',
-            'text/plain',
-            'text/html',
-            'text/css',
-            'text/javascript',
-            'application/json',
-            '*/*', // todo(paid): only allow this for paid users?
-          ],
+          allowedContentTypes,
           addRandomSuffix: false, // todo(paid): allow this to be configurable
           tokenPayload: JSON.stringify({
             repo: repoData && {

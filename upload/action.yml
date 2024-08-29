@@ -37,12 +37,12 @@ runs:
       shell: bash
       run: corepack enable && pnpm install
       working-directory: tmp/artifact.ci
-    # - name: patch @vercel/blob for debugging
-    #   shell: bash
-    #   working-directory: mmkal/artifact.ci
-    #   run: |
-    #     sed -i 's/const res = await _undici.fetch.call/console.log("fetching", {url, options, event});const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
-    #     sed -i 's/res.ok/(res.ok || console.log({ res: await res.clone().text() }))/g' node_modules/@vercel/blob/dist/client.cjs
+    - name: patch @vercel/blob for debugging
+      shell: bash
+      working-directory: tmp/artifact.ci
+      run: |
+        sed -i 's/const res = await _undici.fetch.call/console.log("fetching", {url, options, event});const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
+        sed -i 's/res.ok/(res.ok || console.log({ res: await res.clone().text() }))/g' node_modules/@vercel/blob/dist/client.cjs
     - name: upload blob
       uses: actions/github-script@v6
       env:
