@@ -51,7 +51,7 @@ runs:
           // todo: use core.getInput, not sure why values were blank last time I tried
           const githubToken = '${{ inputs.github-token }}'
           const inputPath = '${{ inputs.path }}'
-          const origin = '${{ inputs.origin }}'
+          const origin = 'https://artifact-browser.vercel.app'
           const pathPrefix = '${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}'
 
           console.log({githubToken, inputPath, pathPrefix, origin})
