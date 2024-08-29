@@ -18,37 +18,45 @@ inputs:
 runs:
   using: composite
   steps:
-    - id: upload
+    - name: upload
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.name }}
         path: ${{ inputs.path }}
-    - id: print
-      name: print url
+    - name: print url
       shell: bash
       run: |
         echo 'View your artifact here:'
         echo '${{ inputs.origin }}/artifact/browse/${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}'
+    - name: Checkout artifact.ci
+      uses: actions/checkout@v4
+      with:
+        repository: mmkal/artifact.ci
+        path: tmp/artifact.ci
     - name: install
       shell: bash
       run: corepack enable && pnpm install
-    - name: prep
-      shell: bash
-      run: echo foo > foo.txt
+      working-directory: tmp/artifact.ci
     # - name: patch @vercel/blob for debugging
     #   shell: bash
+    #   working-directory: mmkal/artifact.ci
     #   run: |
     #     sed -i 's/const res = await _undici.fetch.call/console.log("fetching", {url, options, event});const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
     #     sed -i 's/res.ok/(res.ok || console.log({ res: await res.clone().text() }))/g' node_modules/@vercel/blob/dist/client.cjs
-    - id: upload-blob
+    - name: upload blob
       uses: actions/github-script@v6
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       with:
         script: |
+          const cwd = process.cwd()
+          process.chdir('tmp/artifact.ci')
+
           const {upload} = require('@vercel/blob/client')
           const fs = require('fs/promises')
           const {lookup: mimeTypeLookup} = require('mime-types')
+
+          process.chdir(cwd)
 
           const inputs = ${{ toJson(inputs) }}
           const githubToken = inputs['github-token']
@@ -64,8 +72,11 @@ runs:
             window: {location: new URL(inputs.origin)}, // create a global `window` object to trick @vercel/blob/client into working. for some reason it refuses to run outside of the browser but it's just a `fetch` wrapper
           })
 
-          const stat = await fs.stat(inputs.path)
-          const globPattern = stat.isDirectory() ? `${inputs.path}/**/*` : inputs.path
+          const stat = await fs.stat(inputs.path).catch(e => {
+            if (e.code === 'ENOENT') return null
+            throw e
+          })
+          const globPattern = stat?.isDirectory() ? `${inputs.path}/**/*` : inputs.path
           console.log({globPattern})
 
           const results = {}
@@ -82,7 +93,17 @@ runs:
             console.log(`uploaded file ${filepath} to ${blobPath}`, result)
             results[blobPath] = result
           }
+
+          if (Object.keys(results).length === 0) {
+            console.log('no files to upload')
+            return
+          }
+
           console.log(`alright go to:`)
           Object.keys(results).forEach(blobPath => {
             console.log(`${inputs.origin}/artifact/blob/${blobPath}`)
           })
+    - name: cleanup
+      if: always()
+      shell: bash
+      run: rm -rf tmp/artifact.ci
