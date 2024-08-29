@@ -11,7 +11,7 @@ inputs:
   origin:
     description: The origin of the server to upload the artifact to
     required: false
-    default: 'https://artifact-browser.vercel.app' # todo: update to artifact.ci - for some reason there's a content-length mismatch when using artifact.ci
+    default: https://www.artifact.ci
   github-token:
     description: The GitHub token to use for the upload
     required: false
