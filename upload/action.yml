@@ -44,29 +44,36 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       with:
         script: |
+          const {upload} = require('@vercel/blob/client')
+          const fs = require('fs/promises')
+          const {lookup: mimeTypeLookup} = require('mime-types')
+
+          // todo: use core.getInput, not sure why values were blank last time I tried
+          console.log({
+            inputs: [core.getInput('github-token'), core.getInput('path'), core.getInput('name'), core.getInput('origin')],
+          })
+          const githubToken = '${{ inputs.github-token }}'
+          const inputPath = '${{ inputs.path }}'
+          const uploadFilePrefix = '${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}'
+          const origin = '${{ inputs.origin }}'
+
           console.log('lazy url:')
-          console.log('${{ inputs.origin }}/artifact/browse/${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}')
+          console.log('${origin}/artifact/browse/${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}')
 
           const logData = async (label, promise) => console.log(label, await promise.catch(e => e).then(e => e.data || e))
 
           await logData('repo', github.rest.repos.get(context.repo))
           await logData('ref', github.rest.git.getRef({...context.repo, ref: 'main'}))
 
-          const {upload} = require('@vercel/blob/client')
-          const fs = require('fs/promises')
-          const {lookup: mimeTypeLookup} = require('mime-types')
-
-          // todo: use core.getInput, not sure why values were blank last time I tried
-          const githubToken = '${{ inputs.github-token }}'
-          const inputPath = '${{ inputs.path }}'
-          const uploadFilePrefix = '${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}'
-
           Object.assign(global, {
-            window: {location: new URL('https://artifact.ci')}, // create a global `window` object to trick @vercel/blob/client into working. for some reason it refuses to run outside of the browser but it's just a `fetch` wrapper
+            window: {location: new URL(origin)}, // https://github.com/vercel/storage/issues/638#issuecomment-2317910077 - create a global `window` object to trick @vercel/blob/client into working. for some reason it refuses to run outside of the browser but it's just a `fetch` wrapper
           })
 
-          const stat = await fs.stat(inputPath)
-          const globPattern = stat.isDirectory() ? `${inputPath}/**/*` : inputPath
+          const stat = await fs.stat(inputPath).catch(e => {
+            if (e.code === 'ENOENT') return null
+            throw e
+          })
+          const globPattern = stat?.isDirectory() ? `${inputPath}/**/*` : inputPath
           console.log({globPattern})
 
           const results = {}
@@ -86,7 +93,7 @@ runs:
             results[blobPath] = result
           }
 
-          console.log(`alright go to:`)
+          console.log(`Got ${Object.keys(results).length} results. Visit them at:`)
           Object.keys(results).forEach(filepath => {
             console.log(`https://artifact.ci/artifact/blob/${filepath}`)
           })
