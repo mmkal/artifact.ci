@@ -37,14 +37,14 @@ runs:
         path: tmp/artifact.ci
     - name: install
       shell: bash
-      run: corepack enable && pnpm install
+      run: corepack enable && pnpm install --silent
       working-directory: tmp/artifact.ci
-    - name: patch @vercel/blob for debugging
-      shell: bash
-      working-directory: tmp/artifact.ci
-      run: |
-        sed -i 's/const res = await _undici.fetch.call/console.log("fetching", {url, options, event});const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
-        sed -i 's/res.ok/(res.ok || console.log({ res: await res.clone().text() }))/g' node_modules/@vercel/blob/dist/client.cjs
+    # - name: patch @vercel/blob for debugging
+    #   shell: bash
+    #   working-directory: tmp/artifact.ci
+    #   run: |
+    #     sed -i 's/const res = await _undici.fetch.call/console.log("fetching", {url, options, event});const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
+    #     sed -i 's/res.ok/(res.ok || console.log({ res: await res.clone().text() }))/g' node_modules/@vercel/blob/dist/client.cjs
     - name: upload blob
       uses: actions/github-script@v6
       env:
@@ -65,10 +65,10 @@ runs:
           const origin = inputs.origin
           const pathPrefix = '${{ github.repository }}/${{ github.run_id }}/' + inputs.name
 
-          console.log({githubToken, inputs, pathPrefix})
+          // console.log({githubToken, inputs, pathPrefix})
 
-          console.log('lazy url:')
-          console.log(`${inputs.origin}/artifact/browse/${pathPrefix}`)
+          // console.log('lazy url:')
+          // console.log(`${inputs.origin}/artifact/browse/${pathPrefix}`)
 
           Object.assign(global, {
             window: {location: new URL(inputs.origin)}, // create a global `window` object to trick @vercel/blob/client into working. for some reason it refuses to run outside of the browser but it's just a `fetch` wrapper
@@ -79,7 +79,7 @@ runs:
             throw e
           })
           const globPattern = stat?.isDirectory() ? `${inputs.path}/**/*` : inputs.path
-          console.log({globPattern})
+          // console.log({globPattern})
 
           const results = {}
           const globber = await glob.create(globPattern)
@@ -87,31 +87,27 @@ runs:
             const stat = await fs.stat(filepath)
             if (stat.isDirectory()) continue
             const blobPath = pathPrefix + filepath.replace(process.cwd(), '')
-            console.log(`uploading file ${filepath} to ${blobPath}`)
+            // console.log(`uploading file ${filepath} to ${blobPath}`)
             const result = await upload(blobPath, await fs.readFile(filepath), {
               access: 'public', // todo: allow access level override?
               handleUploadUrl: '/artifact/upload/signed-url',
               contentType: mimeTypeLookup(filepath) || 'text/plain', // todo: allow mime type override?
               clientPayload: JSON.stringify({githubToken}),
             })
-            console.log(`uploaded file ${filepath} to ${blobPath}`, result)
+            // console.log(`uploaded file ${filepath} to ${blobPath}`, result)
             results[blobPath] = result
           }
 
           if (Object.keys(results).length === 0) {
-            console.log('no files to upload')
-            return
+            throw new Error('no files uploaded')
           }
 
 
-          console.log("::endgroup::")
-
-          console.log(`alright go to:`)
+          console.log(`View your files here:`)
           
           Object.keys(results).forEach(blobPath => {
             console.log(`${inputs.origin}/artifact/blob/${blobPath}`)
           })
     - name: cleanup
-      if: always()
       shell: bash
       run: rm -rf tmp/artifact.ci
