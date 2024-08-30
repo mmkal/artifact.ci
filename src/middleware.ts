@@ -34,13 +34,15 @@ export async function middleware(request: NextRequest) {
 
     const headers = new Headers(storageResponse.headers)
     headers.set('Content-Type', mimeType)
-    headers.set(
-      'Content-Security-Policy',
-      "default-src 'none'; script-src 'none'; style-src 'none'; img-src 'none'; font-src 'none'; connect-src 'none'; frame-src 'none';",
-    )
-    if (isInline) {
-      headers.set('Content-Disposition', `inline; filename="${filename}"`)
-    }
+    headers.delete('Content-Security-Policy')
+    headers.delete('Content-Disposition')
+    // headers.set(
+    //   'Content-Security-Policy',
+    //   "default-src 'none'; script-src 'none'; style-src 'none'; img-src 'none'; font-src 'none'; connect-src 'none'; frame-src 'none';",
+    // )
+    // if (isInline) {
+    //   headers.set('Content-Disposition', `inline; filename="${filename}"`)
+    // }
     headers.set('Cache-Control', 'public, max-age=31536000, immutable')
 
     return new NextResponse(storageResponse.body, {
