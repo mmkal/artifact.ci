@@ -15,6 +15,9 @@ inputs:
   github-token:
     description: The GitHub token to use for the upload
     required: false
+  fix-html-absolute-paths:
+    description: Whether to fix absolute paths in the uploaded files
+    required: false
 runs:
   using: composite
   steps:
@@ -88,7 +91,19 @@ runs:
             if (stat.isDirectory()) continue
             const blobPath = pathPrefix + filepath.replace(process.cwd(), '')
             // console.log(`uploading file ${filepath} to ${blobPath}`)
-            const result = await upload(blobPath, await fs.readFile(filepath), {
+
+            let content = await fs.readFile(filepath)
+            if (inputs['fix-html-absolute-paths'] === 'yes') {
+              content = await fs.readFile(filepath, 'utf8')
+              const replacements = [[`="/`, `="/artifact/blob/${pathPrefix}/`]]
+              for (const [oldString, newString] of replacements) {
+                const parts = content.split(oldString)
+                content = parts.join(newString)
+                console.log(`replaced ${parts.length - 1} instances of ${oldString} with ${newString}`)
+              }
+            }
+
+            const result = await upload(blobPath, content, {
               access: 'public', // todo: allow access level override?
               handleUploadUrl: '/artifact/upload/signed-url',
               contentType: mimeTypeLookup(filepath) || 'text/plain', // todo: allow mime type override?

@@ -71,21 +71,15 @@ jobs:
       - name: setup
         working-directory: ./website
         run: |
-          git clone https://github.com/shuding/nextra-docs-template
-          cd nextra-docs-template
-          echo 'module.exports = withNextra({
-            images: {unoptimized: true},
-            output: "export",
-            basePath: "/artifact/${{github.repository}}/${{github.run_id}}/website"
-          })' >> next.config.js
-          npm install
+          npm create astro@latest -- starlightdemo --template starlight --yes
       - name: build site
         run: npm run build
-        working-directory: website/nextra-docs-template
+        working-directory: website/starlightdemo
       - uses: ./upload
         with:
           name: website
-          path: website/nextra-docs-template/out
+          path: website/starlightdemo/dist
+          fix-html-absolute-paths: yes
   eslint:
     runs-on: ubuntu-latest
     steps:
