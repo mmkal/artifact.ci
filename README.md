@@ -1,3 +1,4 @@
+<!-- codegen:start {preset: custom, source: ./scripts/codegen.js, export: generateReadme} -->
 # artifact.ci
 
 A wrapper around the `actions/upload-artifact` action which makes it possible to view the uploaded artifact in a browser.
@@ -13,8 +14,8 @@ jobs:
       - uses: actions/checkout@v4
       - run: npm install
       - run: npx playwright test --reporter html
--      - uses: actions/upload-artifact@v4
-+      - uses: mmkal/artifact.ci/upload@main
+-     - uses: actions/upload-artifact@v4
++     - uses: mmkal/artifact.ci/upload@main
         if: always()
         with:
           name: e2e-test-report
@@ -189,3 +190,4 @@ The code is open-source, so you can self-host it if you want to (e.g. to run on 
    - Create a GitHub OAuth app
    - Set the callback URL to `https://<your-domain>/api/auth/callback/github`
    - Set the `AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET` environment variables to the values from the GitHub OAuth app.
+<!-- codegen:end -->
