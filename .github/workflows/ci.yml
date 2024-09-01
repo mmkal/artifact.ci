@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: setup
         run: |
-          npm install vitest @vitest/ui --save-dev
+          npm install vitest @vitest/ui @types/node --save-dev
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + Math.random()' >> calc.ts
           echo 'export const sub = (a: number, b: number) => a - b' >> calc.ts
@@ -108,7 +108,7 @@ jobs:
           echo 'test("bad snapshot", () => expect({foo: addBad(1, 1)}).toMatchInlineSnapshot(`{"foo": 2}`))' >> test/snaps.test.js
         working-directory: ./ava
       - name: run tests
-        run: npm test || echo failed
+        run: npx ava || echo failed
       - uses: ./upload
         with:
           name: ava
@@ -178,31 +178,31 @@ jobs:
 
           import "math/rand"
 
-          func Hello(name string) string {
-              return "Hi, " + name + ". Welcome!"
+          func Add(a, b int) int {
+              return a + b
           }
 
-          func HelloBad(name string) string {
-              return "Hi, " + name + ". Welcome!" + string(rune(rand.Intn(26) + 65))
+          func AddBadly(a, b int) int {
+              return a + b + rand.Intn(10)
           }' > greetings.go
 
           echo 'package greetings
 
           import ("testing")
 
-          func TestGreetsWell(t *testing.T) {
-              actual := Hello("Gladys")
-              expected := "Hi, Gladys. Welcome!"
+          func TestAddWell(t *testing.T) {
+              actual := Add(1, 1)
+              expected := 2
               if actual != expected {
-                  t.Errorf("Result was incorrect, got: %s, want: %s.", actual, expected)
+                  t.Errorf("Result was incorrect, got: %d, want: %d.", actual, expected)
               }
           }
 
-          func TestGreetsBadly(t *testing.T) {
-              actual := HelloBad("Gladys")
-              expected := "Hi, Gladys. Welcome!"
+          func TestAddBadly(t *testing.T) {
+              actual := AddBadly(1, 1)
+              expected := 2
               if actual == expected {
-                  t.Errorf("Result was unexpectedly correct, got: %s", actual)
+                  t.Errorf("Result was unexpectedly correct, got: %d", actual)
               }
           }' > greetings_test.go
       - run: ls ~/go/bin
