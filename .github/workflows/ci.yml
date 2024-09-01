@@ -32,7 +32,7 @@ jobs:
           echo 'test("add well", () => expect(add(1, 1)).toEqual(2))' >> test/adding.test.ts
           echo 'test("add badly", () => expect(addBad(1, 1)).toEqual(2))' >> test/adding.test.ts
       - name: run tests
-        run: npx vitest --reporter html || echo 'failed'
+        run: npx vitest --reporter html || echo failed
       - uses: ./upload
         with:
           name: vitest
@@ -108,7 +108,7 @@ jobs:
           echo 'test("bad snapshot", () => expect({foo: addBad(1, 1)}).toMatchInlineSnapshot(`{"foo": 2}`))' >> test/snaps.test.js
         working-directory: ./ava
       - name: run tests
-        run: npm test || echo 'failed'
+        run: npm test || echo failed
       - uses: ./upload
         with:
           name: ava
@@ -120,6 +120,8 @@ jobs:
       - name: setup
         run: |
           echo '
+          import random
+
           def add(a, b):
             return a + b
           def addBad(a, b):
@@ -155,7 +157,7 @@ jobs:
           echo 'const {add, addBad} = require("../calc")' >> test/adding.test.js
           echo 'it("adds well", () => assert.strictEqual(add(1, 1), 2))' >> test/adding.test.js
           echo 'it("adds badly", () => assert.strictEqual(addBad(1, 1), 2))' >> test/adding.test.js
-      - run: npx mocha --reporter doc > output.html || echo 'failed'
+      - run: npx mocha --reporter doc > output.html || echo failed
       - uses: ./upload
         if: always()
         with:
@@ -205,7 +207,7 @@ jobs:
           }' > greetings_test.go
       - run: ls ~/go/bin
       - name: run tests
-        run: go test -json | ~/go/bin/go-test-report || echo 'failed'
+        run: go test -json | ~/go/bin/go-test-report || echo failed
       - uses: ./upload
         with:
           name: go
