@@ -19,8 +19,13 @@ jobs:
   vitest:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - run: mkdir -p vitest
       - name: setup
+        working-directory: ./vitest
         run: |
+          rm ../package.json
+          rm ../pnpm-lock.yaml
           npm install vitest @vitest/ui @types/node --save-dev
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + Math.random()' >> calc.ts
@@ -31,11 +36,12 @@ jobs:
           echo 'test("add well", () => expect(add(1, 1)).toEqual(2))' >> test/adding.test.ts
           echo 'test("add badly", () => expect(addBad(1, 1)).toEqual(2))' >> test/adding.test.ts
       - name: run tests
+        working-directory: ./vitest
         run: npx vitest --reporter html || echo failed
       - uses: ./upload
         with:
           name: vitest
-          path: html
+          path: vitest/html
   playwright:
     runs-on: ubuntu-latest
     steps:
@@ -98,24 +104,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: mkdir -p ava/test
       - name: setup
         run: |
-          echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
-          echo 'export const addBad = (a: number, b: number) => a + b + Math.random()' >> calc.ts
-          echo 'export const sub = (a: number, b: number) => a - b' >> calc.ts
+          rm package.json pnpm-lock.yaml
+          npm init -y
+          npm install ava tap-html
+          echo 'exports.add = (a: number, b: number) => a + b' >> calc.js
+          echo 'exports.addBad = (a: number, b: number) => a + b + Math.random()' >> calc.js
           mkdir test
-          echo 'import {add, addBad} from "../calc"' >> test/adding.test.js
-          echo 'import test from "ava"' >> test/adding.test.js
+          echo 'const {add, addBad} = require("../calc")' >> test/adding.test.js
+          echo 'const test = require("ava")' >> test/adding.test.js
           echo 'test("add well", t => t.is(add(1, 1), 2))' >> test/adding.test.js
           echo 'test("add badly", t => t.is(addBad(1, 1), 2))' >> test/adding.test.js
-        working-directory: ./ava
       - name: run tests
-        run: npx ava || echo failed
+        run: npx ava --tap | npx tap-html --out output.html || echo failed
       - uses: ./upload
         with:
           name: ava
-          path: ./ava/results.xml
+          path: output.html
   pytest:
     runs-on: ubuntu-latest
     steps:
