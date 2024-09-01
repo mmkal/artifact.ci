@@ -45,6 +45,10 @@ const tryGet = async (request: NextRequest) => {
     return NextResponse.json({message: 'Not authenticated with GitHub', tokenStart: token.slice(0, 7)}, {status: 401})
   }
 
+  if (owner !== 'mmkal') {
+    return NextResponse.json({message: 'Unauthorized - not mmkal'}, {status: 401})
+  }
+
   const {data: artifacts} = await octokit.rest.actions
     .listWorkflowRunArtifacts({
       owner,

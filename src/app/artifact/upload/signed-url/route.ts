@@ -61,6 +61,11 @@ export async function POST(request: Request): Promise<NextResponse> {
         const {githubToken} = parsedClientPayload.data
         const [owner, repo] = pathname.split('/')
 
+        if (process.env.ALLOWED_GITHUB_OWNERS && !process.env.ALLOWED_GITHUB_OWNERS.split(',').includes(owner)) {
+          const message = `Unauthorized - not allowed to upload to ${owner}/${repo}. Update env.ALLOWED_GITHUB_OWNERS to allow this repo.`
+          throw new ResponseError(NextResponse.json({message}, {status: 401}))
+        }
+
         const github = new Octokit({auth: githubToken, log: console})
 
         const {data: repoData} = await github.rest.repos.get({owner, repo}).catch(nullify404)
