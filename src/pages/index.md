@@ -23,7 +23,7 @@ jobs:
 
 This will print a link to the artifact in your workflow run output, which you can click to view in your browser:
 
-![playwright report](./public/reports/playwright.png)
+![playwright report](/reports/playwright.png)
 
 ## Why?
 
@@ -48,7 +48,7 @@ HTML reporting is built in to Playwright. It's interactable, and renders detaile
       path: playwright-report
 ```
 
-![Playwright example](/public/reports/playwright.png)
+![Playwright example](/reports/playwright.png)
 
 #### Vitest
 
@@ -63,7 +63,7 @@ Vitest has a sort-of builtin report. Just run `vitest --reporter html` via the C
       path: vitest-report
 ```
 
-![Vitest example](/public/reports/vitest.png)
+![Vitest example](/reports/vitest.png)
 
 #### Jest
 
@@ -90,7 +90,7 @@ module.exports = {
       path: jest_html_reporters.html
 ```
 
-![Jest example](/public/reports/jest.png)
+![Jest example](/reports/jest.png)
 
 
 #### ava
@@ -110,7 +110,7 @@ npm install tap-html --save-dev
       path: output.html
 ```
 
-![AVA example](/public/reports/ava.png)
+![AVA example](/reports/ava.png)
 
 #### mocha
 
@@ -125,7 +125,7 @@ Mocha's [doc](https://mochajs.org/#doc) reporter outputs simple HTML. Their docu
       path: output.html
 ```
 
-![Mocha example](/public/reports/mocha.png)
+![Mocha example](/reports/mocha.png)
 
 ### Other languages
 
@@ -146,7 +146,7 @@ pip install pytest-html
       path: output.html
 ```
 
-![pytest example](/public/reports/pytest.png)
+![pytest example](/reports/pytest.png)
 
 #### go
 
@@ -166,7 +166,7 @@ go install github.com/vakenbolt/go-test-report
     path: test_report.html
 ```
 
-![go example](/public/reports/go.png)
+![go example](/reports/go.png)
 
 
 ## Limits and Limitations
