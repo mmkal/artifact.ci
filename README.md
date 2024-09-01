@@ -170,9 +170,11 @@ go install github.com/vakenbolt/go-test-report
 ![go example](/public/reports/go.png)
 
 
-## Limitations
+## Limits and Limitations
 
 For now, it's limited to whitelisted GitHub organizations. In future, I'll open it up to all users, likely based on GitHub sponsorship. It will also be free for open-source projects that don't have commercial sponsors.
+
+Get in touch on [X](https://x.com/mmkalmmkal) if you would like to use this now. There may be changes to the API, and additional usage limits that are added.
 
 ## Self-host
 
