@@ -19,7 +19,6 @@ jobs:
   vitest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - name: setup
         run: |
           npm install vitest @vitest/ui @types/node --save-dev
@@ -102,10 +101,14 @@ jobs:
       - run: mkdir -p ava/test
       - name: setup
         run: |
-          echo 'const {add, addBad} = require("../calc")' >> test/adding.test.js
-          echo 'test("add well", () => expect(add(1, 1)).toEqual(2))' >> test/adding.test.js
-          echo 'test("add badly", () => expect(addBad(1, 1)).toEqual(2))' >> test/adding.test.js
-          echo 'test("bad snapshot", () => expect({foo: addBad(1, 1)}).toMatchInlineSnapshot(`{"foo": 2}`))' >> test/snaps.test.js
+          echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
+          echo 'export const addBad = (a: number, b: number) => a + b + Math.random()' >> calc.ts
+          echo 'export const sub = (a: number, b: number) => a - b' >> calc.ts
+          mkdir test
+          echo 'import {add, addBad} from "../calc"' >> test/adding.test.js
+          echo 'import test from "ava"' >> test/adding.test.js
+          echo 'test("add well", t => t.is(add(1, 1), 2))' >> test/adding.test.js
+          echo 'test("add badly", t => t.is(addBad(1, 1), 2))' >> test/adding.test.js
         working-directory: ./ava
       - name: run tests
         run: npx ava || echo failed
