@@ -12,3 +12,4 @@ yarn.lock
 .env
 .env.*
 .DS_Store
+.eslint-config-inspector

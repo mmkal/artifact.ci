@@ -89,7 +89,7 @@ jobs:
           npm install eslint eslint-plugin-mmkal @eslint/config-inspector --save-dev
           echo "module.exports = require('eslint-plugin-mmkal').recommendedFlatConfigs" >> eslint.config.js
       - name: inspect eslint config
-        run: npx @eslint/config-inspector build
+        run: npx @eslint/config-inspector build --base /artifact/blob/${{ github.repository }}/${{ github.run_id }}/eslint/.eslint-config-inspector
       - uses: ./upload
         with:
           name: eslint
