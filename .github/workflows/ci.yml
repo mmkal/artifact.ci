@@ -69,17 +69,15 @@ jobs:
       - uses: actions/checkout@v4
       - run: mkdir -p website
       - name: setup
-        working-directory: ./website
         run: |
-          npm create astro@latest -- starlightdemo --template starlight --yes
-      - name: build site
-        run: npm run build
-        working-directory: website/starlightdemo
+          npm create astro@latest -- demosite --template starlight --yes
+          sed -i 's|integrations|base: "/artifact/blob/${{ github.repository }}/${{ github.run_id }}/website/demosite/dist", integrations|g' demosite/astro.config.mjs
+      - run: npm run build
+        working-directory: demosite
       - uses: ./upload
         with:
           name: website
-          path: website/starlightdemo/dist
-          fix-html-absolute-paths: yes
+          path: demosite/dist
   eslint:
     runs-on: ubuntu-latest
     steps:
