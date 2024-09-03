@@ -25,6 +25,7 @@ const allowedContentTypes = new Set([
 ])
 
 export async function POST(request: Request): Promise<NextResponse> {
+  // todo: bulk endpoint - send a list of files to upload and get a list of signed URL tokens back
   const body = (await request.json()) as HandleUploadBody
 
   try {

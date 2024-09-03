@@ -171,11 +171,11 @@ jobs:
       - name: setup
         # https://go.dev/doc/tutorial/add-a-test
         run: |
-          go mod init example.com/greetings
+          go mod init example.com/calc
           go get github.com/vakenbolt/go-test-report
           go install github.com/vakenbolt/go-test-report
 
-          echo 'package greetings
+          echo 'package calc
 
           import "math/rand"
 
@@ -185,9 +185,9 @@ jobs:
 
           func AddBadly(a, b int) int {
               return a + b + rand.Intn(10)
-          }' > greetings.go
+          }' > calc.go
 
-          echo 'package greetings
+          echo 'package calc
 
           import ("testing")
 
@@ -202,10 +202,10 @@ jobs:
           func TestAddBadly(t *testing.T) {
               actual := AddBadly(1, 1)
               expected := 2
-              if actual == expected {
-                  t.Errorf("Result was unexpectedly correct, got: %d", actual)
+              if actual != expected {
+                  t.Errorf("Result was incorrect, got: %d, want: %d.", actual, expected)
               }
-          }' > greetings_test.go
+          }' > calc_test.go
       - run: ls ~/go/bin
       - name: run tests
         run: go test -json | ~/go/bin/go-test-report || echo failed
