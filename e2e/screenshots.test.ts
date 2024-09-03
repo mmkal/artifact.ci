@@ -1,5 +1,6 @@
-import {Page, test} from '@playwright/test'
+import {Page, PageScreenshotOptions, test} from '@playwright/test'
 import {writeFile} from 'node:fs/promises'
+import {setTimeout} from 'node:timers/promises'
 
 test.beforeEach(async ({context}) => {
   await context.addCookies([
@@ -12,7 +13,14 @@ test.beforeEach(async ({context}) => {
   ])
 })
 
-const handlers = {
+const handlers: Record<
+  string,
+  {
+    entrypoint: string
+    handler: (page: Page) => Promise<void>
+    screenshotOptions?: PageScreenshotOptions
+  }
+> = {
   vitest: {
     entrypoint: 'vitest/html/index.html',
     handler: async page => {
@@ -32,11 +40,11 @@ const handlers = {
   jest: {
     entrypoint: 'report/jest_html_reporters.html',
     handler: async page => {
-      await page.setViewportSize({width: 800, height: 1200})
-      await page.getByLabel('Expand row').first().click()
+      await page.locator('[data-row-key*="adding.test.js"] [aria-label="Expand row"]').click()
       await page.waitForSelector('.ant-table-cell:has-text("Passed")')
       await page.waitForSelector('.ant-table-cell:has-text("Failed")')
     },
+    screenshotOptions: {fullPage: true},
   },
   mocha: {
     entrypoint: 'output.html',
@@ -71,12 +79,22 @@ const handlers = {
       await page.waitForSelector('text=Welcome to Starlight')
     },
   },
-} satisfies Record<string, {entrypoint: string; handler: (page: Page) => Promise<void>}>
+  pdf: {
+    entrypoint: 'output.pdf',
+    handler: async page => {
+      await page.locator('embed').waitFor()
+      await setTimeout(1000)
+    },
+    screenshotOptions: {
+      clip: {x: 0, y: 0, width: 650, height: 350},
+    },
+  },
+}
 
-Object.entries(handlers).forEach(([name, {entrypoint, handler}]) => {
+Object.entries(handlers).forEach(([name, {entrypoint, handler, screenshotOptions}]) => {
   test(`take ${name} screenshot`, async ({page}) => {
     await page.goto(`${process.env.BASE_URL}/${name}/${entrypoint}`)
     await handler(page)
-    await writeFile(`public/reports/${name}.png`, await page.screenshot({}))
+    await writeFile(`public/reports/${name}.png`, await page.screenshot(screenshotOptions))
   })
 })
