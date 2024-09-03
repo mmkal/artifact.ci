@@ -43,6 +43,12 @@ test('take mocha screenshot', async ({page}) => {
   await writeFile('public/reports/mocha.png', await page.screenshot())
 })
 
+test('take ava screenshot', async ({page}) => {
+  await page.goto(`${process.env.BASE_URL}/ava/output.html`)
+  await page.waitForSelector('text=add badly')
+  await writeFile('public/reports/ava.png', await page.screenshot())
+})
+
 test('take pytest screenshot', async ({page}) => {
   await page.goto(`${process.env.BASE_URL}/pytest/report/index.html`)
   await page.waitForSelector('text=test.py:14: AssertionError')

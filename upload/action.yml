@@ -1,5 +1,7 @@
 name: upload artifact action
 description: Drop in replacement for actions/upload-artifact which provides a browsable link to the artifact
+# todo: support all actions/upload-artifact inputs
+# todo: allow configuring the prefix, allow any of `/${{ github.repository }}/${{ github.run_id }}`, `/${{ github.repository }}/${{ github.ref_name }}`,  `/${{ github.repository }}/${{ github.sha }}`
 inputs:
   path:
     description: A file, directory or wildcard pattern that describes what to upload
@@ -14,9 +16,6 @@ inputs:
     default: https://www.artifact.ci
   github-token:
     description: The GitHub token to use for the upload
-    required: false
-  fix-html-absolute-paths:
-    description: Whether to fix absolute paths in the uploaded files
     required: false
 runs:
   using: composite
@@ -92,17 +91,7 @@ runs:
             const blobPath = pathPrefix + filepath.replace(process.cwd(), '')
             // console.log(`uploading file ${filepath} to ${blobPath}`)
 
-            let content = await fs.readFile(filepath)
-            if (inputs['fix-html-absolute-paths'] === 'yes') {
-              content = await fs.readFile(filepath, 'utf8')
-              const replacements = [[`="/`, `="/artifact/blob/${pathPrefix}/`]]
-              for (const [oldString, newString] of replacements) {
-                const parts = content.split(oldString)
-                content = parts.join(newString)
-                console.log(`replaced ${parts.length - 1} instances of ${oldString} with ${newString}`)
-              }
-            }
-
+            const content = await fs.readFile(filepath)
             const result = await upload(blobPath, content, {
               access: 'public', // todo: allow access level override?
               handleUploadUrl: '/artifact/upload/signed-url',
