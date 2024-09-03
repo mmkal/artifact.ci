@@ -4,14 +4,14 @@ import {NextResponse, type NextRequest} from 'next/server'
 // http://localhost:3000/artifact/blob/mmkal/expect-type/10622877699/test-report/html/assets/index.html
 
 export async function middleware(request: NextRequest) {
-  const artifaceBlobPrefix = '/artifact/blob/'
-  if (request.nextUrl.pathname.startsWith(artifaceBlobPrefix)) {
+  const artifactBlobPrefix = '/artifact/blob/'
+  if (request.nextUrl.pathname.startsWith(artifactBlobPrefix)) {
     const storageOrigin = process.env.STORAGE_ORIGIN
     if (!storageOrigin) {
       throw new Error('STORAGE_ORIGIN environment variable is not set')
     }
 
-    const pathname = request.nextUrl.pathname.slice(artifaceBlobPrefix.length)
+    const pathname = request.nextUrl.pathname.slice(artifactBlobPrefix.length)
     const targetUrl = new URL(pathname, storageOrigin)
 
     // todo: get off vercel storage and use our own storage. vercel storage doesn't support inline content: https://vercel.com/docs/storage/vercel-blob#security
