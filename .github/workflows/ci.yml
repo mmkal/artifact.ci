@@ -138,15 +138,15 @@ jobs:
       - name: setup
         run: |
           echo '
-            def add(a, b):
-              return a + b
-            def addBad(a, b):
-              return a + b + 1
+          def add(a, b):
+            return a + b
+          def addBad(a, b):
+            return a + b + 1
 
-            def test_add_well():
-              assert add(1, 1) == 2
-            def test_add_badly():
-              assert addBad(1, 1) == 2
+          def test_add_well():
+            assert add(1, 1) == 2
+          def test_add_badly():
+            assert addBad(1, 1) == 2
           ' >> test.py
           pip install pytest
           pip install pytest-html
