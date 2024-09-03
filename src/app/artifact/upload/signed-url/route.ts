@@ -11,7 +11,7 @@ class ResponseError extends Error {
   }
 }
 
-const allowedContentTypes = new Set([
+const _allowedContentTypes = new Set([
   'image/jpeg',
   'image/png',
   'image/gif',

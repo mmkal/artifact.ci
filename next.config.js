@@ -1,3 +1,4 @@
+const nextra = require('nextra')
 const {z} = require('zod')
 
 const Env = z.object({
@@ -28,7 +29,7 @@ const baseConfig = {
   // },
 }
 
-const withNextra = require('nextra')({
+const withNextra = nextra({
   theme: 'nextra-theme-docs',
   themeConfig: './theme.config.tsx',
 })
