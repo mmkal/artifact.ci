@@ -4,6 +4,8 @@
 
 A wrapper around the `actions/upload-artifact` action which makes it possible to view the uploaded artifact in a browser.
 
+>⚠️Note⚠️ This isn't ready yet! Message [me on X](https://x.com/mmkalmmkal) if you want to try it now.
+
 It's a drop in replacement for the `actions/upload-artifact` action, so you can use it in the same way:
 
 ```diff
