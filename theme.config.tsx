@@ -3,7 +3,7 @@ import React from 'react'
 import {githubUrl, productionUrl, twitterUrl} from './src/site-config'
 
 const config: DocsThemeConfig = {
-  logo: <span>{productionUrl.hostname}</span>,
+  logo: <span>🗿 {productionUrl.hostname}</span>,
   project: {
     link: githubUrl.href,
   },

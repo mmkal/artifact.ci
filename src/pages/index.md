@@ -1,5 +1,7 @@
 # artifact.ci
 
+## What
+
 A wrapper around the `actions/upload-artifact` action which makes it possible to view the uploaded artifact in a browser.
 
 It's a drop in replacement for the `actions/upload-artifact` action, so you can use it in the same way:
@@ -25,11 +27,11 @@ This will print a link to the artifact in your workflow run output, which you ca
 
 ![playwright report](/reports/playwright.png)
 
-## Why?
+## Why
 
-This should really be a feature built into GitHub, but [it isn't](https://github.com/actions/upload-artifact/issues/14). It is built into some other CI providers like CircleCI.
+Lots of CI jobs can build really useful, interactive HTML reports - test runners, code coverage, website outputs, PDFs, images, etc. And vendors out there sometimes get your money by offering a dashboard - a link you can click and see what's going on in your browser. But GitHub Actions doesn't - so when a test run fails, for example, you don't have the option of viewing the report in your browser. The existing option is to use `actions/upload-artifact`, then download it as a zip file, unzip it on your local machine, and then poke around at the files or run a local server. By using this action instead, you can just click the link logged by the action, and look at your artifact in your browser. This _should_ really be a feature built into GitHub, but [it isn't](https://github.com/actions/upload-artifact/issues/14). (Note: it is built into some other CI providers like CircleCI).
 
-## Recipes
+## How
 
 Here are some high-level guides for how to get useful HTML outputs from various tools:
 
@@ -210,7 +212,22 @@ You couuld serve a rendered version of your eslint config using `@eslint/config-
 
 >Note: in the above two examples, we are passing a "base" path to the build commands. Without this, some tools including eslint and astro will assume that all paths are relative to the root of the domain. You can use the template `/artifact/blob/${{ github.repository }}/${{ github.run_id }}/<name-of-your-artifact>` as above to get the correct base path.
 
-## Limits and Limitations
+#### PDFs
+
+You can upload individual files:
+
+```yaml
+- name: create pdf
+  run: node generate-pdf.js --destination output.pdf
+- uses: mmkal/artifact.ci/upload@main
+  with:
+    name: pdf
+    path: output.pdf
+```
+
+![PDF example](/reports/pdf.png)
+
+## When
 
 For now, it's limited to whitelisted GitHub organizations. In future, I'll open it up to all users, likely based on GitHub sponsorship. It will also be free for open-source projects that don't have commercial sponsors.
 
