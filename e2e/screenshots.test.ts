@@ -13,10 +13,6 @@ test.beforeEach(async ({context}) => {
 })
 
 const handlers = {
-  //   jest: async page => {
-  //     await page.click('text=jest_html_reporters.html')
-  //     await page.getByLabel('Expand row').first().click()
-  //   },
   vitest: {
     entrypoint: 'vitest/html/index.html',
     handler: async page => {
@@ -31,6 +27,15 @@ const handlers = {
     handler: async page => {
       await page.click('text=add badly')
       await page.waitForSelector('text=Error: expect(received).toEqual(expected)')
+    },
+  },
+  jest: {
+    entrypoint: 'report/jest_html_reporters.html',
+    handler: async page => {
+      await page.setViewportSize({width: 800, height: 1200})
+      await page.getByLabel('Expand row').first().click()
+      await page.waitForSelector('.ant-table-cell:has-text("Passed")')
+      await page.waitForSelector('.ant-table-cell:has-text("Failed")')
     },
   },
   mocha: {

@@ -2,20 +2,6 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  hello_world:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: |
-          mkdir test-output
-          echo hello > test-output/hello.txt
-          echo world > test-output/world.txt
-          echo 'console.log("hi")' > test-output/hi.js
-      - uses: ./upload
-        with:
-          name: hello-2-test-output
-          path: test-output
-          github-token: ${{ secrets.GITHUB_TOKEN }}
   vitest:
     runs-on: ubuntu-latest
     steps:
@@ -93,6 +79,34 @@ jobs:
         with:
           name: eslint
           path: .eslint-config-inspector
+  jest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: setup
+        run: |
+          echo 'module.exports.add = (a, b) => a + b' >> calc.js
+          echo 'module.exports.addBadly = (a, b) => a + b + Math.random()' >> calc.js
+          mkdir test
+          echo 'const {add, addBadly} = require("../calc")' >> test/adding.test.js
+          echo 'test("add well", () => expect(add(1, 1)).toEqual(2))' >> test/adding.test.js
+          echo 'test("add badly", () => expect(addBaddly(1, 1)).toEqual(2))' >> test/adding.test.js
+          echo 'const {add} = require("../calc")' >> test/snaps.test.js
+          echo 'test("bad snapshot", () => expect({foo: add(1, 1)}).toMatchInlineSnapshot(`{"foo": 3}`))' >> test/snaps.test.js
+          echo 'module.exports = {
+            testRegex: /test\/.*/.source,
+            reporters: ["default", ["jest-html-reporters", {publicPath: "./report"}]],
+            coverageDirectory: "report",
+          }' >> jest.config.js
+          ls
+          ls test
+          npm install jest jest-html-reporters --save-dev
+      - name: run tests
+        run: npx jest --coverage || echo failed
+      - uses: ./upload
+        with:
+          name: jest
+          path: report
   ava:
     runs-on: ubuntu-latest
     steps:
