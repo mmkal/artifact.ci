@@ -48,6 +48,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: setup
         run: |
+          rm -rf playwright.config.ts
           npm install @playwright/test --save-dev
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + Math.random()' >> calc.ts
