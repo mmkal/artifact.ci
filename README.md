@@ -24,7 +24,7 @@ jobs:
 
 This will print a link to the artifact in your workflow run output, which you can click to view in your browser:
 
-![playwright report](./public/reports/playwright.png)
+![playwright report](/public/reports/playwright.png)
 
 ## Why?
 
@@ -169,6 +169,47 @@ go install github.com/vakenbolt/go-test-report
 
 ![go example](/public/reports/go.png)
 
+### More
+
+It's not limited to HTML test reports. You can upload any kind of artifact that you might want to view in a browser.
+
+#### A website!
+
+For a simple static HTML website, you can serve it using artifact.ci. For example, you could build an Astro website:
+
+```yaml
+- name: build website
+  run: |
+    npm create astro@latest -- demosite --template starlight --yes
+    export BASE_PATH="/artifact/blob/${{ github.repository }}/${{ github.run_id }}/website/demosite/dist"
+    sed -i "s|integrations|base: '$BASE_PATH', integrations|g" demosite/astro.config.mjs
+    npm run build
+- uses: mmkal/artifact.ci/upload@main
+  if: always()
+  with:
+    name: website
+    path: demosite/dist
+```
+
+![website](/public/reports/website.png)
+
+#### Eslint config inspector
+
+You couuld serve a rendered version of your eslint config using `@eslint/config-inspector`:
+
+```yaml
+- name: build eslint config inspection
+  run: npx @eslint/config-inspector build --base /artifact/blob/${{ github.repository }}/${{ github.run_id }}/eslint/.eslint-config-inspector
+- uses: mmkal/artifact.ci/upload@main
+  if: always()
+  with:
+    name: eslint
+    path: .eslint-config-inspector
+```
+
+![eslint config inspector](/public/reports/eslint.png)
+
+>Note: in the above two examples, we are passing a "base" path to the build commands. Without this, some tools including eslint and astro will assume that all paths are relative to the root of the domain. You can use the template `/artifact/blob/${{ github.repository }}/${{ github.run_id }}/<name-of-your-artifact>` as above to get the correct base path.
 
 ## Limits and Limitations
 
