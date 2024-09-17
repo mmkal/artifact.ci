@@ -7,10 +7,4 @@ module.exports = [
       'no-console': 'off', // todo: reenable
     },
   },
-  {
-    files: ['**/*.tsx'],
-    rules: {
-      '@typescript-eslint/no-misused-promises': 'off', // mmkal
-    },
-  },
 ]

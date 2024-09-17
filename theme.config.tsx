@@ -1,9 +1,17 @@
+import {useRouter} from 'next/router'
 import {DocsThemeConfig} from 'nextra-theme-docs'
 import React from 'react'
 import {githubUrl, productionUrl, twitterUrl} from './src/site-config'
 
 const config: DocsThemeConfig = {
   logo: <span>🗿 {productionUrl.hostname}</span>,
+  useNextSeoProps() {
+    const {asPath} = useRouter()
+    const siteName = 'artifact.ci'
+    return {
+      titleTemplate: asPath === '/' ? siteName : `%s - ${siteName}`,
+    }
+  },
   project: {
     link: githubUrl.href,
   },

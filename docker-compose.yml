@@ -1,0 +1,16 @@
+version: '3'
+services:
+  db:
+    image: postgres:16
+    restart: always
+    ports:
+    - "5500:5432"
+    environment:
+      PGPORT: '5432'
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - db:/var/lib/postgresql/data
+volumes:
+  db:

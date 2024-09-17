@@ -5,5 +5,10 @@ import {auth} from '../../../../auth'
 export async function GET(_request: NextRequest) {
   const info = await auth()
   console.log('auth info', info)
-  return NextResponse.json({user: info?.user, expires: info?.expires})
+
+  return NextResponse.json({
+    user: info?.user,
+    expires: info?.expires,
+    keys: Object.keys(info || {}),
+  })
 }
