@@ -4,7 +4,7 @@ import {client, sql} from '../../../db'
 /** Responds with public info about the signed-in user and logs the full auth object */
 export async function GET(_request: NextRequest) {
   const testTableData = await client.one(sql<queries.TestTable>`
-    insert into test_table (id, name) values (1, 'one')
+    insert into test_table (id, name) values (generate_prefixed_ksuid('test_table'), 'one')
     on conflict (id) do update set name = excluded.name
     returning *
   `)
