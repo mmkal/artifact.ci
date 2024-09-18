@@ -63,12 +63,6 @@ importers:
         specifier: ^3.23.8
         version: 3.23.8
     devDependencies:
-      '@pgkit/migrator':
-        specifier: ^0.2.5
-        version: 0.2.5(@types/node@17.0.45)
-      '@pgkit/typegen':
-        specifier: ^0.2.5
-        version: 0.2.5(@trpc/server@10.45.2)(typescript@5.5.4)
       '@playwright/test':
         specifier: 1.46.1
         version: 1.46.1
@@ -964,39 +958,19 @@ packages:
   '@pgkit/client@0.2.7-9':
     resolution: {integrity: sha512-VueHVmv29AxLljxYTttSXJp1D7yzjFIfUJUzkdI8Qqy9VVXe/F+FXFDI4mGeqRsMeboXCiMN+QH9M1JGge+dug==}
 
-  '@pgkit/formatter@0.2.5':
-    resolution: {integrity: sha512-1QXwQLps3NrgLBa9ZZSY9p1Zpxe2eE+Anw5u2IX0d3ZPZjYvI0npus3RxZopEA2XVXzvRzKZfZ51VakHnRJylQ==}
-
   '@pgkit/formatter@0.2.7-9':
     resolution: {integrity: sha512-iv8Po0ZlCJ7K1d4mx0YMlDT+RJaQErjkEerZDkYeB/DDLCXVxMfh0OwvbR2taE4nMERixa2o4xjAuuvcyYdB6A==}
 
-  '@pgkit/migra@0.2.5':
-    resolution: {integrity: sha512-mGEsLTkP4onrgJaPix4v6LKuJEjRtWBlpSidQUGtVnxmiYLZdMOXaRrieYXSBg6Yx03b0b+ATYLLG0BfBlR8Uw==}
-    hasBin: true
-
   '@pgkit/migra@0.2.7-9':
     resolution: {integrity: sha512-Orbw1cqKwqeHTrbnnJIsNQEFyHYPZ4zr3NB3LHaF8TH4Qz31iFHba0b325P0ct8hEYWYdMiiommu+RUELhHznA==}
-    hasBin: true
-
-  '@pgkit/migrator@0.2.5':
-    resolution: {integrity: sha512-VmFIRkBAEi2cZ6OlSKxR4Z2HscoDHTRetq0YER/h8h0dedT26WF/zXEMo8IL7EODm43+qwQLTCXbyAXIM3DGow==}
     hasBin: true
 
   '@pgkit/migrator@0.2.7-9':
     resolution: {integrity: sha512-yOUHIu1Foy1Ba4/HBcPJqUgQ3xMk7PrQ7kxwZPjzoeFhIeMhx9DsQ/asbkP28Tc1DxicGvrfB3xYgRfbvWcQsg==}
     hasBin: true
 
-  '@pgkit/schemainspect@0.2.5':
-    resolution: {integrity: sha512-eqQUHkH54mkSHXttC8GfLBIrEoeVYsgdB0oS+dgyqUenPdlWyRZs0PzwOrSlZqhwB6mTbVpdwEx7dtaGGUqOyQ==}
-
   '@pgkit/schemainspect@0.2.7-9':
     resolution: {integrity: sha512-Nds1XrvRKMikMdceKA1tzbvf54fWT+opPHmTNPjhBpVDfrBpWzr2Q+zj4EG2D2LBnjPCvfFg/UWoMTA4UnyLZw==}
-
-  '@pgkit/typegen@0.2.5':
-    resolution: {integrity: sha512-n6bfsHxTUAkMGl/ewVqVXV1ceIPjb9oOkSYxvmCggRfC3fmJ+H0KJYfCa+BMFLjfzXHobAS+IXLI78MTNTsGSg==}
-    hasBin: true
-    peerDependencies:
-      typescript: '*'
 
   '@pgkit/typegen@0.2.7-9':
     resolution: {integrity: sha512-ybauj/IfV01kXybjRElyUbPBz8RVg4CEIQwtDUnN+AGFOi4mfbY+EycCD7T0MWPeUf52mmzboCcphQgxPhv2KQ==}
@@ -5255,30 +5229,8 @@ packages:
   trough@2.2.0:
     resolution: {integrity: sha512-tmMpK00BjZiUyVyvrBK7knerNgmgvcV/KLVyuma/SC+TQN167GrMRciANTz09+k3zW8L8t60jWO1GpfkZdjTaw==}
 
-  trpc-cli@0.2.2:
-    resolution: {integrity: sha512-+NypGyxu3reFxq+CSPQVbcqrqIKQCdFc6arlTMbF2OfUhYwUGpeWf+uU3KsanVPb85EgI9sGiXtmuhkbxyuZmg==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      '@trpc/server': '>=10'
-      zod: '>=3'
-
-  trpc-cli@0.3.1:
-    resolution: {integrity: sha512-4nSdrGXeMdxdzqAMocPTenryrzUZgj5pub44mdQGjQ1wGrgFASwo1iW6j0LmXQGCk23JJivx14n5HBaoMuO7tQ==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      '@trpc/server': '>=10'
-      zod: '>=3'
-
   trpc-cli@0.5.0:
     resolution: {integrity: sha512-/P0P+K/CANI5F2pOkP2rTekY+oRC1vs+6MUTq0uMPtnGJ3gKpsp4aYuDh+6+pGbGYYQU3JuExFirAzTFsQR4Lw==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      '@trpc/server': '>=10'
-      zod: '>=3'
-
-  trpc-cli@https://pkg.pr.new/mmkal/trpc-cli@38:
-    resolution: {tarball: https://pkg.pr.new/mmkal/trpc-cli@38}
-    version: 0.4.1
     engines: {node: '>=18'}
     peerDependencies:
       '@trpc/server': '>=10'
@@ -6602,27 +6554,11 @@ snapshots:
     transitivePeerDependencies:
       - pg-native
 
-  '@pgkit/formatter@0.2.5':
-    dependencies:
-      prettier: 3.3.3
-      prettier-plugin-sql-cst: 0.11.7
-      sql-formatter: 15.4.2
-
   '@pgkit/formatter@0.2.7-9':
     dependencies:
       prettier: 3.3.3
       prettier-plugin-sql-cst: 0.11.7
       sql-formatter: 15.4.2
-
-  '@pgkit/migra@0.2.5':
-    dependencies:
-      '@pgkit/client': 0.2.5
-      '@pgkit/schemainspect': 0.2.5
-      '@trpc/server': 10.45.2
-      trpc-cli: 0.2.2(@trpc/server@10.45.2)(zod@3.23.8)
-      zod: 3.23.8
-    transitivePeerDependencies:
-      - pg-native
 
   '@pgkit/migra@0.2.7-9':
     dependencies:
@@ -6632,26 +6568,6 @@ snapshots:
       trpc-cli: 0.5.0(@trpc/server@10.45.2)(zod@3.23.8)
       zod: 3.23.8
     transitivePeerDependencies:
-      - pg-native
-
-  '@pgkit/migrator@0.2.5(@types/node@17.0.45)':
-    dependencies:
-      '@inquirer/prompts': 5.5.0
-      '@pgkit/client': 0.2.5
-      '@pgkit/formatter': 0.2.5
-      '@pgkit/migra': 0.2.5
-      '@trpc/server': 10.45.2
-      cleye: 1.3.2
-      picocolors: 1.0.1
-      strip-ansi: 6.0.0
-      tasuku: 2.0.1
-      trpc-cli: 0.3.1(@trpc/server@10.45.2)(zod@3.23.8)
-      umzug: 3.8.1(@types/node@17.0.45)
-      zod: 3.23.8
-      zod-to-json-schema: 3.23.3(zod@3.23.8)
-      zod-validation-error: 3.3.1(zod@3.23.8)
-    transitivePeerDependencies:
-      - '@types/node'
       - pg-native
 
   '@pgkit/migrator@0.2.7-9(@types/node@17.0.45)':
@@ -6674,38 +6590,10 @@ snapshots:
       - '@types/node'
       - pg-native
 
-  '@pgkit/schemainspect@0.2.5':
-    dependencies:
-      '@pgkit/client': 0.2.5
-    transitivePeerDependencies:
-      - pg-native
-
   '@pgkit/schemainspect@0.2.7-9':
     dependencies:
       '@pgkit/client': 0.2.7-9
     transitivePeerDependencies:
-      - pg-native
-
-  '@pgkit/typegen@0.2.5(@trpc/server@10.45.2)(typescript@5.5.4)':
-    dependencies:
-      '@pgkit/client': 0.2.5
-      '@rebundled/execa': 8.0.2-next.0
-      '@rebundled/p-memoize': 7.1.2-next.4
-      chokidar: 3.6.0
-      execa: 5.1.1
-      find-up: 5.0.0
-      glob: 8.1.0
-      io-ts-extra: 0.11.6
-      lodash: 4.17.21
-      memoizee: 0.4.17
-      neverthrow: 7.2.0
-      pgsql-ast-parser: 11.2.0
-      pluralize: 8.0.0
-      trpc-cli: https://pkg.pr.new/mmkal/trpc-cli@38(@trpc/server@10.45.2)(zod@3.23.8)
-      typescript: 5.5.4
-      zod: 3.23.8
-    transitivePeerDependencies:
-      - '@trpc/server'
       - pg-native
 
   '@pgkit/typegen@0.2.7-9(@trpc/server@10.45.2)(typescript@5.5.4)':
@@ -11937,34 +11825,7 @@ snapshots:
 
   trough@2.2.0: {}
 
-  trpc-cli@0.2.2(@trpc/server@10.45.2)(zod@3.23.8):
-    dependencies:
-      '@trpc/server': 10.45.2
-      cleye: 1.3.2
-      picocolors: 1.0.1
-      zod: 3.23.8
-      zod-to-json-schema: 3.23.3(zod@3.23.8)
-      zod-validation-error: 3.3.1(zod@3.23.8)
-
-  trpc-cli@0.3.1(@trpc/server@10.45.2)(zod@3.23.8):
-    dependencies:
-      '@trpc/server': 10.45.2
-      cleye: 1.3.2
-      picocolors: 1.0.1
-      zod: 3.23.8
-      zod-to-json-schema: 3.23.3(zod@3.23.8)
-      zod-validation-error: 3.3.1(zod@3.23.8)
-
   trpc-cli@0.5.0(@trpc/server@10.45.2)(zod@3.23.8):
-    dependencies:
-      '@trpc/server': 10.45.2
-      cleye: 1.3.2
-      picocolors: 1.1.0
-      zod: 3.23.8
-      zod-to-json-schema: 3.23.3(zod@3.23.8)
-      zod-validation-error: 3.3.1(zod@3.23.8)
-
-  trpc-cli@https://pkg.pr.new/mmkal/trpc-cli@38(@trpc/server@10.45.2)(zod@3.23.8):
     dependencies:
       '@trpc/server': 10.45.2
       cleye: 1.3.2

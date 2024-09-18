@@ -36,8 +36,6 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@pgkit/migrator": "^0.2.5",
-    "@pgkit/typegen": "^0.2.5",
     "@playwright/test": "1.46.1",
     "@types/adm-zip": "^0.5.0",
     "@types/mime-types": "^2.1.1",
