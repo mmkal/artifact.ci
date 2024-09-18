@@ -47,6 +47,7 @@ const tokenPayloadCodec = {
 export async function POST(request: Request): Promise<NextResponse> {
   // todo: bulk endpoint - send a list of files to upload and get a list of signed URL tokens back
   const body = (await request.json()) as HandleUploadBody
+  console.log(JSON.stringify({url: request.url, body, headers: Object.fromEntries(request.headers)}, null, 2))
 
   try {
     const jsonResponse = await handleUpload({
