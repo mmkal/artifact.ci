@@ -6,11 +6,31 @@ import {z} from 'zod'
 import {nullify404} from '~/app/artifact/browse/[...slug]/route'
 import {client, Id, sql} from '~/db'
 
-const ClientPayloadSchema = z.object({
-  githubToken: z.string(),
+const CommitProps = z.object({
   ref: z.string(),
   sha: z.string(),
 })
+type CommitProps = z.infer<typeof CommitProps>
+
+const ClientPayload = z.object({
+  githubToken: z.string(),
+  commit: CommitProps,
+})
+
+const TokenPayload = CommitProps.extend({
+  repoId: Id('repos'),
+})
+
+type TokenPayload = z.infer<typeof TokenPayload>
+
+const tokenPayloadCodec = {
+  parse: (text: string): TokenPayload => {
+    return TokenPayload.parse(JSON.parse(text))
+  },
+  stringify: (value: TokenPayload): string => {
+    return JSON.stringify(value)
+  },
+}
 
 class ResponseError extends Error {
   constructor(readonly response: NextResponse) {
@@ -18,7 +38,7 @@ class ResponseError extends Error {
   }
 }
 
-const _allowedContentTypes = new Set([
+const allowedContentTypes = new Set([
   'image/jpeg',
   'image/png',
   'image/gif',
@@ -31,23 +51,11 @@ const _allowedContentTypes = new Set([
   '*/*', // todo(paid): only allow this for paid users?
 ])
 
-type TokenPayload = {
-  repo:
-    | {
-        dbId: queries.Repo['id']
-        html_url: string
-        permissions?: Record<string, boolean>
-      }
-    | null
-    | undefined
-}
-const tokenPayloadCodec = {
-  parse: (text: string): TokenPayload => {
-    return JSON.parse(text) as TokenPayload
-  },
-  stringify: (value: TokenPayload): string => {
-    return JSON.stringify(value)
-  },
+const isAllowedContentType = (mimeType: string) => {
+  if (allowedContentTypes.has(mimeType)) return true
+
+  console.warn(`New content type - ${mimeType} - add to allowed content types. Allowing anyway for now`)
+  return true
 }
 
 const getMimeType = (pathname: string) => mimeLookup(pathname) || 'text/plain'
@@ -66,18 +74,16 @@ export async function POST(request: Request): Promise<NextResponse> {
 
         const mimeType = getMimeType(pathname)
 
-        // if (!allowedContentTypes.has(mimeType)) {
-        //   throw new ResponseError(
-        //     NextResponse.json(
-        //       {message: `Unsupported content type for ${pathname} - ${mimeType}`}, //
-        //       {status: 400},
-        //     ),
-        //   )
-        // }
+        if (!isAllowedContentType(mimeType)) {
+          throw new ResponseError(
+            NextResponse.json(
+              {message: `Unsupported content type for ${pathname} - ${mimeType}`}, //
+              {status: 400},
+            ),
+          )
+        }
 
-        const parsedClientPayload = ClientPayloadSchema.safeParse(
-          typeof payload === 'string' ? JSON.parse(payload) : payload,
-        )
+        const parsedClientPayload = ClientPayload.safeParse(typeof payload === 'string' ? JSON.parse(payload) : payload)
 
         if (!parsedClientPayload.success) {
           throw new ResponseError(
@@ -109,16 +115,14 @@ export async function POST(request: Request): Promise<NextResponse> {
           )
         }
 
-        const dbRepo = await client
-          .one(
-            sql<queries.Repo>`
-              insert into repos (owner, name, html_url)
-              values (${owner}, ${repo}, ${repoData.html_url})
-              on conflict (html_url) do update set updated_at = current_timestamp
-              returning id
-            `,
-          )
-          .catch(e => ({id: '!!!' as Id<'repos'>, error: e as Error}))
+        const dbRepo = await client.one(
+          sql<queries.Repo>`
+            insert into repos (owner, name, html_url)
+            values (${owner}, ${repo}, ${repoData.html_url})
+            on conflict (html_url) do update set updated_at = current_timestamp
+            returning id
+          `,
+        )
 
         console.log('dbRepo', dbRepo)
 
@@ -128,11 +132,8 @@ export async function POST(request: Request): Promise<NextResponse> {
           allowedContentTypes: [mimeType],
           addRandomSuffix: false, // todo(paid): allow this to be configurable
           tokenPayload: tokenPayloadCodec.stringify({
-            repo: repoData && {
-              dbId: dbRepo.id,
-              html_url: repoData.html_url,
-              permissions: repoData.permissions,
-            },
+            repoId: dbRepo.id,
+            ...parsedClientPayload.data.commit,
           }),
         }
       },
@@ -140,8 +141,8 @@ export async function POST(request: Request): Promise<NextResponse> {
         // Get notified of client upload completion
         // ⚠️ This will not work on `localhost` websites,
         // Use ngrok or similar to get the full upload flow
-        const token = tokenPayloadCodec.parse(tokenPayload || '{}')
-        if (!token.repo?.html_url) {
+        const payload = tokenPayloadCodec.parse(tokenPayload || '{}')
+        if (!payload?.repoId) {
           throw new ResponseError(
             NextResponse.json(
               {message: 'Unauthorized - no repo specified in client payload'}, //
@@ -149,17 +150,22 @@ export async function POST(request: Request): Promise<NextResponse> {
             ),
           )
         }
-        const upload = await client
-          .one(
-            sql<queries.Upload>`
-              insert into uploads (pathname, mime_type, blob_url, repo_id)
-              values (${blob.pathname}, ${getMimeType(blob.pathname)}, ${blob.url}, ${token.repo.dbId})
-              returning uploads.*
-            `,
-          )
-          .catch(e => e as Error)
+        const upload = await client.one(
+          sql<queries.Upload>`
+            insert into uploads (pathname, mime_type, blob_url, repo_id, ref, sha)
+            values (
+              ${blob.pathname},
+              ${getMimeType(blob.pathname)},
+              ${blob.url},
+              ${payload.repoId},
+              ${payload.ref},
+              ${payload.sha}
+            )
+            returning uploads.*
+          `,
+        )
 
-        console.log('upload', upload)
+        console.log('upload inserted:', upload)
 
         console.log('blob upload completed', blob, tokenPayload)
 

@@ -54,7 +54,7 @@ declare
   ksuid_value text;
 begin
   -- Generate a KSUID
-  ksuid_value := gen_random_ksuid_second();
+  ksuid_value := gen_random_ksuid_microsecond();
   
   -- Concatenate the prefix and KSUID
   return prefix || '_' || ksuid_value;
@@ -93,6 +93,8 @@ create table uploads (
     mime_type text not null,
     blob_url text not null,
     repo_id prefixed_ksuid not null references repos(id),
+	ref text not null,
+	sha text not null,
     created_at timestamp with time zone not null default current_timestamp,
     updated_at timestamp with time zone not null default current_timestamp
 );
