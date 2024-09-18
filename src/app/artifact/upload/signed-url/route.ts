@@ -33,7 +33,7 @@ const tokenPayloadCodec = {
 }
 
 class ResponseError extends Error {
-  constructor(readonly response: NextResponse) {
+  constructor(readonly response: NextResponse<object>) {
     super()
   }
 }
@@ -48,6 +48,9 @@ const allowedContentTypes = new Set([
   'text/javascript',
   'application/javascript',
   'application/json',
+  'application/xml',
+  'application/pdf',
+  'application/zip',
   '*/*', // todo(paid): only allow this for paid users?
 ])
 
@@ -88,7 +91,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         if (!parsedClientPayload.success) {
           throw new ResponseError(
             NextResponse.json(
-              {message: 'Unauthorized - no token specified in client payload'}, //
+              {message: 'Unauthorized - no token specified in client payload', error: parsedClientPayload.error}, //
               {status: 401},
             ),
           )
@@ -182,6 +185,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json(jsonResponse)
   } catch (error) {
     if (error instanceof ResponseError) {
+      console.log('Sending error response', error.response.status, await error.response.clone().json())
       return error.response
     }
     console.error('Error handling upload', error)
