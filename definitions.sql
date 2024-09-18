@@ -63,7 +63,7 @@ $$ language plpgsql;
 
 -- Create a custom type for the prefixed KSUID
 create domain prefixed_ksuid as text
-check (value ~ '^[a-z_]+_[0-9A-Za-z]{27}$');
+check (value ~ '^[a-z0-9_]+_[0-9A-Za-z]{27}$');
 
 -- note: prefixed_ksuid is basically just a string, but it's nice to have a domain to enforce the format
 -- if the format needs to change some day, it might be painful to change the domain, so try to avoid. But in theory you could just `alter table my_table alter column id type text`
