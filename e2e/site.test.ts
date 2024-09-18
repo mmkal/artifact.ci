@@ -5,7 +5,8 @@ test('homepage', async ({page}) => {
   await expect(page).toHaveTitle('artifact.ci')
 })
 
-test('debug endpoint', async ({page}) => {
-  await page.goto('/api/debug')
-  expect(await page.textContent('body')).toEqual('')
+test('db test endpoint', async ({page}) => {
+  await page.goto('/api/test')
+  const body = await page.textContent('body')
+  expect(JSON.parse(body!)).toEqual({testTableData: {id: 1, name: 'one'}})
 })

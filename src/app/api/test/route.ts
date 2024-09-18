@@ -3,9 +3,9 @@ import {client, sql} from '../../../db'
 
 /** Responds with public info about the signed-in user and logs the full auth object */
 export async function GET(_request: NextRequest) {
-  const testTableData = await client.query(sql<queries.TestTable>`
+  const testTableData = await client.one(sql<queries.TestTable>`
     insert into test_table (id, name) values (1, 'one')
-    on conflict (id) do update set name = 'one'
+    on conflict (id) do update set name = excluded.name
     returning *
   `)
   return NextResponse.json({
