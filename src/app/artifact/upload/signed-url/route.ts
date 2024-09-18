@@ -8,6 +8,8 @@ import {client, Id, sql} from '~/db'
 
 const ClientPayloadSchema = z.object({
   githubToken: z.string(),
+  ref: z.string(),
+  sha: z.string(),
 })
 
 class ResponseError extends Error {
