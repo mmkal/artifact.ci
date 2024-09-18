@@ -98,8 +98,10 @@ runs:
               contentType: mimeTypeLookup(filepath) || 'text/plain', // todo: allow mime type override?
               clientPayload: JSON.stringify({
                 githubToken,
-                ref: ${{ toJson(github.ref_name) }},
-                sha: ${{ toJson(github.sha) }},
+                commit: {
+                  ref: ${{ toJson(github.ref_name) }},
+                  sha: ${{ toJson(github.sha) }},
+                },
               }),
             })
             // console.log(`uploaded file ${filepath} to ${blobPath}`, result)

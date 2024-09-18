@@ -185,7 +185,18 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json(jsonResponse)
   } catch (error) {
     if (error instanceof ResponseError) {
-      console.log('Sending error response', error.response.status, await error.response.clone().json())
+      console.log(
+        'Sending error response',
+        JSON.stringify(
+          {
+            request: {url: request.url, body: (await request.clone().json()) as {}},
+            status: error.response.status,
+            response: (await error.response.clone().json()) as {},
+          },
+          null,
+          2,
+        ),
+      )
       return error.response
     }
     console.error('Error handling upload', error)
