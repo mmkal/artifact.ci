@@ -27,7 +27,7 @@
     "next-auth": "5.0.0-beta.20",
     "nextra": "^2.12.3",
     "nextra-theme-docs": "^2.12.3",
-    "pgkit": "0.2.7-8",
+    "pgkit": "0.2.7-9",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "zod": "^3.23.8"
