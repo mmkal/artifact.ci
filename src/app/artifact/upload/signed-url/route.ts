@@ -3,8 +3,12 @@ import {handleUpload, type HandleUploadBody} from '@vercel/blob/client'
 import {lookup as mimeLookup} from 'mime-types'
 import {NextResponse} from 'next/server'
 import {z} from 'zod'
-import {client, sql} from '../../../../db'
-import {nullify404} from '../../browse/[...slug]/route'
+import {nullify404} from '~/app/artifact/browse/[...slug]/route'
+import {client, Id, sql} from '~/db'
+
+const ClientPayloadSchema = z.object({
+  githubToken: z.string(),
+})
 
 class ResponseError extends Error {
   constructor(readonly response: NextResponse) {
@@ -28,7 +32,7 @@ const _allowedContentTypes = new Set([
 type TokenPayload = {
   repo:
     | {
-        dbId: number
+        dbId: queries.Repo['id']
         html_url: string
         permissions?: Record<string, boolean>
       }
@@ -44,6 +48,8 @@ const tokenPayloadCodec = {
   },
 }
 
+const getMimeType = (pathname: string) => mimeLookup(pathname) || 'text/plain'
+
 export async function POST(request: Request): Promise<NextResponse> {
   // todo: bulk endpoint - send a list of files to upload and get a list of signed URL tokens back
   const body = (await request.json()) as HandleUploadBody
@@ -56,7 +62,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       onBeforeGenerateToken: async (pathname, payload) => {
         console.log('onBeforeGenerateToken', pathname, payload)
 
-        const mimeType = mimeLookup(pathname) || 'text/plain'
+        const mimeType = getMimeType(pathname)
 
         // if (!allowedContentTypes.has(mimeType)) {
         //   throw new ResponseError(
@@ -67,9 +73,6 @@ export async function POST(request: Request): Promise<NextResponse> {
         //   )
         // }
 
-        const ClientPayloadSchema = z.object({
-          githubToken: z.string(),
-        })
         const parsedClientPayload = ClientPayloadSchema.safeParse(
           typeof payload === 'string' ? JSON.parse(payload) : payload,
         )
@@ -113,7 +116,7 @@ export async function POST(request: Request): Promise<NextResponse> {
               returning id
             `,
           )
-          .catch(e => ({id: -1, error: e as Error}))
+          .catch(e => ({id: '!!!' as Id<'repos'>, error: e as Error}))
 
         console.log('dbRepo', dbRepo)
 
@@ -148,7 +151,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           .one(
             sql<queries.Upload>`
               insert into uploads (pathname, mime_type, blob_url, repo_id)
-              values (${blob.pathname}, ${mimeLookup(blob.pathname) || 'text/plain'}, ${blob.url}, ${token.repo.dbId})
+              values (${blob.pathname}, ${getMimeType(blob.pathname)}, ${blob.url}, ${token.repo.dbId})
               returning uploads.*
             `,
           )
@@ -186,14 +189,14 @@ export declare namespace queries {
 
   /** - query: `insert into repos (owner, name, html_url... [truncated] ...ated_at = current_timestamp returning id` */
   export interface Repo {
-    /** column: `public.repos.id`, not null: `true`, regtype: `integer` */
-    id: number
+    /** column: `public.repos.id`, not null: `true`, regtype: `prefixed_ksuid` */
+    id: import('~/db').Id<'repos'>
   }
 
   /** - query: `insert into uploads (pathname, mime_type, blob_url, repo_id) values ($1, $2, $3, $4) returning uploads.*` */
   export interface Upload {
-    /** column: `public.uploads.id`, not null: `true`, regtype: `integer` */
-    id: number
+    /** column: `public.uploads.id`, not null: `true`, regtype: `prefixed_ksuid` */
+    id: import('~/db').Id<'uploads'>
 
     /** column: `public.uploads.pathname`, not null: `true`, regtype: `text` */
     pathname: string
@@ -204,8 +207,8 @@ export declare namespace queries {
     /** column: `public.uploads.blob_url`, not null: `true`, regtype: `text` */
     blob_url: string
 
-    /** column: `public.uploads.repo_id`, not null: `true`, regtype: `integer` */
-    repo_id: number
+    /** column: `public.uploads.repo_id`, not null: `true`, regtype: `prefixed_ksuid` */
+    repo_id: string
 
     /** column: `public.uploads.created_at`, not null: `true`, regtype: `timestamp with time zone` */
     created_at: Date
