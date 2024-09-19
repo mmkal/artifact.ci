@@ -95,9 +95,13 @@ create table uploads (
     repo_id prefixed_ksuid not null references repos(id),
 	ref text not null,
 	sha text not null,
+	actions_run_id text not null,
     created_at timestamp with time zone not null default current_timestamp,
     updated_at timestamp with time zone not null default current_timestamp
 );
+
+alter table repos enable row level security;
+alter table uploads enable row level security;
 
 -- Create indexes
 create index idx_uploads_repo_id on uploads(repo_id);

@@ -101,6 +101,7 @@ runs:
                 commit: {
                   ref: ${{ toJson(github.ref_name) }},
                   sha: ${{ toJson(github.sha) }},
+                  actions_run_id: ${{ toJson(github.run_id) }},
                 },
               }),
             })

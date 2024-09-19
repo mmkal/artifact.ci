@@ -9,6 +9,7 @@ import {client, Id, sql} from '~/db'
 const CommitProps = z.object({
   ref: z.string(),
   sha: z.string(),
+  actions_run_id: z.string(),
 })
 type CommitProps = z.infer<typeof CommitProps>
 
@@ -155,14 +156,23 @@ export async function POST(request: Request): Promise<NextResponse> {
         }
         const upload = await client.one(
           sql<queries.Upload>`
-            insert into uploads (pathname, mime_type, blob_url, repo_id, ref, sha)
+            insert into uploads (
+              pathname,
+              mime_type,
+              blob_url,
+              repo_id,
+              ref,
+              sha,
+              actions_run_id
+            )
             values (
               ${blob.pathname},
               ${getMimeType(blob.pathname)},
               ${blob.url},
               ${payload.repoId},
               ${payload.ref},
-              ${payload.sha}
+              ${payload.sha},
+              ${payload.actions_run_id}
             )
             returning uploads.*
           `,
