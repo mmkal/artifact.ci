@@ -14,3 +14,4 @@ yarn.lock
 .DS_Store
 .eslint-config-inspector
 test-results
+.aider*
