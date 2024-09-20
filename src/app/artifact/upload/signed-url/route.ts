@@ -66,131 +66,25 @@ const getMimeType = (pathname: string) => mimeLookup(pathname) || 'text/plain'
 
 export async function POST(request: Request): Promise<NextResponse> {
   // todo: bulk endpoint - send a list of files to upload and get a list of signed URL tokens back
-  const body = (await request.json()) as HandleUploadBody
+  const body = (await request.json()) as HandleUploadBody | {type: 'bulk'; bulk: HandleUploadBody[]}
   console.log(JSON.stringify({url: request.url, body, headers: Object.fromEntries(request.headers)}, null, 2))
 
+  if (body.type === 'bulk') {
+    try {
+      const responses = await Promise.all(body.bulk.map(b => handleOneUploadBody(request, b)))
+      return NextResponse.json(responses)
+    } catch (error) {
+      if (error instanceof ResponseError) {
+        console.log(error.response.status + ' handling upload', error)
+        return error.response
+      }
+      console.error('Error handling upload', error)
+      return NextResponse.json({error: 'Error handling upload: ' + String(error)}, {status: 500})
+    }
+  }
+
   try {
-    const jsonResponse = await handleUpload({
-      body,
-      request,
-      onBeforeGenerateToken: async (pathname, payload) => {
-        console.log('onBeforeGenerateToken', pathname, payload)
-
-        const mimeType = getMimeType(pathname)
-
-        if (!isAllowedContentType(mimeType)) {
-          throw new ResponseError(
-            NextResponse.json(
-              {message: `Unsupported content type for ${pathname} - ${mimeType}`}, //
-              {status: 400},
-            ),
-          )
-        }
-
-        const parsedClientPayload = ClientPayload.safeParse(typeof payload === 'string' ? JSON.parse(payload) : payload)
-
-        if (!parsedClientPayload.success) {
-          throw new ResponseError(
-            NextResponse.json(
-              {message: 'Unauthorized - no token specified in client payload', error: parsedClientPayload.error}, //
-              {status: 401},
-            ),
-          )
-        }
-
-        const {githubToken} = parsedClientPayload.data
-        const [owner, repo] = pathname.split('/')
-
-        if (process.env.ALLOWED_GITHUB_OWNERS && !process.env.ALLOWED_GITHUB_OWNERS.split(',').includes(owner)) {
-          const message = `Unauthorized - not allowed to upload to ${owner}/${repo}. Update env.ALLOWED_GITHUB_OWNERS to allow this repo.`
-          throw new ResponseError(NextResponse.json({message}, {status: 401}))
-        }
-
-        const github = new Octokit({auth: githubToken, log: console})
-
-        const {data: repoData} = await github.rest.repos.get({owner, repo}).catch(nullify404)
-
-        if (!repoData) {
-          throw new ResponseError(
-            NextResponse.json(
-              {message: `Repository not found - you may not have access to ${owner}/${repo}`},
-              {status: 404},
-            ),
-          )
-        }
-
-        const dbRepo = await client.one(
-          sql<queries.Repo>`
-            insert into repos (owner, name, html_url)
-            values (${owner}, ${repo}, ${repoData.html_url})
-            on conflict (html_url) do update set updated_at = current_timestamp
-            returning id
-          `,
-        )
-
-        console.log('dbRepo', dbRepo)
-
-        // todo(paid): allow more stringent checks like making sure the ref exists
-
-        return {
-          allowedContentTypes: [mimeType],
-          addRandomSuffix: false, // todo(paid): allow this to be configurable
-          tokenPayload: tokenPayloadCodec.stringify({
-            repoId: dbRepo.id,
-            ...parsedClientPayload.data.commit,
-          }),
-        }
-      },
-      onUploadCompleted: async ({blob, tokenPayload}) => {
-        // Get notified of client upload completion
-        // ⚠️ This will not work on `localhost` websites,
-        // Use ngrok or similar to get the full upload flow
-        const payload = tokenPayloadCodec.parse(tokenPayload || '{}')
-        if (!payload?.repoId) {
-          throw new ResponseError(
-            NextResponse.json(
-              {message: 'Unauthorized - no repo specified in client payload'}, //
-              {status: 401},
-            ),
-          )
-        }
-        const upload = await client.one(
-          sql<queries.Upload>`
-            insert into uploads (
-              pathname,
-              mime_type,
-              blob_url,
-              repo_id,
-              ref,
-              sha,
-              actions_run_id
-            )
-            values (
-              ${blob.pathname},
-              ${getMimeType(blob.pathname)},
-              ${blob.url},
-              ${payload.repoId},
-              ${payload.ref},
-              ${payload.sha},
-              ${payload.actions_run_id}
-            )
-            returning uploads.*
-          `,
-        )
-
-        console.log('upload inserted:', upload)
-
-        console.log('blob upload completed', blob, tokenPayload)
-
-        try {
-          // Run any logic after the file upload completed
-          // const { userId } = JSON.parse(tokenPayload);
-          // await db.update({ avatar: blob.url, userId });
-        } catch {
-          throw new Error('Could not update user')
-        }
-      },
-    })
+    const jsonResponse = await handleOneUploadBody(request, body)
 
     return NextResponse.json(jsonResponse)
   } catch (error) {
@@ -217,6 +111,130 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 }
 
+const handleOneUploadBody = async (request: Request, body: HandleUploadBody) => {
+  return handleUpload({
+    body,
+    request,
+    onBeforeGenerateToken: async (pathname, payload) => {
+      console.log('onBeforeGenerateToken', pathname, payload)
+
+      const mimeType = getMimeType(pathname)
+
+      if (!isAllowedContentType(mimeType)) {
+        throw new ResponseError(
+          NextResponse.json(
+            {message: `Unsupported content type for ${pathname} - ${mimeType}`}, //
+            {status: 400},
+          ),
+        )
+      }
+
+      const parsedClientPayload = ClientPayload.safeParse(typeof payload === 'string' ? JSON.parse(payload) : payload)
+
+      if (!parsedClientPayload.success) {
+        throw new ResponseError(
+          NextResponse.json(
+            {message: 'Unauthorized - no token specified in client payload', error: parsedClientPayload.error}, //
+            {status: 401},
+          ),
+        )
+      }
+
+      const {githubToken} = parsedClientPayload.data
+      const [owner, repo] = pathname.split('/')
+
+      if (process.env.ALLOWED_GITHUB_OWNERS && !process.env.ALLOWED_GITHUB_OWNERS.split(',').includes(owner)) {
+        const message = `Unauthorized - not allowed to upload to ${owner}/${repo}. Update env.ALLOWED_GITHUB_OWNERS to allow this repo.`
+        throw new ResponseError(NextResponse.json({message}, {status: 401}))
+      }
+
+      const github = new Octokit({auth: githubToken, log: console})
+
+      const {data: repoData} = await github.rest.repos.get({owner, repo}).catch(nullify404)
+
+      if (!repoData) {
+        throw new ResponseError(
+          NextResponse.json(
+            {message: `Repository not found - you may not have access to ${owner}/${repo}`},
+            {status: 404},
+          ),
+        )
+      }
+
+      const dbRepo = await client.one(
+        sql<queries.Repo>`
+          insert into repos (owner, name, html_url)
+          values (${owner}, ${repo}, ${repoData.html_url})
+          on conflict (html_url) do update set updated_at = current_timestamp
+          returning id
+        `,
+      )
+
+      console.log('dbRepo', dbRepo)
+
+      // todo(paid): allow more stringent checks like making sure the ref exists
+
+      return {
+        allowedContentTypes: [mimeType],
+        addRandomSuffix: false, // todo(paid): allow this to be configurable
+        tokenPayload: tokenPayloadCodec.stringify({
+          repoId: dbRepo.id,
+          ...parsedClientPayload.data.commit,
+        }),
+      }
+    },
+    onUploadCompleted: async ({blob, tokenPayload}) => {
+      // Get notified of client upload completion
+      // ⚠️ This will not work on `localhost` websites,
+      // Use ngrok or similar to get the full upload flow
+      const payload = tokenPayloadCodec.parse(tokenPayload || '{}')
+      if (!payload?.repoId) {
+        throw new ResponseError(
+          NextResponse.json(
+            {message: 'Unauthorized - no repo specified in client payload'}, //
+            {status: 401},
+          ),
+        )
+      }
+      const upload = await client.one(
+        sql<queries.Upload>`
+          insert into uploads (
+            pathname,
+            mime_type,
+            blob_url,
+            repo_id,
+            ref,
+            sha,
+            actions_run_id
+          )
+          values (
+            ${blob.pathname},
+            ${getMimeType(blob.pathname)},
+            ${blob.url},
+            ${payload.repoId},
+            ${payload.ref},
+            ${payload.sha},
+            ${payload.actions_run_id}
+          )
+          returning uploads.*
+        `,
+      )
+
+      console.log('upload inserted:', upload)
+
+      console.log('blob upload completed', blob, tokenPayload)
+
+      try {
+        // Run any logic after the file upload completed
+        // const { userId } = JSON.parse(tokenPayload);
+        // await db.update({ avatar: blob.url, userId });
+      } catch {
+        throw new Error('Could not update user')
+      }
+    },
+  })
+}
+
 export declare namespace queries {
   // Generated by @pgkit/typegen
 
@@ -226,7 +244,7 @@ export declare namespace queries {
     id: import('~/db').Id<'repos'>
   }
 
-  /** - query: `insert into uploads (pathname, mime_type, blob_url, repo_id) values ($1, $2, $3, $4) returning uploads.*` */
+  /** - query: `insert into uploads ( pathname, mime_typ... [truncated] ...$3, $4, $5, $6, $7 ) returning uploads.*` */
   export interface Upload {
     /** column: `public.uploads.id`, not null: `true`, regtype: `prefixed_ksuid` */
     id: import('~/db').Id<'uploads'>
@@ -248,5 +266,14 @@ export declare namespace queries {
 
     /** column: `public.uploads.updated_at`, not null: `true`, regtype: `timestamp with time zone` */
     updated_at: Date
+
+    /** column: `public.uploads.ref`, not null: `true`, regtype: `text` */
+    ref: string
+
+    /** column: `public.uploads.sha`, not null: `true`, regtype: `text` */
+    sha: string
+
+    /** column: `public.uploads.actions_run_id`, not null: `true`, regtype: `text` */
+    actions_run_id: string
   }
 }

@@ -51,8 +51,8 @@ importers:
         specifier: ^2.12.3
         version: 2.13.4(next@14.2.7(@babel/core@7.25.2)(@playwright/test@1.46.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.78.0))(nextra@2.13.4(next@14.2.7(@babel/core@7.25.2)(@playwright/test@1.46.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(sass@1.78.0))(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       pgkit:
-        specifier: 0.2.7-10
-        version: 0.2.7-10(@babel/runtime@7.25.4)(@codemirror/language@6.10.2)(@codemirror/search@6.5.6)(@codemirror/theme-one-dark@6.1.2)(@lezer/common@1.2.1)(@trpc/server@10.45.2)(@types/node@17.0.45)(@types/react-dom@18.3.0)(@types/react@18.3.4)(codemirror@6.0.1(@lezer/common@1.2.1))(eslint@8.57.0)(typescript@5.5.4)(vite@5.4.6(@types/node@17.0.45)(sass@1.78.0))(zod@3.23.8)
+        specifier: 0.2.7-11
+        version: 0.2.7-11(@babel/runtime@7.25.4)(@codemirror/language@6.10.2)(@codemirror/search@6.5.6)(@codemirror/theme-one-dark@6.1.2)(@lezer/common@1.2.1)(@trpc/server@10.45.2)(@types/node@17.0.45)(@types/react-dom@18.3.0)(@types/react@18.3.4)(codemirror@6.0.1(@lezer/common@1.2.1))(eslint@8.57.0)(typescript@5.5.4)(vite@5.4.6(@types/node@17.0.45)(sass@1.78.0))(zod@3.23.8)
       react:
         specifier: ^18.2.0
         version: 18.3.1
@@ -948,32 +948,32 @@ packages:
   '@panva/hkdf@1.2.1':
     resolution: {integrity: sha512-6oclG6Y3PiDFcoyk8srjLfVKyMfVCKJ27JwNPViuXziFpmdz+MZnZN/aKY0JGXgYuO/VghU0jcOAZgWXZ1Dmrw==}
 
-  '@pgkit/admin@0.2.7-10':
-    resolution: {integrity: sha512-JfN7/p6g69cvddyMAXbCUwkhZiURbumpYZzeVaXvmXz5/bjmptsNcir46sYzT38OHLYcVg29D0e+4nCvP0jJgA==}
+  '@pgkit/admin@0.2.7-11':
+    resolution: {integrity: sha512-Q3/hRLzMFHpBIRoYWCdCNztEu3FPAH1eVo7RqZU50ejkF07rGp6SVynU/jfwr2mDAgYP7/xcaTczicqGlVTdYQ==}
     hasBin: true
 
   '@pgkit/client@0.2.5':
     resolution: {integrity: sha512-VgfeL+hf7W5jy4sYORavczz4cq0mRfAeOjBZel7GJwgTwv0FHUpZqi4YU/lz14TnxSmn601xbjbkCshtkvoh+A==}
 
-  '@pgkit/client@0.2.7-10':
-    resolution: {integrity: sha512-Z9fptxokNj2uuAAWW59lwRVVE6xHZvtNayw7XMhtdj2ztI48G6WHPjx+fVajVK2LGlZF+mIm0Mo2ztiE3lpZuQ==}
+  '@pgkit/client@0.2.7-11':
+    resolution: {integrity: sha512-XJERJ5hFh+0o5EE0XC7f2gRMZzLTWAJ0ntW0jzF+DiQCKFbXwnkCYu4MOwGjm/W8G3Va639iuICsleTmbvjTCQ==}
 
-  '@pgkit/formatter@0.2.7-10':
-    resolution: {integrity: sha512-VCtjLGEHiscIgKpNSmeXTsRA03lw6EFbpLISPdRuSQyHYL5XRQeiuMWdEsvmJwgAzHHFkmJua+/jo9IcsZ3WcQ==}
+  '@pgkit/formatter@0.2.7-11':
+    resolution: {integrity: sha512-95bjE/rxS4CnIm2mCimsRONeSZd1GJZFvfVHtnyk4o6qf301sMvQitbEReijbh+LGLC4EFSvYiWTtcAZxTlXxg==}
 
-  '@pgkit/migra@0.2.7-10':
-    resolution: {integrity: sha512-DXTYJP8bCIxypWkGjT/flnxuhWnSIB9a8AyEy4MF4Ucl+CkdhIDL/pvcPAuFn6dM+Zoe6Kbtl6SeIdRCwwfC2Q==}
+  '@pgkit/migra@0.2.7-11':
+    resolution: {integrity: sha512-NhSl57wqg3jIGdFh4ueljW6RJo46ZZwTWz/jpWk8uPK+gKkQ4JGCr0a4t1CzpK9pc8HSrg3+0nCrUC2MuHS/wQ==}
     hasBin: true
 
-  '@pgkit/migrator@0.2.7-10':
-    resolution: {integrity: sha512-PZb4QevJWJPUXlvX/upenVdv/nfwec/+T1kqB7Xn7aGHcQbMousy9V/AfbALm3V0TftnpsNJgkOtxyQVWds3XQ==}
+  '@pgkit/migrator@0.2.7-11':
+    resolution: {integrity: sha512-D5MrGh7y7tVpci4NeWPDx324YZ0NUumHYFQM+Jf+Gf9F+zUNkb/ydUGH95G+xHbT2FooVNbIi3sepbGXvNRCTg==}
     hasBin: true
 
-  '@pgkit/schemainspect@0.2.7-10':
-    resolution: {integrity: sha512-38SqgL3Qae+gFWfdXS4V2AnBxYFNPf3B/8VUFC+Rkfmzpd/R5Okie5CFYkFllKPiEP6ks6z6ze7kuzHUv94fRA==}
+  '@pgkit/schemainspect@0.2.7-11':
+    resolution: {integrity: sha512-c7gMoIdl7SHR6DiGNbOFJdrGsnnQrfrhh5e9sw/E7Fp6rgV87PKels1i5L9TzHWTO0FrdIQq9OQ/In+bW6Uvhg==}
 
-  '@pgkit/typegen@0.2.7-10':
-    resolution: {integrity: sha512-Xh8SBsAFH05596hFUGhoavEiA39GvbEOB1TKOON23qXukqTiD50j1uy3caUHBAH3jhcPqEhdHnNnR0pWXL1TNQ==}
+  '@pgkit/typegen@0.2.7-11':
+    resolution: {integrity: sha512-o1slf6AtWJ5g2XGN0Tjg+3yTEXSLwc7H4OadzGAC2mUd4jHOTYeIyvlEK6/Hqy35PK+I3zJJashHk8PU1YovZw==}
     hasBin: true
     peerDependencies:
       typescript: '*'
@@ -1429,8 +1429,8 @@ packages:
     resolution: {integrity: sha512-x9U+29RXKv9Ov8JhL+CKMKunXCprEH5XThjmFmOsAgj+vz3aBUh4W95hW12R17eqVHi+cCf6M5ZLIMGqgb1pxw==}
     engines: {node: '>=18'}
 
-  '@rebundled/p-memoize@7.1.2-next.4':
-    resolution: {integrity: sha512-WvuM+9LAkignqZNgkWUlROTW9CFBj5ENVFIpPZkKis/vukUqQLiIZG63QT6nBxOoYfw+Yx707zv6iTXGN1Zp+Q==}
+  '@rebundled/p-memoize@7.1.2-next.8':
+    resolution: {integrity: sha512-m9Fq4wwjAGi1fM6YIYvGGCLmCrMuYQ8yyd6JDb1hmmTasziUDsdJoqyUQp7Mz2fwd0YuHfPPIWg6C2kbA8j//w==}
     engines: {node: '>=14.16'}
 
   '@rollup/rollup-android-arm-eabi@4.21.3':
@@ -4490,8 +4490,8 @@ packages:
       pg-native:
         optional: true
 
-  pgkit@0.2.7-10:
-    resolution: {integrity: sha512-nRhp4DzSB7GOsaIH138pzFwMJQb1RMxp4MSAptsG1WiF+zOVIivJG/NVnhZhNM5NVSpqkNtBEKi9UzLbGykOyg==}
+  pgkit@0.2.7-11:
+    resolution: {integrity: sha512-253TbP9zltrjpecwGP2UqX1vfGWzhvP80XitwTE3zsndgNRqa0Top9lR7s5grfeIDIqnEZ79Wyj2gob4mH724w==}
     hasBin: true
 
   pgpass@1.0.5:
@@ -6459,7 +6459,7 @@ snapshots:
 
   '@panva/hkdf@1.2.1': {}
 
-  '@pgkit/admin@0.2.7-10(@babel/runtime@7.25.4)(@codemirror/language@6.10.2)(@codemirror/search@6.5.6)(@codemirror/theme-one-dark@6.1.2)(@lezer/common@1.2.1)(@types/node@17.0.45)(@types/react-dom@18.3.0)(@types/react@18.3.4)(codemirror@6.0.1(@lezer/common@1.2.1))(eslint@8.57.0)(typescript@5.5.4)(vite@5.4.6(@types/node@17.0.45)(sass@1.78.0))':
+  '@pgkit/admin@0.2.7-11(@babel/runtime@7.25.4)(@codemirror/language@6.10.2)(@codemirror/search@6.5.6)(@codemirror/theme-one-dark@6.1.2)(@lezer/common@1.2.1)(@types/node@17.0.45)(@types/react-dom@18.3.0)(@types/react@18.3.4)(codemirror@6.0.1(@lezer/common@1.2.1))(eslint@8.57.0)(typescript@5.5.4)(vite@5.4.6(@types/node@17.0.45)(sass@1.78.0))':
     dependencies:
       '@codemirror/autocomplete': 6.18.1(@codemirror/language@6.10.2)(@codemirror/state@6.4.1)(@codemirror/view@6.33.0)(@lezer/common@1.2.1)
       '@codemirror/lang-sql': 6.7.1(@codemirror/view@6.33.0)
@@ -6467,10 +6467,10 @@ snapshots:
       '@codemirror/state': 6.4.1
       '@codemirror/view': 6.33.0
       '@hookform/resolvers': 3.9.0(react-hook-form@7.53.0(react@18.3.1))
-      '@pgkit/client': 0.2.7-10
-      '@pgkit/migra': 0.2.7-10
-      '@pgkit/migrator': 0.2.7-10(@types/node@17.0.45)
-      '@pgkit/schemainspect': 0.2.7-10
+      '@pgkit/client': 0.2.7-11
+      '@pgkit/migra': 0.2.7-11
+      '@pgkit/migrator': 0.2.7-11(@types/node@17.0.45)
+      '@pgkit/schemainspect': 0.2.7-11
       '@radix-ui/react-alert-dialog': 1.1.1(@types/react-dom@18.3.0)(@types/react@18.3.4)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@radix-ui/react-checkbox': 1.1.1(@types/react-dom@18.3.0)(@types/react@18.3.4)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@radix-ui/react-collapsible': 1.1.0(@types/react-dom@18.3.0)(@types/react@18.3.4)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -6546,7 +6546,7 @@ snapshots:
     transitivePeerDependencies:
       - pg-native
 
-  '@pgkit/client@0.2.7-10':
+  '@pgkit/client@0.2.7-11':
     dependencies:
       pg: 8.12.0
       pg-promise: 11.9.1
@@ -6554,28 +6554,28 @@ snapshots:
     transitivePeerDependencies:
       - pg-native
 
-  '@pgkit/formatter@0.2.7-10':
+  '@pgkit/formatter@0.2.7-11':
     dependencies:
       prettier: 3.3.3
       prettier-plugin-sql-cst: 0.11.7
       sql-formatter: 15.4.2
 
-  '@pgkit/migra@0.2.7-10':
+  '@pgkit/migra@0.2.7-11':
     dependencies:
-      '@pgkit/client': 0.2.7-10
-      '@pgkit/schemainspect': 0.2.7-10
+      '@pgkit/client': 0.2.7-11
+      '@pgkit/schemainspect': 0.2.7-11
       '@trpc/server': 10.45.2
       trpc-cli: 0.5.0(@trpc/server@10.45.2)(zod@3.23.8)
       zod: 3.23.8
     transitivePeerDependencies:
       - pg-native
 
-  '@pgkit/migrator@0.2.7-10(@types/node@17.0.45)':
+  '@pgkit/migrator@0.2.7-11(@types/node@17.0.45)':
     dependencies:
       '@inquirer/prompts': 5.5.0
-      '@pgkit/client': 0.2.7-10
-      '@pgkit/formatter': 0.2.7-10
-      '@pgkit/migra': 0.2.7-10
+      '@pgkit/client': 0.2.7-11
+      '@pgkit/formatter': 0.2.7-11
+      '@pgkit/migra': 0.2.7-11
       '@trpc/server': 10.45.2
       cleye: 1.3.2
       picocolors: 1.1.0
@@ -6590,17 +6590,17 @@ snapshots:
       - '@types/node'
       - pg-native
 
-  '@pgkit/schemainspect@0.2.7-10':
+  '@pgkit/schemainspect@0.2.7-11':
     dependencies:
-      '@pgkit/client': 0.2.7-10
+      '@pgkit/client': 0.2.7-11
     transitivePeerDependencies:
       - pg-native
 
-  '@pgkit/typegen@0.2.7-10(@trpc/server@10.45.2)(typescript@5.5.4)':
+  '@pgkit/typegen@0.2.7-11(@trpc/server@10.45.2)(typescript@5.5.4)':
     dependencies:
-      '@pgkit/client': 0.2.7-10
+      '@pgkit/client': 0.2.7-11
       '@rebundled/execa': 8.0.2-next.0
-      '@rebundled/p-memoize': 7.1.2-next.4
+      '@rebundled/p-memoize': 7.1.2-next.8
       chokidar: 3.6.0
       execa: 5.1.1
       find-up: 5.0.0
@@ -7063,7 +7063,7 @@ snapshots:
       signal-exit: 4.1.0
       strip-final-newline: 4.0.0
 
-  '@rebundled/p-memoize@7.1.2-next.4':
+  '@rebundled/p-memoize@7.1.2-next.8':
     dependencies:
       mimic-fn: 4.0.0
       type-fest: 3.13.1
@@ -11013,12 +11013,12 @@ snapshots:
     optionalDependencies:
       pg-cloudflare: 1.1.1
 
-  pgkit@0.2.7-10(@babel/runtime@7.25.4)(@codemirror/language@6.10.2)(@codemirror/search@6.5.6)(@codemirror/theme-one-dark@6.1.2)(@lezer/common@1.2.1)(@trpc/server@10.45.2)(@types/node@17.0.45)(@types/react-dom@18.3.0)(@types/react@18.3.4)(codemirror@6.0.1(@lezer/common@1.2.1))(eslint@8.57.0)(typescript@5.5.4)(vite@5.4.6(@types/node@17.0.45)(sass@1.78.0))(zod@3.23.8):
+  pgkit@0.2.7-11(@babel/runtime@7.25.4)(@codemirror/language@6.10.2)(@codemirror/search@6.5.6)(@codemirror/theme-one-dark@6.1.2)(@lezer/common@1.2.1)(@trpc/server@10.45.2)(@types/node@17.0.45)(@types/react-dom@18.3.0)(@types/react@18.3.4)(codemirror@6.0.1(@lezer/common@1.2.1))(eslint@8.57.0)(typescript@5.5.4)(vite@5.4.6(@types/node@17.0.45)(sass@1.78.0))(zod@3.23.8):
     dependencies:
-      '@pgkit/admin': 0.2.7-10(@babel/runtime@7.25.4)(@codemirror/language@6.10.2)(@codemirror/search@6.5.6)(@codemirror/theme-one-dark@6.1.2)(@lezer/common@1.2.1)(@types/node@17.0.45)(@types/react-dom@18.3.0)(@types/react@18.3.4)(codemirror@6.0.1(@lezer/common@1.2.1))(eslint@8.57.0)(typescript@5.5.4)(vite@5.4.6(@types/node@17.0.45)(sass@1.78.0))
-      '@pgkit/client': 0.2.7-10
-      '@pgkit/migrator': 0.2.7-10(@types/node@17.0.45)
-      '@pgkit/typegen': 0.2.7-10(@trpc/server@10.45.2)(typescript@5.5.4)
+      '@pgkit/admin': 0.2.7-11(@babel/runtime@7.25.4)(@codemirror/language@6.10.2)(@codemirror/search@6.5.6)(@codemirror/theme-one-dark@6.1.2)(@lezer/common@1.2.1)(@types/node@17.0.45)(@types/react-dom@18.3.0)(@types/react@18.3.4)(codemirror@6.0.1(@lezer/common@1.2.1))(eslint@8.57.0)(typescript@5.5.4)(vite@5.4.6(@types/node@17.0.45)(sass@1.78.0))
+      '@pgkit/client': 0.2.7-11
+      '@pgkit/migrator': 0.2.7-11(@types/node@17.0.45)
+      '@pgkit/typegen': 0.2.7-11(@trpc/server@10.45.2)(typescript@5.5.4)
       express: 4.21.0
       importx: 0.4.4
       trpc-cli: 0.5.0(@trpc/server@10.45.2)(zod@3.23.8)
