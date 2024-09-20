@@ -45,15 +45,18 @@ runs:
       shell: bash
       working-directory: tmp/artifact.ci
       run: |
-        sed -i 's/const res = await _undici.fetch.call/console.log("fetching", {url, options, event});const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
-        sed -i 's/res.ok/(res.ok || console.log(await res.clone().text(), res.url, res.status))/g' node_modules/@vercel/blob/dist/client.cjs
+        sed -i 's/const res = await _undici.fetch.call/console.log("client.cjs fetching", {url, options, event});const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
+        vercel_chunk_cjs=$(ls node_modules/@vercel/blob/dist | grep chunk | grep .cjs)
+        echo "vercel_chunk_cjs: $vercel_chunk_cjs"
+        sed -i 's/const apiResponse/const logFetch = (...args) => {console.log("apiResponse fetching", ...args); return _undici.fetch(...args)}/g' $vercel_chunk_cjs
+        sed -i 's/_undici.fetch.call/logFetch.call/g' $vercel_chunk_cjs
+        sed -i 's/res.ok/(res.ok || console.log(await res.clone().text(), res.url, res.status))/g' $vercel_chunk_cjs
     - name: upload blob
       uses: actions/github-script@v6
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       with:
         script: |
-          console.log('context:::', JSON.stringify(context, null, 2))
           const cwd = process.cwd()
           process.chdir('tmp/artifact.ci')
 
@@ -120,6 +123,7 @@ runs:
           Object.keys(results).forEach(blobPath => {
             console.log(`${inputs.origin}/artifact/blob/${blobPath}`)
           })
+          console.log('context:::', JSON.stringify(context, null, 2))
     - name: cleanup
       shell: bash
       run: rm -rf tmp/artifact.ci
