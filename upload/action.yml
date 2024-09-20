@@ -46,9 +46,9 @@ runs:
       working-directory: tmp/artifact.ci
       run: |
         sed -i 's/const res = await _undici.fetch.call/console.log("client.cjs fetching", {url, options, event});const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
-        vercel_chunk_name=$(ls node_modules/@vercel/blob/dist | grep chunk | grep .cjs)
+        vercel_chunk_name=$(ls node_modules/@vercel/blob/dist | grep chunk | grep .cjs | grep -v .map)
         vercel_chunk_cjs="node_modules/@vercel/blob/dist/$vercel_chunk_name"
-        echo "vercel_chunk_cjs: $vercel_chunk_cjs"
+        echo "vercel_chunk_cjs: >>>$vercel_chunk_cjs<<<"
         sed -i 's/const apiResponse/const logFetch = (...args) => {console.log("apiResponse fetching", ...args); return _undici.fetch(...args)}/g' $vercel_chunk_cjs
         sed -i 's/_undici.fetch.call/logFetch.call/g' $vercel_chunk_cjs
         sed -i 's/res.ok/(res.ok || console.log(await res.clone().text(), res.url, res.status))/g' $vercel_chunk_cjs
