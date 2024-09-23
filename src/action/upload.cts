@@ -81,7 +81,7 @@ export async function doupload(
     const files = await globber.glob()
 
     const filesWithPathnames = files.map(f => ({
-      localPath: () => f, // use function so we can send over the wire without sending local file path
+      localPath: f,
       pathname: pathPrefix + f.replace(process.cwd(), ''),
       contentType: mimeTypeLookup(f) || 'text/plain',
       multipart: false,
@@ -117,8 +117,8 @@ export async function doupload(
       for (const result of data.results) {
         const file = pathnameToFile.get(result.pathname)
         if (!file) throw new Error(`file not found for pathname ${result.pathname}`)
-        console.log('uploading file', file.localPath())
-        await put(result.pathname, await fs.readFile(file.localPath()), {
+        console.log('uploading file', file.localPath)
+        await put(result.pathname, await fs.readFile(file.localPath), {
           access: 'public',
           token: result.clientToken,
           multipart: file.multipart,
