@@ -21,7 +21,7 @@ const GithubActionsContext = z.object({
   sha: z.string(),
   runId: z.number(),
   runAttempt: z.number(),
-  jobName: z.string(),
+  job: z.string(),
   repository: z.string().refine(s => s.split('/').length === 2, 'Repository should be in the format of owner/repo'),
   githubOrigin: z.string(), // usually https://github.com
 })
@@ -128,7 +128,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     const jobs = await getJobsWithStatuses(context)
 
-    const matchingJob = jobs.get().find(job => job.jobName === context.jobName && job.isRunning)
+    const matchingJob = jobs.get().find(job => job.jobId === context.job && job.isRunning)
 
     if (!matchingJob) {
       const message = `Job not found or was not running. Found job info: ${JSON.stringify(jobs.get(), null, 2)}`
@@ -143,14 +143,14 @@ export async function POST(request: Request): Promise<NextResponse> {
           on conflict (html_url) do update set updated_at = current_timestamp
           returning *
         )
-        insert into upload_requests (repo_id, ref, sha, actions_run_id, actions_run_attempt, job_name)
+        insert into upload_requests (repo_id, ref, sha, actions_run_id, actions_run_attempt, job_id)
         select
           repo.id,
           ${context.ref},
           ${context.sha},
           ${context.runId},
           ${context.runAttempt},
-          ${context.jobName}
+          ${context.job}
         from repo
         where (
           select count(*)
@@ -159,7 +159,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             other.repo_id = repo.id
             and other.actions_run_id = ${context.runId}
             and other.actions_run_attempt = ${context.runAttempt}
-            and other.job_name = ${context.jobName}
+            and other.job_name = ${context.job}
         ) < 10
         returning upload_requests.*
       `,
@@ -355,7 +355,7 @@ async function getJobsWithStatuses(context: GithubActionsContext) {
     const $el = $(el)
     return {
       href: $el.attr('href'),
-      jobName: $el.text().trim(),
+      jobId: $el.find('[data-job-id]').attr('data-job-id'),
       isRunning: $el.find('svg[aria-label*="currently running"]').length > 0,
       isFailed: $el.find('svg[aria-label*="failed"]').length > 0,
       isSuccess: $el.find('svg[aria-label*="completed successfully"]').length > 0,

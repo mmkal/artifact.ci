@@ -58,6 +58,7 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       with:
         script: |-
+          console.log('context:::::', JSON.stringify(context, null, 2))
           const inputs = ${{ toJson(inputs) }}
 
           const cwd = process.cwd()
