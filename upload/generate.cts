@@ -95,6 +95,7 @@ async function upload(
     })
     const response = await res.clone().text()
     try {
+      if (!res.ok) throw new Error(`failed to upload: ${res.status} ${response}`)
       const data = (await res.json()) as BulkResponse
       for (const result of data.results) {
         const file = pathnameToFile.get(result.pathname)
