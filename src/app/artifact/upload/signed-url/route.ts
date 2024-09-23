@@ -22,6 +22,8 @@ const GithubActionsContext = z.object({
   runId: z.number(),
   runAttempt: z.number(),
   jobName: z.string(),
+  repository: z.string().refine(s => s.split('/').length === 2, 'Repository should be in the format of owner/repo'),
+  githubOrigin: z.string(), // usually https://github.com
 })
 export type GithubActionsContext = z.infer<typeof GithubActionsContext>
 
@@ -117,19 +119,90 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (!parseResult.success) {
       return NextResponse.json({error: 'Invalid bulk request: ' + parseResult.error.message}, {status: 400})
     }
+
     const body = parseResult.data
+
+    const {context} = body.clientPayload
+    const [owner, repo] = context.repository.split('/')
+    const htmlUrl = `${context.githubOrigin}/${owner}/${repo}`
+
+    const jobs = await getJobsWithStatuses(context)
+
+    const matchingJob = jobs.get().find(job => job.jobName === context.jobName && job.isRunning)
+
+    if (!matchingJob) {
+      const message = `Job not found or was not running. Found job info: ${JSON.stringify(jobs.get(), null, 2)}`
+      return NextResponse.json({message}, {status: 404})
+    }
+
+    const insertedUploadRequest = await client.maybeOne(
+      sql<queries.UploadRequest>`
+        with repo as (
+          insert into repos (owner, name, html_url)
+          values (${owner}, ${repo}, ${htmlUrl})
+          on conflict (html_url) do update set updated_at = current_timestamp
+          returning *
+        )
+        insert into upload_requests (repo_id, ref, sha, actions_run_id, actions_run_attempt, job_name)
+        select
+          repo.id,
+          ${context.ref},
+          ${context.sha},
+          ${context.runId},
+          ${context.runAttempt},
+          ${context.jobName}
+        from repo
+        where (
+          select count(*)
+          from upload_requests other
+          where
+            other.repo_id = repo.id
+            and other.actions_run_id = ${context.runId}
+            and other.actions_run_attempt = ${context.runAttempt}
+            and other.job_name = ${context.jobName}
+        ) < 10
+        returning upload_requests.*
+      `,
+    )
+
+    console.log('uploadRequest', insertedUploadRequest)
+
+    if (!insertedUploadRequest) {
+      const message = `Upload request not created, this may be due to rate limiting on repo ${htmlUrl} / ${context.runId}.`
+      return NextResponse.json({message}, {status: 429})
+    }
+
+    // todo: replace with sponsorship check?
+    if (process.env.ALLOWED_GITHUB_OWNERS && !process.env.ALLOWED_GITHUB_OWNERS.split(',').includes(owner)) {
+      const message = `Unauthorized - not allowed to upload to ${owner}/${repo}. Update env.ALLOWED_GITHUB_OWNERS to allow this repo.`
+      return NextResponse.json({message}, {status: 401})
+    }
+
+    const github = new Octokit({auth: body.clientPayload.githubToken, log: console})
+
+    const {data: repoData} = await github.rest.repos.get({owner, repo}).catch(nullify404)
+
+    if (!repoData) {
+      const message = `Repository not found - you may not have access to ${owner}/${repo}. If this repository is private, you will need to pass a "githubToken" in the client payload.`
+      throw new ResponseError(NextResponse.json({message}, {status: 404}))
+    }
+
     try {
       const results = await Promise.all(
         body.files.map(async ({pathname, multipart}) => {
-          const uploadResponse = await handleUploadSingle(request, {
-            type: 'blob.generate-client-token',
-            payload: {
-              callbackUrl: body.callbackUrl,
-              clientPayload: JSON.stringify(body.clientPayload),
-              pathname,
-              multipart,
+          const uploadResponse = await handleUploadSingle(
+            request,
+            {
+              type: 'blob.generate-client-token',
+              payload: {
+                callbackUrl: body.callbackUrl,
+                clientPayload: JSON.stringify(body.clientPayload),
+                pathname,
+                multipart,
+              },
             },
-          })
+            insertedUploadRequest.id,
+          )
           return {pathname, clientToken: uploadResponse.clientToken} satisfies BulkResponseItem
         }),
       )
@@ -145,7 +218,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const jsonResponse = await handleUploadSingle(request, requestBody)
+    const jsonResponse = await handleUploadSingle(request, requestBody, null)
 
     return NextResponse.json(jsonResponse)
   } catch (error) {
@@ -175,12 +248,18 @@ export async function POST(request: Request): Promise<NextResponse> {
 const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
   request: Request,
   body: Extract<HandleUploadBody, {type: Type}>,
+  uploadRequestId: Id<'upload_requests'> | null,
 ) => {
   const result = await handleUpload({
     body,
     request,
     onBeforeGenerateToken: async (pathname, payload) => {
       console.log('onBeforeGenerateToken', pathname, payload)
+
+      if (!uploadRequestId) {
+        const message = 'Unauthorized - no upload request specified in client payload'
+        throw new ResponseError(NextResponse.json({message}, {status: 401}))
+      }
 
       const mimeType = getMimeType(pathname)
 
@@ -198,95 +277,10 @@ const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
       if (!parsedClientPayload.success) {
         throw new ResponseError(
           NextResponse.json(
-            {message: 'Unauthorized - no token specified in client payload', error: parsedClientPayload.error}, //
-            {status: 401},
+            {message: 'Invalid client payload', error: parsedClientPayload.error}, //
+            {status: 400},
           ),
         )
-      }
-
-      const {githubToken} = parsedClientPayload.data
-      const [owner, repo] = pathname.split('/')
-
-      if (process.env.ALLOWED_GITHUB_OWNERS && !process.env.ALLOWED_GITHUB_OWNERS.split(',').includes(owner)) {
-        const message = `Unauthorized - not allowed to upload to ${owner}/${repo}. Update env.ALLOWED_GITHUB_OWNERS to allow this repo.`
-        throw new ResponseError(NextResponse.json({message}, {status: 401}))
-      }
-
-      const github = new Octokit({auth: githubToken, log: console})
-
-      const {data: repoData} = await github.rest.repos.get({owner, repo}).catch(nullify404)
-
-      if (!repoData) {
-        throw new ResponseError(
-          NextResponse.json(
-            {message: `Repository not found - you may not have access to ${owner}/${repo}`},
-            {status: 404},
-          ),
-        )
-      }
-
-      const {context} = parsedClientPayload.data
-
-      const runPathname = `/${owner}/${repo}/actions/runs/${context.runId}`
-      const runPageUrl = `https://github.com${runPathname}`
-      const runPageHtml = await fetch(runPageUrl).then(r => r.text())
-      const $ = cheerio.load(runPageHtml)
-
-      const jobAnchors = $(`run-summary a[href^="${runPathname}/job/"]`)
-      const jobs = jobAnchors.map((_, el) => {
-        const $el = $(el)
-        return {
-          href: $el.attr('href'),
-          jobName: $el.text().trim(),
-          isRunning: $el.find('svg[aria-label*="currently running"]').length > 0,
-          isFailed: $el.find('svg[aria-label*="failed"]').length > 0,
-          isSuccess: $el.find('svg[aria-label*="completed successfully"]').length > 0,
-          html: $el.html(),
-        }
-      })
-
-      const matchingJob = jobs.get().find(job => job.jobName === context.jobName && job.isRunning)
-
-      if (!matchingJob) {
-        const message = `Job not found or was not running. Found job info: ${JSON.stringify(jobs.get(), null, 2)}`
-        throw new ResponseError(NextResponse.json({message}, {status: 404}))
-      }
-
-      const insertedUploadRequest = await client.maybeOne(
-        sql<queries.UploadRequest>`
-          with repo as (
-            insert into repos (owner, name, html_url)
-            values (${owner}, ${repo}, ${repoData.html_url})
-            on conflict (html_url) do update set updated_at = current_timestamp
-            returning *
-          )
-          insert into upload_requests (repo_id, ref, sha, actions_run_id, actions_run_attempt, job_name)
-          select
-            repo.id,
-            ${context.ref},
-            ${context.sha},
-            ${context.runId},
-            ${context.runAttempt},
-            ${context.jobName}
-          from repo
-          where (
-            select count(*)
-            from upload_requests other
-            where
-              other.repo_id = repo.id
-              and other.actions_run_id = ${context.runId}
-              and other.actions_run_attempt = ${context.runAttempt}
-              and other.job_name = ${context.jobName}
-          ) < 10
-          returning upload_requests.*
-        `,
-      )
-
-      console.log('uploadRequest', insertedUploadRequest)
-
-      if (!insertedUploadRequest) {
-        const message = `Upload request not created, this may be due to rate limiting on repo ${repoData.html_url} / ${context.runId}.`
-        throw new ResponseError(NextResponse.json({message}, {status: 429}))
       }
 
       // todo(paid): allow more stringent checks like making sure the ref exists
@@ -295,7 +289,7 @@ const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
         allowedContentTypes: [mimeType],
         addRandomSuffix: false, // todo(paid): allow this to be configurable?
         tokenPayload: tokenPayloadCodec.stringify({
-          uploadRequestId: insertedUploadRequest.id,
+          uploadRequestId,
           ...parsedClientPayload.data.commit,
         }),
       }
@@ -346,6 +340,29 @@ const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
   })
 
   return result as Extract<typeof result, {type: Type}>
+}
+
+async function getJobsWithStatuses(context: GithubActionsContext) {
+  const [owner, repo] = context.repository.split('/')
+
+  const runPathname = `/${owner}/${repo}/actions/runs/${context.runId}`
+  const runPageUrl = `${context.githubOrigin}${runPathname}`
+  const runPageHtml = await fetch(runPageUrl).then(r => r.text())
+  const $ = cheerio.load(runPageHtml)
+
+  const jobAnchors = $(`run-summary a[href^="${runPathname}/job/"]`)
+  const jobs = jobAnchors.map((_, el) => {
+    const $el = $(el)
+    return {
+      href: $el.attr('href'),
+      jobName: $el.text().trim(),
+      isRunning: $el.find('svg[aria-label*="currently running"]').length > 0,
+      isFailed: $el.find('svg[aria-label*="failed"]').length > 0,
+      isSuccess: $el.find('svg[aria-label*="completed successfully"]').length > 0,
+      html: $el.html(),
+    }
+  })
+  return jobs
 }
 
 export declare namespace queries {

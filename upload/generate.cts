@@ -67,12 +67,13 @@ async function upload(
     })
     const pathnameToFile = new Map(filesWithPathnames.map(f => [f.pathname, f]))
 
-    const redactedContext = {
+    const redactedContext: BulkRequest['clientPayload']['context'] = {
       ...context,
-      payload: null,
-      payloadKeys: Object.keys(context.payload),
       runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
       jobName: context.job,
+      repository: process.env.GITHUB_REPOSITORY!,
+      githubOrigin: process.env.GITHUB_SERVER_URL!,
+      ...({payload: null, payloadKeys: Object.keys(context.payload)} as {})
     }
     const bulkRequest = {
       type: 'bulk',
