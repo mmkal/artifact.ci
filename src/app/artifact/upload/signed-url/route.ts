@@ -127,6 +127,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const htmlUrl = `${context.githubOrigin}/${owner}/${repo}`
 
     const jobs = await getJobsWithStatuses(context)
+    console.log('getJobsWithStatuses result', jobs)
 
     const matchingJob = jobs.get().find(job => job.jobId === context.job && job.isRunning)
 
