@@ -87,15 +87,23 @@ create table repos (
 );
 
 -- Table for storing upload information
-create table uploads (
-    id prefixed_ksuid primary key default generate_prefixed_ksuid('upload'),
-    pathname text not null,
-    mime_type text not null,
-    blob_url text not null,
+create table upload_requests (
+    id prefixed_ksuid primary key default generate_prefixed_ksuid('upload_request'),
     repo_id prefixed_ksuid not null references repos(id),
 	ref text not null,
 	sha text not null,
-	actions_run_id text not null,
+	actions_run_id int8 not null,
+	actions_run_attempt int not null,
+    created_at timestamp with time zone not null default current_timestamp,
+    updated_at timestamp with time zone not null default current_timestamp
+);
+
+create table uploads (
+	id prefixed_ksuid primary key default generate_prefixed_ksuid('upload'),
+	upload_request_id prefixed_ksuid not null references upload_requests(id),
+    pathname text not null,
+    mime_type text not null,
+    blob_url text not null,
     created_at timestamp with time zone not null default current_timestamp,
     updated_at timestamp with time zone not null default current_timestamp
 );
@@ -104,5 +112,6 @@ alter table repos enable row level security;
 alter table uploads enable row level security;
 
 -- Create indexes
-create index idx_uploads_repo_id on uploads(repo_id);
-create index idx_repos_owner_name on repos(owner, name);
+create index idx_uploads_upload_request_id on uploads(upload_request_id);
+create index idx_upload_requests_repo_id on upload_requests(repo_id);
+create index idx_upload_requests_ref_sha on upload_requests(ref, sha);

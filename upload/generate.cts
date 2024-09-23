@@ -68,7 +68,12 @@ async function upload(
     })
     const pathnameToFile = new Map(filesWithPathnames.map(f => [f.pathname, f]))
 
-    const redactedContext = {...context, payload: null, payloadKeys: Object.keys(context.payload)}
+    const redactedContext = {
+      ...context,
+      payload: null,
+      payloadKeys: Object.keys(context.payload),
+      runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+    }
     const bulkRequest = {
       type: 'bulk',
       callbackUrl: `${inputs.origin}/artifact/upload/signed-url`,

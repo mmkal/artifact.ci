@@ -17,6 +17,7 @@ const GithubActionsContext = z.object({
   ref: z.string(),
   sha: z.string(),
   runId: z.number(),
+  runAttempt: z.number(),
 })
 export type GithubActionsContext = z.infer<typeof GithubActionsContext>
 
@@ -33,18 +34,30 @@ const TokenPayload = CommitProps.extend({
 
 export type GenerateClientTokenEvent = Extract<HandleUploadBody, {type: 'blob.generate-client-token'}>
 
-export type BulkRequest = {
-  type: 'bulk'
-  files: {pathname: string; contentType: string; multipart: boolean}[]
-  callbackUrl: string
-  clientPayload: ClientPayload
-}
-type BulkResponseItem = {
-  pathname: string
-  clientToken: string
-}
+const BulkRequestFile = z.object({
+  pathname: z.string(),
+  contentType: z.string(),
+  multipart: z.boolean(),
+})
 
-export type BulkResponse = {results: BulkResponseItem[]}
+const BulkRequest = z.object({
+  type: z.literal('bulk'),
+  files: z.array(BulkRequestFile),
+  callbackUrl: z.string(),
+  clientPayload: ClientPayload,
+})
+export type BulkRequest = z.infer<typeof BulkRequest>
+
+const BulkResponseItem = z.object({
+  pathname: z.string(),
+  clientToken: z.string(),
+})
+export type BulkResponseItem = z.infer<typeof BulkResponseItem>
+
+const BulkResponse = z.object({
+  results: z.array(BulkResponseItem),
+})
+export type BulkResponse = z.infer<typeof BulkResponse>
 
 type TokenPayload = z.infer<typeof TokenPayload>
 
@@ -90,15 +103,21 @@ const isAllowedContentType = (mimeType: string) => {
 const getMimeType = (pathname: string) => mimeLookup(pathname) || 'text/plain'
 
 export async function POST(request: Request): Promise<NextResponse> {
-  // todo: bulk endpoint - send a list of files to upload and get a list of signed URL tokens back
-  const body = (await request.json()) as HandleUploadBody | BulkRequest
-  console.log(JSON.stringify({url: request.url, body, headers: Object.fromEntries(request.headers)}, null, 2))
+  const requestBody = (await request.json()) as HandleUploadBody | BulkRequest
+  console.log(
+    JSON.stringify({url: request.url, body: requestBody, headers: Object.fromEntries(request.headers)}, null, 2),
+  )
 
-  if (body.type === 'bulk') {
+  if (requestBody.type === 'bulk') {
+    const parseResult = BulkRequest.safeParse(requestBody)
+    if (!parseResult.success) {
+      return NextResponse.json({error: 'Invalid bulk request: ' + parseResult.error.message}, {status: 400})
+    }
+    const body = parseResult.data
     try {
       const results = await Promise.all(
         body.files.map(async ({pathname, multipart}) => {
-          const uploadResponse = await handleOneUploadBody(request, {
+          const uploadResponse = await handleUploadSingle(request, {
             type: 'blob.generate-client-token',
             payload: {
               callbackUrl: body.callbackUrl,
@@ -122,7 +141,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const jsonResponse = await handleOneUploadBody(request, body)
+    const jsonResponse = await handleUploadSingle(request, requestBody)
 
     return NextResponse.json(jsonResponse)
   } catch (error) {
@@ -149,7 +168,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 }
 
-const handleOneUploadBody = async <Type extends HandleUploadBody['type']>(
+const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
   request: Request,
   body: Extract<HandleUploadBody, {type: Type}>,
 ) => {
