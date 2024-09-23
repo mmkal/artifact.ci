@@ -179,8 +179,6 @@ if (require.main === module) {
   scriptStep.with.script = [
     `${doupload.toString()}`,
     '',
-    `const cwd = process.cwd()`,
-    `process.chdir('tmp/artifact.ci')`,
     `const inputs = \${{ toJson(inputs) }}`,
     `const dependencies = {
       fs: require('fs'),
@@ -191,8 +189,6 @@ if (require.main === module) {
     }`,
     '',
     `await doupload({context, inputs, dependencies})`,
-    '',
-    `process.chdir(cwd)`,
   ].join('\n')
   writeFileSync(actionPath, yaml.stringify(parsed, {lineWidth: 0}))
 }
