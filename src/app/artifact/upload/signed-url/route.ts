@@ -1,5 +1,6 @@
 import {Octokit} from '@octokit/rest'
 import {handleUpload, type HandleUploadBody} from '@vercel/blob/client'
+import * as cheerio from 'cheerio'
 import {lookup as mimeLookup} from 'mime-types'
 import {NextResponse} from 'next/server'
 import {z} from 'zod'
@@ -223,6 +224,31 @@ const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
       }
 
       const {context} = parsedClientPayload.data
+
+      const runPathname = `/${owner}/${repo}/actions/runs/${context.runId}`
+      const runPageUrl = `https://github.com${runPathname}`
+      const runPageHtml = await fetch(runPageUrl).then(r => r.text())
+      const $ = cheerio.load(runPageHtml)
+
+      const jobAnchors = $(`run-summary a[href^="${runPathname}/job/"]`)
+      const jobs = jobAnchors.map((_, el) => {
+        const $el = $(el)
+        return {
+          href: $el.attr('href'),
+          jobName: $el.text().trim(),
+          isRunning: $el.find('svg[aria-label*="currently running"]').length > 0,
+          isFailed: $el.find('svg[aria-label*="failed"]').length > 0,
+          isSuccess: $el.find('svg[aria-label*="completed successfully"]').length > 0,
+          html: $el.html(),
+        }
+      })
+
+      const matchingJob = jobs.get().find(job => job.jobName === context.jobName && job.isRunning)
+
+      if (!matchingJob) {
+        const message = `Job not found or was not running. Found job info: ${JSON.stringify(jobs.get(), null, 2)}`
+        throw new ResponseError(NextResponse.json({message}, {status: 404}))
+      }
 
       const insertedUploadRequest = await client.maybeOne(
         sql<queries.UploadRequest>`
