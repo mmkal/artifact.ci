@@ -13,6 +13,11 @@ type UploadParams = {
   }
   context: ScriptContext
   glob: Globber
+  dependencies: {
+    fs: typeof import('fs/promises')
+    mime: typeof import('mime-types')
+    vercelBlob: typeof import('@vercel/blob/client')
+  }
 }
 
 export const actionScript = () => {
@@ -22,23 +27,24 @@ export const actionScript = () => {
     `const cwd = process.cwd()`,
     `process.chdir('tmp/artifact.ci')`,
     `const inputs = \${{ toJson(inputs) }}`,
+    `const dependencies = {fs: require('fs/promises'), mime: require('mime-types'), vercelBlob: require('@vercel/blob/client')}`,
     `process.chdir(cwd)`,
     `${fnSrc}`,
-    `await doupload({context, glob, inputs})`,
+    `await doupload({context, glob, inputs, dependencies})`,
   ].join('\n')
 }
 
 export async function doupload(
-  {context, glob, inputs}: UploadParams,
+  {context, glob, inputs, dependencies}: UploadParams,
   // context: {github: {ref_name: string; sha: string; run_id: string}},
   // commit: {ref: string; sha: string; actions_run_id: string},
 ) {
   const cwd = process.cwd()
   process.chdir('tmp/artifact.ci')
 
-  const {lookup: mimeTypeLookup} = await import('mime-types')
-  const fs = await import('fs/promises')
-  const {upload, put} = await import('@vercel/blob/client')
+  const {lookup: mimeTypeLookup} = dependencies.mime
+  const fs = dependencies.fs
+  const {upload, put} = dependencies.vercelBlob
 
   process.chdir(cwd)
 
