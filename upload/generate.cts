@@ -51,7 +51,6 @@ async function upload(
   })
   const globPattern = stat?.isDirectory() ? `${inputs.path}/**/*` : inputs.path
 
-  if (Math.random()) {
     const globber = await glob.create(globPattern)
     const files = await globber.glob()
 
@@ -86,6 +85,7 @@ async function upload(
       files: filesWithPathnames,
     } satisfies BulkRequest
 
+    console.log(`Sending bulk request to ${inputs.origin}/artifact/upload/signed-url (${filesWithPathnames.length} files)`, {redactedContext})
     const res = await fetch(`${inputs.origin}/artifact/upload/signed-url`, {
       method: 'POST',
       body: JSON.stringify(bulkRequest),
@@ -116,42 +116,6 @@ async function upload(
       console.log('error::::', e)
       throw e
     }
-  }
-
-  const results = {}
-  const globber = await glob.create(globPattern)
-  for await (const filepath of globber.globGenerator()) {
-    const fileStat = await fs.stat(filepath)
-    if (fileStat.isDirectory()) continue
-    const blobPath = pathPrefix + filepath.replace(process.cwd(), '')
-
-    const content = await fs.readFile(filepath)
-    const result = await vercelBlobClient.upload(blobPath, content, {
-      access: 'public', // todo: allow access level override?
-      handleUploadUrl: '/artifact/upload/signed-url',
-      contentType: mimeTypes.lookup(filepath) || 'text/plain', // todo: allow mime type override?
-      clientPayload: JSON.stringify({
-        githubToken,
-        commit: {
-          ref: context.ref,
-          sha: context.sha,
-          actions_run_id: context.runId,
-        },
-      }),
-    })
-    // console.log(`uploaded file ${filepath} to ${blobPath}`, result)
-    results[blobPath] = result
-  }
-
-  if (Object.keys(results).length === 0) {
-    throw new Error('no files uploaded')
-  }
-
-  console.log(`View your files here:`)
-
-  Object.keys(results).forEach(blobPath => {
-    console.log(`${inputs.origin}/artifact/blob/${blobPath}`)
-  })
 }
 
 /* eslint-disable unicorn/numeric-separators-style */
@@ -179,9 +143,6 @@ if (require.main === module) {
   const scriptStep = parsed.runs.steps.find(s => s.name === 'upload blob')
   if (!scriptStep) throw new Error(`Expected to find step "upload blob", steps: ${JSON.stringify(parsed.runs.steps.map(s => s.name || null), null, 2)}`)
   scriptStep.with.script = [
-    `console.log('run attempt:::::', process.env.GITHUB_RUN_ATTEMPT)`,
-    `console.log('whole env:::::', JSON.stringify(process.env, null, 2))`,
-    `console.log('context:::::', JSON.stringify(context, null, 2))`,
     `const inputs = \${{ toJson(inputs) }}`,
     '',
     `const cwd = process.cwd()`,

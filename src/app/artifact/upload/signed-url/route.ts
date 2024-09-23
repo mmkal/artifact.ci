@@ -7,6 +7,8 @@ import {z} from 'zod'
 import {nullify404} from '~/app/artifact/browse/[...slug]/route'
 import {client, Id, sql} from '~/db'
 
+export const maxDuration = 59
+
 const CommitProps = z.object({
   ref: z.string(),
   sha: z.string(),
@@ -283,12 +285,8 @@ const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
       console.log('uploadRequest', insertedUploadRequest)
 
       if (!insertedUploadRequest) {
-        throw new ResponseError(
-          NextResponse.json(
-            {message: 'Upload request not created, this may be due to rate limiting.'}, //
-            {status: 429},
-          ),
-        )
+        const message = `Upload request not created, this may be due to rate limiting on repo ${repoData.html_url} / ${context.runId}.`
+        throw new ResponseError(NextResponse.json({message}, {status: 429}))
       }
 
       // todo(paid): allow more stringent checks like making sure the ref exists
