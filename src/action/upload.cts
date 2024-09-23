@@ -102,8 +102,15 @@ export async function doupload(
         'User-Agent': 'artifact.ci/action',
       },
     })
-    const data = (await res.json()) as Promise<BulkResponse>
-    console.log('data::::', data)
+    const response = await res.clone().text()
+    try {
+      const data = (await res.json()) as Promise<BulkResponse>
+      console.log('data::::', data)
+    } catch (e) {
+      console.log('response::::', response)
+      console.log('error::::', e)
+      throw e
+    }
   }
 
   const results = {}
