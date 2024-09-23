@@ -12,12 +12,14 @@ type UploadParams = {
     'github-token': string
   }
   context: ScriptContext
-  glob: Globber
   dependencies: {
     fs: typeof import('fs')
     fsPromises: typeof import('fs/promises')
     mimeTypes: typeof import('mime-types')
     vercelBlobClient: typeof import('@vercel/blob/client')
+    glob: {
+      create: (pattern: string) => Promise<{globGenerator: () => AsyncGenerator<string, void, unknown>; glob: () => Promise<string[]>}>
+    }
   }
 }
 
@@ -28,22 +30,28 @@ export const actionScript = () => {
     `const cwd = process.cwd()`,
     `process.chdir('tmp/artifact.ci')`,
     `const inputs = \${{ toJson(inputs) }}`,
-    `const dependencies = {fs: require('fs/promises'), mime: require('mime-types'), vercelBlob: require('@vercel/blob/client')}`,
+    `const dependencies = {
+      fs: require('fs'),
+      fsPromises: require('fs/promises'),
+      mimeTypes: require('mime-types'),
+      vercelBlobClient: require('@vercel/blob/client'),
+      glob, // ambient variable available from actions/github-script
+    }`,
     `process.chdir(cwd)`,
     `${fnSrc}`,
-    `await doupload({context, glob, inputs, dependencies})`,
+    `await doupload({context, inputs, dependencies})`,
   ].join('\n')
 }
 
 export async function doupload(
-  {context, glob, inputs, dependencies}: UploadParams,
+  {context, inputs, dependencies}: UploadParams,
   // context: {github: {ref_name: string; sha: string; run_id: string}},
   // commit: {ref: string; sha: string; actions_run_id: string},
 ) {
   const cwd = process.cwd()
   process.chdir('tmp/artifact.ci')
 
-  const {mimeTypes, fsPromises: fs, fs: fsSync, vercelBlobClient} = dependencies
+  const {glob, mimeTypes, fsPromises: fs, fs: fsSync, vercelBlobClient} = dependencies
 
   process.chdir(cwd)
 
@@ -172,13 +180,6 @@ export async function doupload(
   Object.keys(results).forEach(blobPath => {
     console.log(`${inputs.origin}/artifact/blob/${blobPath}`)
   })
-}
-
-export type Globber = {
-  create: (pattern: string) => Promise<{
-    globGenerator: () => AsyncGenerator<string, void, unknown>
-    glob: () => Promise<string[]>
-  }>
 }
 
 /* eslint-disable unicorn/numeric-separators-style */
