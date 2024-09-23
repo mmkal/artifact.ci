@@ -7,6 +7,7 @@
   "scripts": {
     "pgkit-link": "npx link ../pgkit/packages/pgkit",
     "pgkit": "node node_modules/pgkit/dist/cli.js",
+    "generate": "tsx upload/generate.cts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

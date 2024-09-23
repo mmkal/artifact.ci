@@ -1,8 +1,8 @@
 import * as yaml from 'yaml'
 import { readFileSync, writeFileSync } from 'fs'
 
-type BulkRequest = import('../app/artifact/upload/signed-url/route').BulkRequest
-type BulkResponse = import('../app/artifact/upload/signed-url/route').BulkResponse
+type BulkRequest = import('../src/app/artifact/upload/signed-url/route').BulkRequest
+type BulkResponse = import('../src/app/artifact/upload/signed-url/route').BulkResponse
 
 type UploadParams = {
   inputs: {
@@ -21,26 +21,6 @@ type UploadParams = {
       create: (pattern: string) => Promise<{globGenerator: () => AsyncGenerator<string, void, unknown>; glob: () => Promise<string[]>}>
     }
   }
-}
-
-export const actionScript = () => {
-  const fnSrc = doupload.toString()//.split(';').join(';\n')
-  // eslint-disable-next-line unicorn/template-indent
-  return [
-    `const cwd = process.cwd()`,
-    `process.chdir('tmp/artifact.ci')`,
-    `const inputs = \${{ toJson(inputs) }}`,
-    `const dependencies = {
-      fs: require('fs'),
-      fsPromises: require('fs/promises'),
-      mimeTypes: require('mime-types'),
-      vercelBlobClient: require('@vercel/blob/client'),
-      glob, // ambient variable available from actions/github-script
-    }`,
-    `process.chdir(cwd)`,
-    `${fnSrc}`,
-    `await doupload({context, inputs, dependencies})`,
-  ].join('\n')
 }
 
 export async function doupload(
@@ -67,11 +47,6 @@ export async function doupload(
     console.log(`uploading to ${inputs.origin} instead of ${oldOrigin} because ref is ${refName}`)
   }
 
-  // console.log({githubToken, inputs, pathPrefix})
-
-  // console.log('lazy url:')
-  // console.log(`${inputs.origin}/artifact/browse/${pathPrefix}`)
-
   Object.assign(global, {
     window: {location: new URL(inputs.origin)}, // create a global `window` object to trick @vercel/blob/client into working. for some reason it refuses to run outside of the browser but it's just a `fetch` wrapper
   })
@@ -81,7 +56,6 @@ export async function doupload(
     throw e
   })
   const globPattern = stat?.isDirectory() ? `${inputs.path}/**/*` : inputs.path
-  // console.log({globPattern})
 
   if (Math.random()) {
     const globber = await glob.create(globPattern)
@@ -89,9 +63,11 @@ export async function doupload(
 
     const filesWithPathnames = files.flatMap(f => {
       if (!fsSync.statSync(f).isFile()) return []
+      const pathname = pathPrefix + f.replace(process.cwd(), '')
       return {
         localPath: f,
-        pathname: pathPrefix + f.replace(process.cwd(), ''),
+        viewUrl: `${inputs.origin}/artifact/blob/${pathname}`,
+        pathname: pathname,
         contentType: mimeTypes.lookup(f) || 'text/plain',
         multipart: false,
       }
@@ -109,8 +85,6 @@ export async function doupload(
       },
     } satisfies BulkRequest
 
-    console.log('inputs.origin::::', inputs.origin)
-    console.log('bulkRequest::::', bulkRequest)
     const res = await fetch(`${inputs.origin}/artifact/upload/signed-url`, {
       method: 'POST',
       body: JSON.stringify(bulkRequest),
@@ -119,24 +93,21 @@ export async function doupload(
         'User-Agent': 'artifact.ci/action',
       },
     })
-    console.log('res::::', res.status, res.statusText)
     const response = await res.clone().text()
     try {
       const data = (await res.json()) as BulkResponse
-      console.log('data::::', data)
       for (const result of data.results) {
         const file = pathnameToFile.get(result.pathname)
         if (!file) throw new Error(`file not found for pathname ${result.pathname}`)
-        console.log('uploading file', file.localPath)
         await vercelBlobClient.put(result.pathname, await fs.readFile(file.localPath), {
           access: 'public',
           token: result.clientToken,
           multipart: file.multipart,
           contentType: file.contentType,
         })
-        console.log('uploaded file', result.pathname)
+        console.log('Uploaded: ' + file.viewUrl)
       }
-      console.log('done')
+      console.log('Upload complete')
       return
     } catch (e) {
       console.log('response::::', res.status, response)
@@ -151,7 +122,6 @@ export async function doupload(
     const fileStat = await fs.stat(filepath)
     if (fileStat.isDirectory()) continue
     const blobPath = pathPrefix + filepath.replace(process.cwd(), '')
-    // console.log(`uploading file ${filepath} to ${blobPath}`)
 
     const content = await fs.readFile(filepath)
     const result = await vercelBlobClient.upload(blobPath, content, {
@@ -205,6 +175,24 @@ if (require.main === module) {
   const yml = readFileSync(actionPath, 'utf8')
   const parsed = yaml.parse(yml)
   const scriptStep = parsed.runs.steps.find(s => s.name === 'upload blob')
-  scriptStep.with.script = actionScript()
+  if (!scriptStep) throw new Error(`Expected to find step "upload blob", steps: ${JSON.stringify(parsed.runs.steps.map(s => s.name || null), null, 2)}`)
+  scriptStep.with.script = [
+    `${doupload.toString()}`,
+    '',
+    `const cwd = process.cwd()`,
+    `process.chdir('tmp/artifact.ci')`,
+    `const inputs = \${{ toJson(inputs) }}`,
+    `const dependencies = {
+      fs: require('fs'),
+      fsPromises: require('fs/promises'),
+      mimeTypes: require('mime-types'),
+      vercelBlobClient: require('@vercel/blob/client'),
+      glob, // ambient variable available from actions/github-script
+    }`,
+    '',
+    `await doupload({context, inputs, dependencies})`,
+    '',
+    `process.chdir(cwd)`,
+  ].join('\n')
   writeFileSync(actionPath, yaml.stringify(parsed, {lineWidth: 0}))
 }
