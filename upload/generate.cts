@@ -23,7 +23,7 @@ type UploadParams = {
   }
 }
 
-export async function doupload(
+async function upload(
   {context, inputs, dependencies}: UploadParams,
   // context: {github: {ref_name: string; sha: string; run_id: string}},
   // commit: {ref: string; sha: string; actions_run_id: string},
@@ -68,13 +68,14 @@ export async function doupload(
     })
     const pathnameToFile = new Map(filesWithPathnames.map(f => [f.pathname, f]))
 
+    const redactedContext = {...context, payload: null, payloadKeys: Object.keys(context.payload)}
     const bulkRequest = {
       type: 'bulk',
       callbackUrl: `${inputs.origin}/artifact/upload/signed-url`,
       clientPayload: {
         githubToken,
         commit: {ref: context.ref, sha: context.sha, actions_run_id: context.runId.toString()},
-        context,
+        context: redactedContext,
       },
       files: filesWithPathnames,
     } satisfies BulkRequest
@@ -83,8 +84,8 @@ export async function doupload(
       method: 'POST',
       body: JSON.stringify(bulkRequest),
       headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'artifact.ci/action',
+        'content-type': 'application/json',
+        'user-agent': 'artifact.ci/action',
       },
     })
     const response = await res.clone().text()
@@ -171,6 +172,9 @@ if (require.main === module) {
   const scriptStep = parsed.runs.steps.find(s => s.name === 'upload blob')
   if (!scriptStep) throw new Error(`Expected to find step "upload blob", steps: ${JSON.stringify(parsed.runs.steps.map(s => s.name || null), null, 2)}`)
   scriptStep.with.script = [
+    `console.log('run attempt:::::', process.env.GITHUB_RUN_ATTEMPT)`,
+    `console.log('whole env:::::', JSON.stringify(process.env, null, 2))`,
+    `console.log('context:::::', JSON.stringify(context, null, 2))`,
     `const inputs = \${{ toJson(inputs) }}`,
     '',
     `const cwd = process.cwd()`,
@@ -184,9 +188,9 @@ if (require.main === module) {
     }`,
     `process.chdir(cwd)`,
     '',
-    `${doupload.toString()}`,
+    `${upload.toString()}`,
     ``,
-    `await doupload({context, inputs, dependencies})`,
+    `await upload({context, inputs, dependencies})`,
   ].join('\n')
   writeFileSync(actionPath, yaml.stringify(parsed, {lineWidth: 0}))
 }
