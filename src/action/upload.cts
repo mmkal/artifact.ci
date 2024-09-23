@@ -94,6 +94,8 @@ export async function doupload(
       },
     } satisfies BulkRequest
 
+    console.log('inputs.origin::::', inputs.origin)
+    console.log('bulkRequest::::', bulkRequest)
     const res = await fetch(`${inputs.origin}/artifact/upload/signed-url`, {
       method: 'POST',
       body: JSON.stringify(bulkRequest),
@@ -102,6 +104,7 @@ export async function doupload(
         'User-Agent': 'artifact.ci/action',
       },
     })
+    console.log('res::::', res.status, res.statusText)
     const response = await res.clone().text()
     try {
       const data = (await res.json()) as Promise<BulkResponse>
