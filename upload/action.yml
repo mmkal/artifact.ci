@@ -1,7 +1,5 @@
 name: upload artifact action
 description: Drop in replacement for actions/upload-artifact which provides a browsable link to the artifact
-# todo: support all actions/upload-artifact inputs
-# todo: allow configuring the prefix, allow any of `/${{ github.repository }}/${{ github.run_id }}`, `/${{ github.repository }}/${{ github.ref_name }}`,  `/${{ github.repository }}/${{ github.sha }}`
 inputs:
   path:
     description: A file, directory or wildcard pattern that describes what to upload
@@ -45,6 +43,7 @@ runs:
       shell: bash
       working-directory: tmp/artifact.ci
       run: |
+        node -v
         sed -i 's/const res = await _undici.fetch.call/console.log("client.cjs fetching", {url, options, event});const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
         vercel_chunk_name=$(ls node_modules/@vercel/blob/dist | grep chunk | grep .cjs | grep -v .map)
         vercel_chunk_cjs="node_modules/@vercel/blob/dist/$vercel_chunk_name"
@@ -58,74 +57,13 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       with:
-        script: |
+        script: |-
           const cwd = process.cwd()
           process.chdir('tmp/artifact.ci')
-
-          const {upload} = require('@vercel/blob/client')
-          const fs = require('fs/promises')
-          const {lookup: mimeTypeLookup} = require('mime-types')
-
-          process.chdir(cwd)
-
           const inputs = ${{ toJson(inputs) }}
-          const githubToken = inputs['github-token']
-          const origin = inputs.origin
-          const pathPrefix = '${{ github.repository }}/${{ github.run_id }}/' + inputs.name
-
-          // console.log({githubToken, inputs, pathPrefix})
-
-          // console.log('lazy url:')
-          // console.log(`${inputs.origin}/artifact/browse/${pathPrefix}`)
-
-          Object.assign(global, {
-            window: {location: new URL(inputs.origin)}, // create a global `window` object to trick @vercel/blob/client into working. for some reason it refuses to run outside of the browser but it's just a `fetch` wrapper
-          })
-
-          const stat = await fs.stat(inputs.path).catch(e => {
-            if (e.code === 'ENOENT') return null
-            throw e
-          })
-          const globPattern = stat?.isDirectory() ? `${inputs.path}/**/*` : inputs.path
-          // console.log({globPattern})
-
-          const results = {}
-          const globber = await glob.create(globPattern)
-          for await (const filepath of globber.globGenerator()) {
-            const stat = await fs.stat(filepath)
-            if (stat.isDirectory()) continue
-            const blobPath = pathPrefix + filepath.replace(process.cwd(), '')
-            // console.log(`uploading file ${filepath} to ${blobPath}`)
-
-            const content = await fs.readFile(filepath)
-            const result = await upload(blobPath, content, {
-              access: 'public', // todo: allow access level override?
-              handleUploadUrl: '/artifact/upload/signed-url',
-              contentType: mimeTypeLookup(filepath) || 'text/plain', // todo: allow mime type override?
-              clientPayload: JSON.stringify({
-                githubToken,
-                commit: {
-                  ref: ${{ toJson(github.ref_name) }},
-                  sha: ${{ toJson(github.sha) }},
-                  actions_run_id: ${{ toJson(github.run_id) }},
-                },
-              }),
-            })
-            // console.log(`uploaded file ${filepath} to ${blobPath}`, result)
-            results[blobPath] = result
-          }
-
-          if (Object.keys(results).length === 0) {
-            throw new Error('no files uploaded')
-          }
-
-
-          console.log(`View your files here:`)
-          
-          Object.keys(results).forEach(blobPath => {
-            console.log(`${inputs.origin}/artifact/blob/${blobPath}`)
-          })
-          console.log('context:::', JSON.stringify(context, null, 2))
+          process.chdir(cwd)
+          async function doupload({context,glob,inputs}){const cwd=process.cwd();process.chdir("tmp/artifact.ci");const{lookup:mimeTypeLookup}=await import("mime-types").then(n=>{const e="default";return n[e]&&typeof n[e]=="object"&&"__esModule"in n[e]?n[e]:n});const fs=await import("fs/promises").then(n=>{const e="default";return n[e]&&typeof n[e]=="object"&&"__esModule"in n[e]?n[e]:n});const{upload,put}=await import("@vercel/blob/client").then(n=>{const e="default";return n[e]&&typeof n[e]=="object"&&"__esModule"in n[e]?n[e]:n});process.chdir(cwd);const githubToken=inputs["github-token"];const pathPrefix="${{ github.repository }}/${{ github.run_id }}/"+inputs.name;Object.assign(global,{window:{location:new URL(inputs.origin)}});const stat=await fs.stat(inputs.path).catch(e=>{if(e.code==="ENOENT")return null;throw e});const globPattern=stat?.isDirectory()?`${inputs.path}/**/*`:inputs.path;if(Math.random()){const globber2=await glob.create(globPattern);const files=await globber2.glob();const bulkRequest={type:"bulk",files:files.map(f=>{const pathname=pathPrefix+f.replace(process.cwd(),"");return{pathname}}),callbackUrl:`${inputs.origin}/artifact/upload/signed-url`,clientPayload:{githubToken,commit:{ref:context.ref,sha:context.sha,actions_run_id:context.runId.toString()},context}};const res=await fetch(`${inputs.origin}/artifact/upload/signed-url`,{method:"POST",body:JSON.stringify(bulkRequest),headers:{"Content-Type":"application/json","User-Agent":"artifact.ci/action"}});const data=await res.json();console.log("data::::",data)}const results={};const globber=await glob.create(globPattern);for await(const filepath of globber.globGenerator()){const fileStat=await fs.stat(filepath);if(fileStat.isDirectory())continue;const blobPath=pathPrefix+filepath.replace(process.cwd(),"");const content=await fs.readFile(filepath);const result=await upload(blobPath,content,{access:"public",handleUploadUrl:"/artifact/upload/signed-url",contentType:mimeTypeLookup(filepath)||"text/plain",clientPayload:JSON.stringify({githubToken,commit:{ref:context.ref,sha:context.sha,actions_run_id:context.runId}})});results[blobPath]=result}if(Object.keys(results).length===0){throw new Error("no files uploaded")}console.log(`View your files here:`);Object.keys(results).forEach(blobPath=>{console.log(`${inputs.origin}/artifact/blob/${blobPath}`)})}
+          await doupload({context, glob, inputs})
     - name: cleanup
       shell: bash
       run: rm -rf tmp/artifact.ci

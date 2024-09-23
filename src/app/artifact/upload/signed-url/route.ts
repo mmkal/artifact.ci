@@ -11,16 +11,37 @@ const CommitProps = z.object({
   sha: z.string(),
   actions_run_id: z.string(),
 })
-type CommitProps = z.infer<typeof CommitProps>
+export type CommitProps = z.infer<typeof CommitProps>
+
+const GithubActionsContext = z.object({
+  ref: z.string(),
+  sha: z.string(),
+  runId: z.number(),
+})
+export type GithubActionsContext = z.infer<typeof GithubActionsContext>
 
 const ClientPayload = z.object({
   githubToken: z.string(),
   commit: CommitProps,
+  context: GithubActionsContext,
 })
+export type ClientPayload = z.infer<typeof ClientPayload>
 
 const TokenPayload = CommitProps.extend({
   repoId: Id('repos'),
 })
+
+export type GenerateClientTokenEvent = Extract<HandleUploadBody, {type: 'blob.generate-client-token'}>
+
+export type BulkRequest = {
+  type: 'bulk'
+  files: {pathname: string}[]
+  callbackUrl: string
+  clientPayload: ClientPayload
+}
+export type BulkResponse = {
+  results: {pathname: string; clientToken: string}[]
+}
 
 type TokenPayload = z.infer<typeof TokenPayload>
 
@@ -66,13 +87,29 @@ const getMimeType = (pathname: string) => mimeLookup(pathname) || 'text/plain'
 
 export async function POST(request: Request): Promise<NextResponse> {
   // todo: bulk endpoint - send a list of files to upload and get a list of signed URL tokens back
-  const body = (await request.json()) as HandleUploadBody | {type: 'bulk'; bulk: HandleUploadBody[]}
+  const body = (await request.json()) as HandleUploadBody | BulkRequest
   console.log(JSON.stringify({url: request.url, body, headers: Object.fromEntries(request.headers)}, null, 2))
 
   if (body.type === 'bulk') {
     try {
-      const responses = await Promise.all(body.bulk.map(b => handleOneUploadBody(request, b)))
-      return NextResponse.json(responses)
+      const results = await Promise.all(
+        body.files.map(async ({pathname}) => {
+          const uploadResponse = await handleOneUploadBody(request, {
+            type: 'blob.generate-client-token',
+            payload: {
+              callbackUrl: body.callbackUrl,
+              clientPayload: JSON.stringify(body.clientPayload),
+              pathname,
+              multipart: false,
+            },
+          })
+          return {
+            pathname,
+            clientToken: uploadResponse.clientToken,
+          } satisfies BulkResponse['results'][number]
+        }),
+      )
+      return NextResponse.json({results} satisfies BulkResponse)
     } catch (error) {
       if (error instanceof ResponseError) {
         console.log(error.response.status + ' handling upload', error)
@@ -111,8 +148,16 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 }
 
-const handleOneUploadBody = async (request: Request, body: HandleUploadBody) => {
-  return handleUpload({
+const handleOneUploadBody = async (request: Request, body: GenerateClientTokenEvent) => {
+  if (body.type !== 'blob.generate-client-token') {
+    throw new ResponseError(
+      NextResponse.json(
+        {message: `Unsupported request type ${body.type} (expected "blob.generate-client-token")`}, //
+        {status: 400},
+      ),
+    )
+  }
+  const result = await handleUpload({
     body,
     request,
     onBeforeGenerateToken: async (pathname, payload) => {
@@ -233,6 +278,8 @@ const handleOneUploadBody = async (request: Request, body: HandleUploadBody) => 
       }
     },
   })
+
+  return result as Extract<typeof result, {type: 'blob.generate-client-token'}>
 }
 
 export declare namespace queries {
