@@ -28,13 +28,7 @@ export async function doupload(
   // context: {github: {ref_name: string; sha: string; run_id: string}},
   // commit: {ref: string; sha: string; actions_run_id: string},
 ) {
-  const cwd = process.cwd()
-  process.chdir('tmp/artifact.ci')
-
   const {glob, mimeTypes, fsPromises: fs, fs: fsSync, vercelBlobClient} = dependencies
-
-  process.chdir(cwd)
-
   
   const githubToken = inputs['github-token']
   const pathPrefix = '${{ github.repository }}/${{ github.run_id }}/' + inputs.name
@@ -177,9 +171,10 @@ if (require.main === module) {
   const scriptStep = parsed.runs.steps.find(s => s.name === 'upload blob')
   if (!scriptStep) throw new Error(`Expected to find step "upload blob", steps: ${JSON.stringify(parsed.runs.steps.map(s => s.name || null), null, 2)}`)
   scriptStep.with.script = [
-    `${doupload.toString()}`,
-    '',
     `const inputs = \${{ toJson(inputs) }}`,
+    '',
+    `const cwd = process.cwd()`,
+    `process.chdir('tmp/artifact.ci')`, // change into the directory where node_modules is available
     `const dependencies = {
       fs: require('fs'),
       fsPromises: require('fs/promises'),
@@ -187,7 +182,10 @@ if (require.main === module) {
       vercelBlobClient: require('@vercel/blob/client'),
       glob, // ambient variable available from actions/github-script
     }`,
+    `process.chdir(cwd)`,
     '',
+    `${doupload.toString()}`,
+    ``,
     `await doupload({context, inputs, dependencies})`,
   ].join('\n')
   writeFileSync(actionPath, yaml.stringify(parsed, {lineWidth: 0}))
