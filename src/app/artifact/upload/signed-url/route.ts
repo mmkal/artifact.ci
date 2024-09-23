@@ -148,15 +148,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 }
 
-const handleOneUploadBody = async (request: Request, body: GenerateClientTokenEvent) => {
-  if (body.type !== 'blob.generate-client-token') {
-    throw new ResponseError(
-      NextResponse.json(
-        {message: `Unsupported request type ${body.type} (expected "blob.generate-client-token")`}, //
-        {status: 400},
-      ),
-    )
-  }
+const handleOneUploadBody = async <Type extends HandleUploadBody['type']>(
+  request: Request,
+  body: Extract<HandleUploadBody, {type: Type}>,
+) => {
   const result = await handleUpload({
     body,
     request,
@@ -279,7 +274,7 @@ const handleOneUploadBody = async (request: Request, body: GenerateClientTokenEv
     },
   })
 
-  return result as Extract<typeof result, {type: 'blob.generate-client-token'}>
+  return result as Extract<typeof result, {type: Type}>
 }
 
 export declare namespace queries {

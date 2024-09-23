@@ -107,7 +107,7 @@ export async function doupload(
       const data = (await res.json()) as Promise<BulkResponse>
       console.log('data::::', data)
     } catch (e) {
-      console.log('response::::', response)
+      console.log('response::::', res.status, response)
       console.log('error::::', e)
       throw e
     }
