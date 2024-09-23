@@ -73,6 +73,7 @@ async function upload(
       payload: null,
       payloadKeys: Object.keys(context.payload),
       runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+      jobName: context.job,
     }
     const bulkRequest = {
       type: 'bulk',

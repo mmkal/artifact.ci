@@ -94,6 +94,7 @@ create table upload_requests (
 	sha text not null,
 	actions_run_id int8 not null,
 	actions_run_attempt int not null,
+	job_name text not null,
     created_at timestamp with time zone not null default current_timestamp,
     updated_at timestamp with time zone not null default current_timestamp
 );
