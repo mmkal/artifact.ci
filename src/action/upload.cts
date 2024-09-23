@@ -14,9 +14,10 @@ type UploadParams = {
   context: ScriptContext
   glob: Globber
   dependencies: {
-    fs: typeof import('fs/promises')
-    mime: typeof import('mime-types')
-    vercelBlob: typeof import('@vercel/blob/client')
+    fs: typeof import('fs')
+    fsPromises: typeof import('fs/promises')
+    mimeTypes: typeof import('mime-types')
+    vercelBlobClient: typeof import('@vercel/blob/client')
   }
 }
 
@@ -42,9 +43,7 @@ export async function doupload(
   const cwd = process.cwd()
   process.chdir('tmp/artifact.ci')
 
-  const {lookup: mimeTypeLookup} = dependencies.mime
-  const fs = dependencies.fs
-  const {upload, put} = dependencies.vercelBlob
+  const {mimeTypes, fsPromises: fs, fs: fsSync, vercelBlobClient} = dependencies
 
   process.chdir(cwd)
 
@@ -80,12 +79,15 @@ export async function doupload(
     const globber = await glob.create(globPattern)
     const files = await globber.glob()
 
-    const filesWithPathnames = files.map(f => ({
-      localPath: f,
-      pathname: pathPrefix + f.replace(process.cwd(), ''),
-      contentType: mimeTypeLookup(f) || 'text/plain',
-      multipart: false,
-    }))
+    const filesWithPathnames = files.flatMap(f => {
+      if (!fsSync.statSync(f).isFile()) return []
+      return {
+        localPath: f,
+        pathname: pathPrefix + f.replace(process.cwd(), ''),
+        contentType: mimeTypes.lookup(f) || 'text/plain',
+        multipart: false,
+      }
+    })
     const pathnameToFile = new Map(filesWithPathnames.map(f => [f.pathname, f]))
 
     const bulkRequest = {
@@ -118,7 +120,7 @@ export async function doupload(
         const file = pathnameToFile.get(result.pathname)
         if (!file) throw new Error(`file not found for pathname ${result.pathname}`)
         console.log('uploading file', file.localPath)
-        await put(result.pathname, await fs.readFile(file.localPath), {
+        await vercelBlobClient.put(result.pathname, await fs.readFile(file.localPath), {
           access: 'public',
           token: result.clientToken,
           multipart: file.multipart,
@@ -144,10 +146,10 @@ export async function doupload(
     // console.log(`uploading file ${filepath} to ${blobPath}`)
 
     const content = await fs.readFile(filepath)
-    const result = await upload(blobPath, content, {
+    const result = await vercelBlobClient.upload(blobPath, content, {
       access: 'public', // todo: allow access level override?
       handleUploadUrl: '/artifact/upload/signed-url',
-      contentType: mimeTypeLookup(filepath) || 'text/plain', // todo: allow mime type override?
+      contentType: mimeTypes.lookup(filepath) || 'text/plain', // todo: allow mime type override?
       clientPayload: JSON.stringify({
         githubToken,
         commit: {
