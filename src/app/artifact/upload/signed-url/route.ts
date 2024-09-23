@@ -35,13 +35,16 @@ export type GenerateClientTokenEvent = Extract<HandleUploadBody, {type: 'blob.ge
 
 export type BulkRequest = {
   type: 'bulk'
-  files: {pathname: string}[]
+  files: {pathname: string; contentType: string; multipart: boolean}[]
   callbackUrl: string
   clientPayload: ClientPayload
 }
-export type BulkResponse = {
-  results: {pathname: string; clientToken: string}[]
+type BulkResponseItem = {
+  pathname: string
+  clientToken: string
 }
+
+export type BulkResponse = {results: BulkResponseItem[]}
 
 type TokenPayload = z.infer<typeof TokenPayload>
 
@@ -73,7 +76,8 @@ const allowedContentTypes = new Set([
   'application/xml',
   'application/pdf',
   'application/zip',
-  '*/*', // todo(paid): only allow this for paid users?
+  'font/woff2',
+  // todo(paid): only allow a subset for free users?
 ])
 
 const isAllowedContentType = (mimeType: string) => {
@@ -93,20 +97,17 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (body.type === 'bulk') {
     try {
       const results = await Promise.all(
-        body.files.map(async ({pathname}) => {
+        body.files.map(async ({pathname, multipart}) => {
           const uploadResponse = await handleOneUploadBody(request, {
             type: 'blob.generate-client-token',
             payload: {
               callbackUrl: body.callbackUrl,
               clientPayload: JSON.stringify(body.clientPayload),
               pathname,
-              multipart: false,
+              multipart,
             },
           })
-          return {
-            pathname,
-            clientToken: uploadResponse.clientToken,
-          } satisfies BulkResponse['results'][number]
+          return {pathname, clientToken: uploadResponse.clientToken} satisfies BulkResponseItem
         }),
       )
       return NextResponse.json({results} satisfies BulkResponse)

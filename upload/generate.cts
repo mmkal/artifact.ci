@@ -76,13 +76,13 @@ export async function doupload(
 
     const bulkRequest = {
       type: 'bulk',
-      files: filesWithPathnames,
       callbackUrl: `${inputs.origin}/artifact/upload/signed-url`,
       clientPayload: {
         githubToken,
         commit: {ref: context.ref, sha: context.sha, actions_run_id: context.runId.toString()},
         context,
       },
+      files: filesWithPathnames,
     } satisfies BulkRequest
 
     const res = await fetch(`${inputs.origin}/artifact/upload/signed-url`, {
