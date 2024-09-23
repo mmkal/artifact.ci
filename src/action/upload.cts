@@ -80,12 +80,17 @@ export async function doupload(
     const globber = await glob.create(globPattern)
     const files = await globber.glob()
 
+    const filesWithPathnames = files.map(f => ({
+      localPath: () => f, // use function so we can send over the wire without sending local file path
+      pathname: pathPrefix + f.replace(process.cwd(), ''),
+      contentType: mimeTypeLookup(f) || 'text/plain',
+      multipart: false,
+    }))
+    const pathnameToFile = new Map(filesWithPathnames.map(f => [f.pathname, f]))
+
     const bulkRequest = {
       type: 'bulk',
-      files: files.map(f => {
-        const pathname = pathPrefix + f.replace(process.cwd(), '')
-        return {pathname}
-      }),
+      files: filesWithPathnames,
       callbackUrl: `${inputs.origin}/artifact/upload/signed-url`,
       clientPayload: {
         githubToken,
@@ -107,8 +112,22 @@ export async function doupload(
     console.log('res::::', res.status, res.statusText)
     const response = await res.clone().text()
     try {
-      const data = (await res.json()) as Promise<BulkResponse>
+      const data = (await res.json()) as BulkResponse
       console.log('data::::', data)
+      for (const result of data.results) {
+        const file = pathnameToFile.get(result.pathname)
+        if (!file) throw new Error(`file not found for pathname ${result.pathname}`)
+        console.log('uploading file', file.localPath())
+        await put(result.pathname, await fs.readFile(file.localPath()), {
+          access: 'public',
+          token: result.clientToken,
+          multipart: file.multipart,
+          contentType: file.contentType,
+        })
+        console.log('uploaded file', result.pathname)
+      }
+      console.log('done')
+      return
     } catch (e) {
       console.log('response::::', res.status, response)
       console.log('error::::', e)
