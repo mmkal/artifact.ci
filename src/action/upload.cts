@@ -48,8 +48,17 @@ export async function doupload(
 
   process.chdir(cwd)
 
+  
   const githubToken = inputs['github-token']
   const pathPrefix = '${{ github.repository }}/${{ github.run_id }}/' + inputs.name
+
+  const refName = context.ref.replace('refs/heads/', '')
+  console.log({refName, pathPrefix, inputs})
+  if (pathPrefix.startsWith('mmkal/artifact.ci') && refName !== 'main') {
+    const oldOrigin = inputs.origin
+    inputs.origin = `https://artifactci-git-${refName.replaceAll('/', '-')}-mmkals-projects.vercel.app`
+    console.log(`uploading to ${inputs.origin} instead of ${oldOrigin} because ref is ${refName}`)
+  }
 
   // console.log({githubToken, inputs, pathPrefix})
 
