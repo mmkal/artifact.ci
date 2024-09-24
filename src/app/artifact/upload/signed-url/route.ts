@@ -2,79 +2,12 @@ import {Octokit} from '@octokit/rest'
 import {handleUpload, type HandleUploadBody} from '@vercel/blob/client'
 import {lookup as mimeLookup} from 'mime-types'
 import {NextResponse} from 'next/server'
-import {z} from 'zod'
 import {getJobsWithStatuses as loadWorkflowJobStatuses} from './job-statuses'
+import {BulkRequest, BulkResponse, BulkResponseItem, ClientPayload, tokenPayloadCodec} from './types'
 import {nullify404} from '~/app/artifact/browse/[...slug]/route'
 import {client, Id, sql} from '~/db'
 
 export const maxDuration = 59
-
-const CommitProps = z.object({
-  ref: z.string(),
-  sha: z.string(),
-  actions_run_id: z.string(),
-})
-export type CommitProps = z.infer<typeof CommitProps>
-
-const GithubActionsContext = z.object({
-  ref: z.string(),
-  sha: z.string(),
-  runId: z.number(),
-  runAttempt: z.number(),
-  job: z.string(),
-  repository: z.string().refine(s => s.split('/').length === 2, 'Repository should be in the format of owner/repo'),
-  githubOrigin: z.string(), // usually https://github.com
-})
-export type GithubActionsContext = z.infer<typeof GithubActionsContext>
-
-const ClientPayload = z.object({
-  githubToken: z.string(),
-  commit: CommitProps,
-  context: GithubActionsContext,
-})
-export type ClientPayload = z.infer<typeof ClientPayload>
-
-const TokenPayload = CommitProps.extend({
-  uploadRequestId: Id('upload_requests'),
-})
-
-export type GenerateClientTokenEvent = Extract<HandleUploadBody, {type: 'blob.generate-client-token'}>
-
-const BulkRequestFile = z.object({
-  pathname: z.string(),
-  contentType: z.string(),
-  multipart: z.boolean(),
-})
-
-const BulkRequest = z.object({
-  type: z.literal('bulk'),
-  files: z.array(BulkRequestFile),
-  callbackUrl: z.string(),
-  clientPayload: ClientPayload,
-})
-export type BulkRequest = z.infer<typeof BulkRequest>
-
-const BulkResponseItem = z.object({
-  pathname: z.string(),
-  clientToken: z.string(),
-})
-export type BulkResponseItem = z.infer<typeof BulkResponseItem>
-
-const BulkResponse = z.object({
-  results: z.array(BulkResponseItem),
-})
-export type BulkResponse = z.infer<typeof BulkResponse>
-
-type TokenPayload = z.infer<typeof TokenPayload>
-
-const tokenPayloadCodec = {
-  parse: (text: string): TokenPayload => {
-    return TokenPayload.parse(JSON.parse(text))
-  },
-  stringify: (value: TokenPayload): string => {
-    return JSON.stringify(value)
-  },
-}
 
 class ResponseError extends Error {
   constructor(readonly response: NextResponse<object>) {
@@ -102,7 +35,7 @@ const allowedContentTypes = new Set([
 const isAllowedContentType = (mimeType: string) => {
   if (allowedContentTypes.has(mimeType)) return true
 
-  console.warn(`New content type - ${mimeType} - add to allowed content types. Allowing anyway for now`)
+  console.warn(`New content type - ${mimeType} - pls add to allowed content types. Allowing anyway for now`)
   return true
 }
 
