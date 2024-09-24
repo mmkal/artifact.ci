@@ -71,11 +71,6 @@ check (value ~ '^[a-z0-9_]+_[0-9A-Za-z]{27}$');
 
 -- #endregion KSUID Setup
 
-create table test_table (
-    id prefixed_ksuid primary key default generate_prefixed_ksuid('test_table'),
-    name text not null
-);
-
 -- Table for storing repository information
 create table repos (
   id prefixed_ksuid primary key default generate_prefixed_ksuid('repo'),
@@ -109,10 +104,37 @@ create table uploads (
     updated_at timestamp with time zone not null default current_timestamp
 );
 
+create table sponsors (
+	id prefixed_ksuid primary key default generate_prefixed_ksuid('sponsor'),
+	sponsor_login text not null,
+	sponsoree_login text not null, -- github login
+	github_type text not null, -- user/org
+	monthly_amount_usd numeric(10, 2),
+	expiry timestamptz not null, -- set to 3000-01-01 if never expires I guess
+	created_at timestamp with time zone not null default current_timestamp,
+	updated_at timestamp with time zone not null default current_timestamp,
+	unique(sponsor_login, sponsoree_login)
+);
+
+create table usage_credits (
+	id prefixed_ksuid primary key default generate_prefixed_ksuid('usage_credit'),
+	github_login text not null,
+	expiry timestamptz not null,
+	sponsor_id prefixed_ksuid references sponsors(id),
+	reason text not null, -- e.g. "sponsor" or "i like them"
+	created_at timestamp with time zone not null default current_timestamp,
+	updated_at timestamp with time zone not null default current_timestamp,
+	unique(github_login, reason)
+);
+
 alter table repos enable row level security;
 alter table uploads enable row level security;
+alter table sponsors enable row level security;
+alter table usage_credits enable row level security;
 
 -- Create indexes
 create index idx_uploads_upload_request_id on uploads(upload_request_id);
 create index idx_upload_requests_repo_id on upload_requests(repo_id);
 create index idx_upload_requests_ref_sha on upload_requests(ref, sha);
+create index idx_usage_credits_github_login on usage_credits(github_login);
+create index idx_usage_credits_sponsor_id on usage_credits(sponsor_id);
