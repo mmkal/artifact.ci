@@ -28,7 +28,7 @@ jobs:
 
 This will print a link to the artifact in your workflow run output, which you can click to view in your browser:
 
-![playwright report](/public/reports/playwright.png)
+![playwright report](https://www.artifact.ci/public/reports/playwright.png)
 
 ## Why
 
@@ -40,23 +40,23 @@ Here are some high-level guides for how to get useful HTML outputs from various 
 
 ### Testing frameworks
 
-- [Vitest](./src/pages/recipes/testing/vitest.md)
-- [Playwright](./src/pages/recipes/testing/playwright.md)
-- [Jest](./src/pages/recipes/testing/jest.md)
-- [Mocha](./src/pages/recipes/testing/mocha.md)
-- [AVA](./src/pages/recipes/testing/ava.md)
+- [Vitest](https://www.artifact.ci/recipes/testing/vitest)
+- [Playwright](https://www.artifact.ci/recipes/testing/playwright)
+- [Jest](https://www.artifact.ci/recipes/testing/jest)
+- [Mocha](https://www.artifact.ci/recipes/testing/mocha)
+- [AVA](https://www.artifact.ci/recipes/testing/ava)
 
 ### Other languages
 
-- [Python](./src/pages/recipes/python.md)
-- [Go](./src/pages/recipes/go.md)
+- [Python](https://www.artifact.ci/recipes/other-languages/python)
+- [Go](https://www.artifact.ci/recipes/other-languages/go)
 
 ### More
 
 It's not limited to HTML test reports. You can upload any kind of artifact that you might want to view in a browser.
 
-- [A static website](./src/pages/recipes/website.md)
-- [PDFs](./src/pages/recipes/pdf.md)
+- [A static website](https://www.artifact.ci/recipes/more/website)
+- [PDFs](https://www.artifact.ci/recipes/more/pdf)
 
 ...you get the idea. If you can render it statically in a web browser, you can upload it to artifact.ci.
 
