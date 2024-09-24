@@ -47,15 +47,15 @@ Here are some high-level guides for how to get useful HTML outputs from various 
 
 ### Other languages
 
-- [Python](/recipes/python)
-- [Go](/recipes/go)
+- [Python](/recipes/other-languages/python)
+- [Go](/recipes/other-languages/go)
 
 ### More
 
 It's not limited to HTML test reports. You can upload any kind of artifact that you might want to view in a browser.
 
-- [A static website](/recipes/website)
-- [PDFs](/recipes/pdf)
+- [A static website](/recipes/more/website)
+- [PDFs](/recipes/more/pdf)
 
 ...you get the idea. If you can render it statically in a web browser, you can upload it to artifact.ci.
 
