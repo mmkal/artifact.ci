@@ -1,9 +1,9 @@
 import {Octokit} from '@octokit/rest'
 import {handleUpload, type HandleUploadBody} from '@vercel/blob/client'
-import * as cheerio from 'cheerio'
 import {lookup as mimeLookup} from 'mime-types'
 import {NextResponse} from 'next/server'
 import {z} from 'zod'
+import {getJobsWithStatuses as loadWorkflowJobStatuses} from './job-statuses'
 import {nullify404} from '~/app/artifact/browse/[...slug]/route'
 import {client, Id, sql} from '~/db'
 
@@ -126,13 +126,21 @@ export async function POST(request: Request): Promise<NextResponse> {
     const [owner, repo] = context.repository.split('/')
     const htmlUrl = `${context.githubOrigin}/${owner}/${repo}`
 
-    const jobs = await getJobsWithStatuses(context)
-    console.log('getJobsWithStatuses result', jobs)
+    const jobsResult = await loadWorkflowJobStatuses(context)
+    if (!jobsResult.success) {
+      const message = `Failed to load job statuses for ${context.job} on ${htmlUrl}. If this is a private repo, you may need to pass a "githubToken" in the client payload.`
+      return NextResponse.json(
+        {message, error: jobsResult.response.statusText},
+        {status: jobsResult.response.status === 404 ? 404 : 500},
+      )
+    }
+    const {jobs} = jobsResult
+    console.log('loadWorkflowJobStatuses result', jobs)
 
-    const matchingJob = jobs.get().find(job => job.jobId === context.job && job.isRunning)
+    const matchingJob = jobsResult.jobs[context.job]
 
-    if (!matchingJob) {
-      const message = `Job not found or was not running. Found job info: ${JSON.stringify(jobs.get(), null, 2)}`
+    if (!matchingJob || matchingJob.status !== 'running') {
+      const message = `Job ${context.job} not found or was not running. Job info: ${JSON.stringify(jobs, null, 2)}`
       return NextResponse.json({message}, {status: 404})
     }
 
@@ -341,29 +349,6 @@ const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
   })
 
   return result as Extract<typeof result, {type: Type}>
-}
-
-async function getJobsWithStatuses(context: GithubActionsContext) {
-  const [owner, repo] = context.repository.split('/')
-
-  const runPathname = `/${owner}/${repo}/actions/runs/${context.runId}`
-  const runPageUrl = `${context.githubOrigin}${runPathname}`
-  const runPageHtml = await fetch(runPageUrl).then(r => r.text())
-  const $ = cheerio.load(runPageHtml)
-
-  const jobAnchors = $(`run-summary a[href^="${runPathname}/job/"]`)
-  const jobs = jobAnchors.map((_, el) => {
-    const $el = $(el)
-    return {
-      href: $el.attr('href'),
-      jobId: $el.find('[data-job-id]').attr('data-job-id'),
-      isRunning: $el.find('svg[aria-label*="currently running"]').length > 0,
-      isFailed: $el.find('svg[aria-label*="failed"]').length > 0,
-      isSuccess: $el.find('svg[aria-label*="completed successfully"]').length > 0,
-      html: $el.html(),
-    }
-  })
-  return jobs
 }
 
 export declare namespace queries {
