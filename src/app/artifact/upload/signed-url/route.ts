@@ -101,7 +101,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             other.repo_id = repo.id
             and other.actions_run_id = ${context.runId}
             and other.actions_run_attempt = ${context.runAttempt}
-            and other.job_name = ${context.job}
+            and other.job_id = ${context.job}
         ) < 10
         returning upload_requests.*
       `,
@@ -313,8 +313,8 @@ export declare namespace queries {
     /** column: `public.upload_requests.updated_at`, not null: `true`, regtype: `timestamp with time zone` */
     updated_at: Date
 
-    /** column: `public.upload_requests.job_name`, not null: `true`, regtype: `text` */
-    job_name: string
+    /** column: `public.upload_requests.job_id`, not null: `true`, regtype: `text` */
+    job_id: string
   }
 
   /** - query: `insert into uploads ( pathname, mime_type, blob_url, upload_request_id ) values ( $1, $2, $3, $4 ) returning uploads.*` */
