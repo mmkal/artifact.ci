@@ -49,17 +49,9 @@ end $$ language plpgsql;
 
 -- Then, create a function to generate a prefixed KSUID
 create or replace function generate_prefixed_ksuid(prefix text)
-returns text as $$
-declare
-  ksuid_value text;
-begin
-  -- Generate a KSUID
-  ksuid_value := gen_random_ksuid_microsecond();
-  
-  -- Concatenate the prefix and KSUID
-  return prefix || '_' || ksuid_value;
-end;
-$$ language plpgsql;
+returns text as
+select prefix || '_' || gen_random_ksuid_microsecond()
+language sql;
 
 -- Create a custom type for the prefixed KSUID
 create domain prefixed_ksuid as text

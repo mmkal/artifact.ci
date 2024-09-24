@@ -14,7 +14,7 @@ export async function middleware(request: NextRequest) {
     const pathname = request.nextUrl.pathname.slice(artifactBlobPrefix.length)
     const targetUrl = new URL(pathname, storageOrigin)
 
-    // todo: get off vercel storage and use our own storage. vercel storage doesn't support inline content: https://vercel.com/docs/storage/vercel-blob#security
+    // todo: get off vercel storage and use our own storage (s3? supabase?). vercel storage doesn't support inline content: https://vercel.com/docs/storage/vercel-blob#security
     // so we're using a middleware and streaming the response to the client. this will get expensive.
     let storageResponse = await fetch(targetUrl)
 

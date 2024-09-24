@@ -59,12 +59,6 @@ It's not limited to HTML test reports. You can upload any kind of artifact that 
 
 ...you get the idea. If you can render it statically in a web browser, you can upload it to artifact.ci.
 
-## When
-
-For now, it's limited to whitelisted GitHub organizations. In future, I'll open it up to all users, likely based on GitHub sponsorship. It will also be free for open-source projects that don't have commercial sponsors.
-
-Get in touch on [X](https://x.com/mmkalmmkal) if you would like to use this now. There may be changes to the API, and additional usage limits that are added.
-
 ## Whether
 
 If you use this, you are sending your CI artifacts to a third-party service. You should only do this if there is no protected or proprietary information in these artifacts. The reason the service is open source is so you can see nothing is being done with the data. If you want to be extra sure of that, see the self-hosting instructions below.
@@ -78,6 +72,12 @@ For closed-source projects, a token is required.
 Right now this service itself is "free" but since the storage costs money, I'm limiting access to the service to individuals or organizations that are sponsoring me on https://github.com/sponsors/mmkal.
 
 I'm giving some organizations free access - this is based on how much I use them myself.
+
+## When
+
+For now, it's limited to whitelisted GitHub organizations. In future, I'll open it up to all users, likely based on GitHub sponsorship. It will also be free for open-source projects that don't have commercial sponsors.
+
+Get in touch on [X](https://x.com/mmkalmmkal) if you would like to use this now. There may be changes to the API, and additional usage limits that are added.
 
 ## Self-host
 
