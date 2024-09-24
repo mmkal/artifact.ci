@@ -39,195 +39,25 @@ Here are some high-level guides for how to get useful HTML outputs from various 
 
 ### Testing frameworks
 
-#### Playwright
-
-HTML reporting is built in to Playwright. It's interactable, and renders detailed failure information, step-by-step traces including console logs, network calls, as well as screenshots and videos. Just add `reporter: 'html'` to your `playwright.config.ts`, run `playwright test --reporter html` via the CLI, or see [playwright docs](https://playwright.dev/docs/test-reporters#html-reporter) to customize the output folder. Then upload an artifact and print the URL:
-
-```yaml
-- run: npx playwright test
-- uses: mmkal/artifact.ci/upload@main
-  if: always()
-  with:
-      name: playwright
-      path: playwright-report
-```
-
-![Playwright example](/reports/playwright.png)
-
-#### Vitest
-
-Vitest has a sort-of builtin report. Just run `vitest --reporter html` via the CLI, or see [vitest docs](https://vitest.dev/guide/reporter.html#html-reporter). You may be prompted to install the `@vitest/ui` package. Then just upload the artifact:
-
-```yaml
-- run: npx vitest
-- uses: mmkal/artifact.ci/upload@main
-  if: always()
-  with:
-      name: vitest
-      path: vitest-report
-```
-
-![Vitest example](/reports/vitest.png)
-
-#### Jest
-
-First install `jest-reporters-html`
-
-```bash
-npm install --save-dev jest-reporters-html
-```
-
-Then you can run jest with `npx jest --reporters jest-reporters-html` or add it to your jest.config.js:
-
-```js
-module.exports = {
-  reporters: ['default', 'jest-reporters-html'],
-}
-```
-
-```yaml
-- run: npx jest
-- uses: mmkal/artifact.ci/upload@main
-  if: always()
-  with:
-      name: jest
-      path: jest_html_reporters.html
-```
-
-![Jest example](/reports/jest.png)
-
-
-#### ava
-
-There's no great HTML reporter for AVA, but there's an ok-ish one for tap:
-
-```bash
-npm install tap-html --save-dev
-```
-
-```yaml
-- run: npx ava --tap | npx tap-html --out output.html
-- uses: mmkal/artifact.ci/upload@main
-  if: always()
-  with:
-      name: ava
-      path: output.html
-```
-
-![AVA example](/reports/ava.png)
-
-#### mocha
-
-Mocha's [doc](https://mochajs.org/#doc) reporter outputs simple HTML. Their documentation has some pointers on how to add styling to the output.
-
-```yaml
-- run: npx mocha --reporter doc > output.html
-- uses: mmkal/artifact.ci/upload@main
-  if: always()
-  with:
-      name: mocha
-      path: output.html
-```
-
-![Mocha example](/reports/mocha.png)
+- [Vitest](/recipes/testing/vitest)
+- [Playwright](/recipes/testing/playwright)
+- [Jest](/recipes/testing/jest)
+- [Mocha](/recipes/testing/mocha)
+- [AVA](/recipes/testing/ava)
 
 ### Other languages
 
-#### python
-
-[pytest-html](https://pypi.org/project/pytest-html) outputs a useful document.
-
-```bash
-pip install pytest-html
-```
-
-```yaml
-- run: pytest tests --html report/index.html
-- uses: mmkal/artifact.ci/upload@main
-  if: always()
-  with:
-      name: pytest
-      path: output.html
-```
-
-![pytest example](/reports/pytest.png)
-
-#### go
-
-Go's default test output can be piped to [go-test-report](https://github.com/vakenbolt/go-test-report).
-
-```bash
-go get github.com/vakenbolt/go-test-report
-go install github.com/vakenbolt/go-test-report
-```
-
-```yaml
-- run: go test -json | go-test-report
-- uses: mmkal/artifact.ci/upload@main
-  if: always()
-  with:
-    name: go
-    path: test_report.html
-```
-
-![go example](/reports/go.png)
+- [Python](/recipes/python)
+- [Go](/recipes/go)
 
 ### More
 
 It's not limited to HTML test reports. You can upload any kind of artifact that you might want to view in a browser.
 
-#### A website!
+- [A static website](/recipes/website)
+- [PDFs](/recipes/pdf)
 
-For a simple static HTML website, you can serve it using artifact.ci. For example, you could build an Astro website:
-
-```yaml
-- name: build website
-  run: |
-    npm create astro@latest -- demosite --template starlight --yes
-    export BASE_PATH="/artifact/blob/${{ github.repository }}/${{ github.run_id }}/website/demosite/dist"
-    sed -i "s|integrations|base: '$BASE_PATH', integrations|g" demosite/astro.config.mjs
-    npm run build
-- uses: mmkal/artifact.ci/upload@main
-  if: always()
-  with:
-    name: website
-    path: demosite/dist
-```
-
-![website](/reports/website.png)
-
-#### Eslint config inspector
-
-You couuld serve a rendered version of your eslint config using `@eslint/config-inspector`:
-
-```yaml
-- name: build eslint config inspection
-  run: npx @eslint/config-inspector build --base /artifact/blob/${{ github.repository }}/${{ github.run_id }}/eslint/.eslint-config-inspector
-- uses: mmkal/artifact.ci/upload@main
-  if: always()
-  with:
-    name: eslint
-    path: .eslint-config-inspector
-```
-
-![eslint config inspector](/reports/eslint.png)
-
->Note: in the above two examples, we are passing a "base" path to the build commands. Without this, some tools including eslint and astro will assume that all paths are relative to the root of the domain. You can use the template `/artifact/blob/${{ github.repository }}/${{ github.run_id }}/<name-of-your-artifact>` as above to get the correct base path.
-
-#### PDFs
-
-You can upload individual files:
-
-```yaml
-- name: create pdf
-  run: node generate-pdf.js --destination output.pdf
-- uses: mmkal/artifact.ci/upload@main
-  with:
-    name: pdf
-    path: output.pdf
-```
-
-![PDF example](/reports/pdf.png)
+...you get the idea. If you can render it statically in a web browser, you can upload it to artifact.ci.
 
 ## When
 

@@ -1,0 +1,12 @@
+{
+    "vitest": "Vitest",
+    "playwright": "Playwright",
+    "jest": "Jest",
+    "mocha": "Mocha",
+    "ava": "AVA",
+    "eslint": "Eslint",
+    "pdf": "PDF",
+    "website": "Website",
+    "python": "Python",
+    "go": "Go"
+}
