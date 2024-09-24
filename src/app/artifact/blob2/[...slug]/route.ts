@@ -39,6 +39,8 @@ const tryGet = async (request: NextRequest) => {
   if (!githubUser) {
     return NextResponse.json({message: 'Not authenticated with GitHub', tokenStart: token.slice(0, 7)}, {status: 401})
   }
+  const artifactBlobPrefix = '/artifact/blob2/'
+  const pathname = request.nextUrl.pathname.slice(artifactBlobPrefix.length)
 
   const hasCredit = await client.maybeOne(sql`
     select 1
@@ -56,8 +58,6 @@ const tryGet = async (request: NextRequest) => {
     throw new Error('STORAGE_ORIGIN environment variable is not set')
   }
 
-  const artifactBlobPrefix = '/artifact/blob2/'
-  const pathname = request.nextUrl.pathname.slice(artifactBlobPrefix.length)
   const targetUrl = new URL(pathname, storageOrigin)
 
   let storageResponse = await fetch(targetUrl)
