@@ -10,12 +10,12 @@ type UploadParams = {
     path: string
     name: string
     'github-token': string
+    artifactci_debug?: string | boolean
   }
   context: ScriptContext
   dependencies: {
     fs: typeof import('fs')
     fsPromises: typeof import('fs/promises')
-    mimeTypes: typeof import('mime-types')
     vercelBlobClient: typeof import('@vercel/blob/client')
     glob: {
       create: (
@@ -25,14 +25,27 @@ type UploadParams = {
   }
 }
 
-async function upload(
-  {context, inputs, dependencies}: UploadParams,
-  // context: {github: {ref_name: string; sha: string; run_id: string}},
-  // commit: {ref: string; sha: string; actions_run_id: string},
-) {
-  const {glob, mimeTypes, fsPromises: fs, fs: fsSync, vercelBlobClient} = dependencies
+async function upload({context, inputs, dependencies}: UploadParams) {
+  const logger = {
+    info: (...args: unknown[]) => console.info(...args),
+    warn: (...args: unknown[]) => console.warn(...args),
+    error: (...args: unknown[]) => console.error(...args),
+    debug: (...args: unknown[]) => {
+      if (inputs.artifactci_debug && inputs.artifactci_debug !== 'false') console.info(...args)
+    },
+  }
+
+  const {glob, fsPromises: fs, fs: fsSync, vercelBlobClient} = dependencies
 
   const githubToken = inputs['github-token']
+  const artifactCiDebugKeyword = context.repository === 'mmkal/artifact.ci' ? 'debug' : 'artifactci_debug'
+  inputs.artifactci_debug ??= '${{ github.event.head_commit.message }}'.includes(
+    `${artifactCiDebugKeyword}=${context.job}`,
+  )
+  if (inputs.artifactci_debug === 'false') {
+    logger.warn(`artifactci_debug is set to "false" (string) - setting to false (boolean)`)
+    inputs.artifactci_debug = false
+  }
   // const pathPrefix = '${{ github.repository }}/${{ github.run_id }}/' + inputs.name
 
   // const refName = context.ref.replace('refs/heads/', '')
@@ -99,12 +112,18 @@ async function upload(
     return chunks
   }
 
-  const chunked = chunk(bulkRequest.files, 500).map((chunkOfFiles): BulkRequest => {
+  const MAX_FILES = 500
+  const CHUNK_SIZE = MAX_FILES // set to max files to prevent chunking - server rate limiting disallows this for now, but might need to re-evaluate if payloads get too big
+  if (bulkRequest.files.length > MAX_FILES) {
+    throw new Error(`Too many files: ${bulkRequest.files.length}`)
+  }
+
+  const chunked = chunk(bulkRequest.files, CHUNK_SIZE).map((chunkOfFiles): BulkRequest => {
     return {...bulkRequest, files: chunkOfFiles}
   })
   // eslint-disable-next-line @typescript-eslint/no-shadow
   for (const [i, bulkRequest] of chunked.entries()) {
-    console.log(`Uploading chunk ${i + 1} of ${chunked.length}`)
+    logger.debug(`Uploading chunk ${i + 1} of ${chunked.length}`)
     const res = await fetch(`${inputs.origin}/artifact/upload/signed-url`, {
       method: 'POST',
       body: JSON.stringify(bulkRequest),
@@ -113,29 +132,19 @@ async function upload(
         'user-agent': 'artifact.ci/action',
       },
     })
-    console.log('response::::', res.status, Object.fromEntries(res.headers))
-    console.log({res})
+    logger.debug('response::::', res.status, Object.fromEntries(res.headers))
+    logger.debug({res})
     const responseText = () => res.clone().text().catch(String)
-    // console.log('responseText::::', responseText.slice(0, 100))
     try {
-      console.log(1101)
       if (!res.ok) throw new Error(`failed to upload: ${res.status} ${await responseText()}`)
-      console.log(1102)
       const data = (await res.json()) as BulkResponse
-      console.log(1103)
       if (!data?.results?.length) throw new Error('no results: ' + (await responseText()))
-      console.log(1104)
       for (const result of data.results) {
-        console.log(1105)
-        console.log('Uploading: ' + result.localPath)
-        console.log(1106)
+        logger.debug('Uploading: ' + result.localPath)
         const file = pathnameToFile.get(result.localPath)
-        console.log(1107)
         if (file?.localPath !== result.localPath) {
-          console.log(1107.5)
           throw new Error(`local path mismatch: ${file?.localPath} !== ${result.localPath}`)
         }
-        console.log(1108)
 
         await vercelBlobClient.put(result.pathname, await fs.readFile(file.localPath), {
           access: 'public',
@@ -143,12 +152,12 @@ async function upload(
           multipart: file.multipart,
           contentType: result.contentType,
         })
-        console.log('Uploaded: ' + result.viewUrl)
+        logger.info('Uploaded: ' + result.viewUrl)
       }
-      console.log(`Upload complete (${i + 1} of ${chunked.length})`)
+      logger.info(`Upload complete (${i + 1} of ${chunked.length})`)
     } catch (e) {
-      console.log('response::::', res.status, responseText)
-      console.log('error::::', e)
+      logger.error('response::::', res.status, responseText)
+      logger.error('error::::', e)
       throw e
     }
   }
@@ -167,6 +176,7 @@ const _exampleScriptContext = {
   job: 'mocha',
   runNumber: 31,
   runId: 10963802899,
+  repository: 'mmkal/artifact.ci',
   apiUrl: 'https://api.github.com',
   serverUrl: 'https://github.com',
   graphqlUrl: 'https://api.github.com/graphql',
@@ -195,7 +205,6 @@ if (require.main === module) {
       const dependencies = {
         fs: require('fs'),
         fsPromises: require('fs/promises'),
-        mimeTypes: require('mime-types'),
         vercelBlobClient: require('@vercel/blob/client'),
         glob, // ambient variable available from actions/github-script
       }
@@ -214,16 +223,4 @@ if (require.main === module) {
     `await upload({context, inputs, dependencies})`,
   ].join('\n')
   writeFileSync(actionPath, yaml.stringify(parsed, {lineWidth: 0}))
-}
-
-const x = {
-  results: [
-    {
-      localPath: 'output.html',
-      viewUrl: 'https://www.artifact.ci/artifact/blob2/mmkal/artifact.ci/11041114299/1/ava/output.html',
-      pathname: 'mmkal/artifact.ci/11041114299/1/ava/output.html',
-      clientToken:
-        'vercel_blob_client_8Kc5vtDgp65U3fAR_MWUyNWI0NTU4OWY0NzJjMzFlZDJlNDY1ODE5NjUwYzQzNjkyN2E4NzhhODlkMTc2NTljMmJkMTc2MTY0N2ExOC5leUpoYkd4dmQyVmtRMjl1ZEdWdWRGUjVjR1Z6SWpwYkluUmxlSFF2YUhSdGJDSmRMQ0poWkdSU1lXNWtiMjFUZFdabWFYZ2lPblJ5ZFdVc0luUnZhMlZ1VUdGNWJHOWhaQ0k2SW50Y0luVndiRzloWkZKbGNYVmxjM1JKWkZ3aU9sd2lkWEJzYjJGa1gzSmxjWFZsYzNSZk1tMWFlVmQ1TURRd01qWkxlakpaVUVRMWEwTk1abkJuVGtoSFhDSXNYQ0p5WldaY0lqcGNJbkpsWm5NdmFHVmhaSE12YldGcGJsd2lMRndpYzJoaFhDSTZYQ0l4TURsaE1qazVNR1F4WVRWbU9EYzVZV1JoTVRBek5qWmtOekkyWVdOak56bGlaakE0T0dOaFhDSXNYQ0poWTNScGIyNXpYM0oxYmw5cFpGd2lPbHdpTVRFd05ERXhNVFF5T1RsY0luMGlMQ0p3WVhSb2JtRnRaU0k2SW0xdGEyRnNMMkZ5ZEdsbVlXTjBMbU5wTHpFeE1EUXhNVEUwTWprNUx6RXZZWFpoTDI5MWRIQjFkQzVvZEcxc0lpd2liMjVWY0d4dllXUkRiMjF3YkdWMFpXUWlPbnNpWTJGc2JHSmhZMnRWY213aU9pSm9kSFJ3Y3pvdkwzZDNkeTVoY25ScFptRmpkQzVqYVM5aGNuUnBabUZqZEM5MWNHeHZZV1F2YzJsbmJtVmtMWFZ5YkNJc0luUnZhMlZ1VUdGNWJHOWhaQ0k2SW50Y0luVndiRzloWkZKbGNYVmxjM1JKWkZ3aU9sd2lkWEJzYjJGa1gzSmxjWFZsYzNSZk1tMWFlVmQ1TURRd01qWkxlakpaVUVRMWEwTk1abkJuVGtoSFhDSXNYQ0p5WldaY0lqcGNJbkpsWm5NdmFHVmhaSE12YldGcGJsd2lMRndpYzJoaFhDSTZYQ0l4TURsaE1qazVNR1F4WVRWbU9EYzVZV1JoTVRBek5qWmtOekkyWVdOak56bGlaakE0T0dOaFhDSXNYQ0poWTNScGIyNXpYM0oxYmw5cFpGd2lPbHdpTVRFd05ERXhNVFF5T1RsY0luMGlmU3dpZG1Gc2FXUlZiblJwYkNJNk1UY3lOek13TWpBeU9EQXpOWDA9',
-    },
-  ],
 }
