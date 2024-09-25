@@ -21,8 +21,6 @@ export const GET = async (request: NextRequest) => {
 const tryGet = async (request: NextRequest) => {
   const callbackUrlPathname = request.nextUrl.toString().replace(request.nextUrl.origin, '')
   const token = await getGithubAccessToken(request)
-  const redactedToken = token?.replace(/(.{7}).+(.{5})$/, '$1...$2')
-  console.log('token', redactedToken)
 
   if (!token && request.nextUrl.searchParams.get('disable_redirect') === 'true') {
     return NextResponse.json({message: 'Unauthorized - no token'}, {status: 401})
@@ -35,16 +33,10 @@ const tryGet = async (request: NextRequest) => {
 
   const octokit = new Octokit({auth: token, log: console})
 
-  const {data: githubUser} = await octokit.rest.users
-    .getAuthenticated()
-    .catch(nullify404)
-    .catch(error => {
-      const e = error as Error & {status?: number; response?: {url: string}}
-      if (e.status === 401) {
-        throw new Error(`${e.response?.url} ${e.status}: token=${token}`, {cause: e})
-      }
-      throw e
-    })
+  const redactedToken = `${token.slice(0, 7)}...${token.slice(-5)}`
+  console.log('token', redactedToken)
+
+  const {data: githubUser} = await octokit.rest.users.getAuthenticated().catch(nullify404)
 
   if (!githubUser) {
     return NextResponse.json({message: 'Not authenticated with GitHub', token: redactedToken}, {status: 401})
@@ -126,7 +118,7 @@ const tryGet = async (request: NextRequest) => {
 
   let storageResponse = await fetch(targetUrl)
 
-  if (storageResponse.status === 404) {
+  if (storageResponse.status === 404 && false) {
     // todo: store redirects in db
     // if 404, try serving `/index.html`
     storageResponse = await fetch(targetUrl.toString().replace(/\/?$/, '/index.html'))

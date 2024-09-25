@@ -2,6 +2,7 @@ import {Octokit} from '@octokit/rest'
 import {handleUpload, type HandleUploadBody} from '@vercel/blob/client'
 import {lookup as mimeLookup} from 'mime-types'
 import {NextResponse} from 'next/server'
+import * as path from 'path'
 import {getJobsWithStatuses as loadWorkflowJobStatuses} from './job-statuses'
 import {BulkRequest, BulkResponse, BulkResponseItem, ClientPayload, tokenPayloadCodec} from './types'
 import {nullify404} from '~/app/artifact/browse/[...slug]/route'
@@ -240,25 +241,34 @@ const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
           ),
         )
       }
-      const upload = await client.one(
+      const pathnames = [blob.pathname]
+      if (blob.pathname.endsWith('/index.html')) {
+        pathnames.push(path.dirname(blob.pathname))
+      } else if (blob.pathname.endsWith('.html')) {
+        pathnames.push(path.dirname(blob.pathname))
+      }
+
+      const mimeType = getMimeType(blob.pathname)
+      const uploads = await client.many(
         sql<queries.Upload>`
-          insert into uploads (
-            pathname,
-            mime_type,
-            blob_url,
-            upload_request_id
+          insert into uploads (pathname, mime_type, blob_url, upload_request_id)
+          select pathname, mime_type, blob_url, upload_request_id
+          from jsonb_populate_recordset(
+            null::uploads,
+            ${JSON.stringify(
+              pathnames.map(pathname => ({
+                pathname,
+                mime_type: mimeType,
+                blob_url: blob.url,
+                upload_request_id: payload.uploadRequestId,
+              })),
+            )}
           )
-          values (
-            ${blob.pathname},
-            ${getMimeType(blob.pathname)},
-            ${blob.url},
-            ${payload.uploadRequestId}
-          )
-          returning uploads.*
+          returning *
         `,
       )
 
-      console.log('upload inserted:', upload)
+      console.log('upload inserted:', uploads)
 
       console.log('blob upload completed', blob, tokenPayload)
     },
@@ -300,7 +310,7 @@ export declare namespace queries {
     job_id: string
   }
 
-  /** - query: `insert into uploads ( pathname, mime_type, blob_url, upload_request_id ) values ( $1, $2, $3, $4 ) returning uploads.*` */
+  /** - query: `insert into uploads (pathname, mime_type... [truncated] ...cordset( null::uploads, $1 ) returning *` */
   export interface Upload {
     /** column: `public.uploads.id`, not null: `true`, regtype: `prefixed_ksuid` */
     id: import('~/db').Id<'uploads'>
