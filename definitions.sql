@@ -50,7 +50,9 @@ end $$ language plpgsql;
 -- Then, create a function to generate a prefixed KSUID
 create or replace function generate_prefixed_ksuid(prefix text)
 returns text as
+$$
 select prefix || '_' || gen_random_ksuid_microsecond()
+$$
 language sql;
 
 -- Create a custom type for the prefixed KSUID
@@ -117,6 +119,16 @@ create table usage_credits (
 	created_at timestamp with time zone not null default current_timestamp,
 	updated_at timestamp with time zone not null default current_timestamp,
 	unique(github_login, reason)
+);
+
+create table repo_access_permissions (
+	id prefixed_ksuid primary key default generate_prefixed_ksuid('repo_access_permission'),
+	repo_id prefixed_ksuid not null references repos(id),
+	github_login text not null,
+	expiry timestamptz not null, -- typically should be fairly short so when github access is lost to repo artifacts are soon lost too
+	created_at timestamp with time zone not null default current_timestamp,
+	updated_at timestamp with time zone not null default current_timestamp,
+	unique(repo_id, github_login)
 );
 
 alter table repos enable row level security;
