@@ -16,4 +16,11 @@ jobs:
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm run generate
       - run: pnpm run lint --fix || echo failed
-      - uses: autofix-ci/action@ff86a557419858bb967097bfc916833f5647fa8c
+      - name: get previous commit message
+        id: previous_commit
+        run: |
+          echo "message=$(git log -1 --pretty=%B)" >> $GITHUB_OUTPUT
+      - name: autofix
+        uses: autofix-ci/action@ff86a557419858bb967097bfc916833f5647fa8c
+        with:
+          commit-message: "autofix: ${{ steps.previous_commit.outputs.message }}"
