@@ -82,6 +82,9 @@ jobs:
         with:
           name: eslint
           path: .eslint-config-inspector
+          include-hidden-files: true
+          if-no-files-found: error
+
   jest:
     runs-on: ubuntu-latest
     steps:

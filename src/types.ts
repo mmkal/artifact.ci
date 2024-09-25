@@ -21,7 +21,7 @@ export const GithubActionsContext = z.object({
 export type GithubActionsContext = z.infer<typeof GithubActionsContext>
 
 export const ClientPayload = z.object({
-  githubToken: z.string(),
+  githubToken: z.string().nullable(),
   commit: CommitProps,
   context: GithubActionsContext,
 })

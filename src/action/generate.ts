@@ -9,7 +9,12 @@ type UploadParams = {
     origin: string
     path: string
     name: string
-    'github-token': string
+    'if-no-files-found'?: 'warn' | 'error' | 'ignore'
+    'retention-days'?: number
+    'compression-level'?: number
+    overwrite?: boolean
+    'include-hidden-files'?: boolean
+    artifactci_github_token?: string
     artifactci_debug?: string | boolean
   }
   context: ScriptContext
@@ -37,7 +42,7 @@ async function upload({context, inputs, dependencies}: UploadParams) {
 
   const {glob, fsPromises: fs, fs: fsSync, vercelBlobClient} = dependencies
 
-  const githubToken = inputs['github-token']
+  const githubToken = inputs.artifactci_github_token || null
   const artifactCiDebugKeyword = context.repository === 'mmkal/artifact.ci' ? 'debug' : 'artifactci_debug'
   inputs.artifactci_debug ??= '${{ github.event.head_commit.message }}'.includes(
     `${artifactCiDebugKeyword}=${context.job}`,
@@ -96,8 +101,10 @@ async function upload({context, inputs, dependencies}: UploadParams) {
     files: filesWithPathnames,
   } satisfies BulkRequest
 
-  if (filesWithPathnames.length === 0) {
+  if (filesWithPathnames.length === 0 && inputs['if-no-files-found'] === 'error') {
     throw new Error('No files to upload')
+  } else if (filesWithPathnames.length === 0 && inputs['if-no-files-found'] === 'warn') {
+    logger.warn('No files to upload')
   }
 
   console.log(
