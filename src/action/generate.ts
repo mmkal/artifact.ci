@@ -6,7 +6,6 @@ type BulkResponse = import('../types').BulkResponse
 
 type UploadParams = {
   inputs: {
-    origin: string
     path: string
     name: string
     'if-no-files-found'?: 'warn' | 'error' | 'ignore'
@@ -14,6 +13,8 @@ type UploadParams = {
     'compression-level'?: number
     overwrite?: boolean
     'include-hidden-files'?: boolean
+
+    artifactci_origin: string
     artifactci_github_token?: string
     artifactci_debug?: string | boolean
   }
@@ -48,9 +49,9 @@ async function upload({context, inputs, dependencies}: UploadParams) {
     `${artifactCiDebugKeyword}=${context.job}`,
   )
   if (inputs.artifactci_debug === 'false') {
-    logger.warn(`artifactci_debug is set to "false" (string) - setting to false (boolean)`)
     inputs.artifactci_debug = false
   }
+
   // const pathPrefix = '${{ github.repository }}/${{ github.run_id }}/' + inputs.name
 
   // const refName = context.ref.replace('refs/heads/', '')
@@ -61,7 +62,7 @@ async function upload({context, inputs, dependencies}: UploadParams) {
   // }
 
   Object.assign(global, {
-    window: {location: new URL(inputs.origin)}, // create a global `window` object to trick @vercel/blob/client into working. for some reason it refuses to run outside of the browser but it's just a `fetch` wrapper
+    window: {location: new URL(inputs.artifactci_origin)}, // create a global `window` object to trick @vercel/blob/client into working. for some reason it refuses to run outside of the browser but it's just a `fetch` wrapper
   })
 
   const stat = await fs.stat(inputs.path).catch(e => {
@@ -92,7 +93,7 @@ async function upload({context, inputs, dependencies}: UploadParams) {
   }
   const bulkRequest = {
     type: 'bulk',
-    callbackUrl: `${inputs.origin}/artifact/upload/signed-url`,
+    callbackUrl: `${inputs.artifactci_origin}/artifact/upload/signed-url`,
     clientPayload: {
       githubToken,
       commit: {ref: context.ref, sha: context.sha, actions_run_id: context.runId.toString()},
@@ -108,7 +109,7 @@ async function upload({context, inputs, dependencies}: UploadParams) {
   }
 
   console.log(
-    `Sending bulk request to ${inputs.origin}/artifact/upload/signed-url (${filesWithPathnames.length} files)`,
+    `Sending bulk request to ${inputs.artifactci_origin}/artifact/upload/signed-url (${filesWithPathnames.length} files)`,
     // {redactedContext},
   )
   const chunk = <T>(list: T[], size: number) => {
@@ -131,7 +132,7 @@ async function upload({context, inputs, dependencies}: UploadParams) {
   // eslint-disable-next-line @typescript-eslint/no-shadow
   for (const [i, bulkRequest] of chunked.entries()) {
     logger.debug(`Uploading chunk ${i + 1} of ${chunked.length}`)
-    const res = await fetch(`${inputs.origin}/artifact/upload/signed-url`, {
+    const res = await fetch(`${inputs.artifactci_origin}/artifact/upload/signed-url`, {
       method: 'POST',
       body: JSON.stringify(bulkRequest),
       headers: {
