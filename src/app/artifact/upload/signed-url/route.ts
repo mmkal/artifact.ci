@@ -305,7 +305,11 @@ export declare namespace queries {
     /** column: `public.uploads.id`, not null: `true`, regtype: `prefixed_ksuid` */
     id: import('~/db').Id<'uploads'>
 
-    /** column: `public.uploads.pathname`, not null: `true`, regtype: `text` */
+    /**
+     * looks like `/[owner]/[repo]/[runId]/[...filepath]`
+     *
+     * column: `public.uploads.pathname`, not null: `true`, regtype: `text`
+     */
     pathname: string
 
     /** column: `public.uploads.mime_type`, not null: `true`, regtype: `text` */

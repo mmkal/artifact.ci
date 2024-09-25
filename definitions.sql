@@ -98,6 +98,8 @@ create table uploads (
     updated_at timestamp with time zone not null default current_timestamp
 );
 
+comment on column uploads.pathname is 'looks like `/[owner]/[repo]/[runId]/[...filepath]`';
+
 create table sponsors (
 	id prefixed_ksuid primary key default generate_prefixed_ksuid('sponsor'),
 	sponsor_login text not null,
