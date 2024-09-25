@@ -91,40 +91,55 @@ async function upload(
     `Sending bulk request to ${inputs.origin}/artifact/upload/signed-url (${filesWithPathnames.length} files)`,
     // {redactedContext},
   )
-  const res = await fetch(`${inputs.origin}/artifact/upload/signed-url`, {
-    method: 'POST',
-    body: JSON.stringify(bulkRequest),
-    headers: {
-      'content-type': 'application/json',
-      'user-agent': 'artifact.ci/action',
-    },
-  })
-  console.log('response::::', res.status, Object.fromEntries(res.headers))
-  const responseText = await res.clone().text().catch(String)
-  console.log('responseText::::', responseText.slice(0, 100))
-  try {
-    if (!res.ok) throw new Error(`failed to upload: ${res.status} ${responseText}`)
-    const data = (await res.json()) as BulkResponse
-    if (!data?.results?.length) throw new Error('no results: ' + responseText)
-    for (const result of data.results) {
-      const file = pathnameToFile.get(result.localPath)
-      if (file?.localPath !== result.localPath)
-        throw new Error(`local path mismatch: ${file?.localPath} !== ${result.localPath}`)
-
-      await vercelBlobClient.put(result.pathname, await fs.readFile(file.localPath), {
-        access: 'public',
-        token: result.clientToken,
-        multipart: file.multipart,
-        // contentType not set since there's no way to override it so we'd just be inferring anyway
-      })
-      console.log('Uploaded: ' + result.viewUrl)
+  const chunk = <T>(list: T[], size: number) => {
+    const chunks: T[][] = []
+    for (let i = 0; i < list.length; i += size) {
+      chunks.push(list.slice(i, i + size))
     }
-    console.log('Upload complete')
-    return
-  } catch (e) {
-    console.log('response::::', res.status, responseText)
-    console.log('error::::', e)
-    throw e
+    return chunks
+  }
+
+  const chunked = chunk(bulkRequest.files, 5).map((chunkOfFiles): BulkRequest => {
+    return {...bulkRequest, files: chunkOfFiles}
+  })
+  // eslint-disable-next-line @typescript-eslint/no-shadow
+  for (const [i, bulkRequest] of chunked.entries()) {
+    console.log(`Uploading chunk ${i + 1} of ${chunked.length}`)
+    const res = await fetch(`${inputs.origin}/artifact/upload/signed-url`, {
+      method: 'POST',
+      body: JSON.stringify(bulkRequest),
+      headers: {
+        'content-type': 'application/json',
+        'user-agent': 'artifact.ci/action',
+      },
+    })
+    console.log('response::::', res.status, Object.fromEntries(res.headers))
+    const responseText = await res.clone().text().catch(String)
+    console.log('responseText::::', responseText.slice(0, 100))
+    try {
+      if (!res.ok) throw new Error(`failed to upload: ${res.status} ${responseText}`)
+      const data = (await res.json()) as BulkResponse
+      if (!data?.results?.length) throw new Error('no results: ' + responseText)
+      for (const result of data.results) {
+        const file = pathnameToFile.get(result.localPath)
+        if (file?.localPath !== result.localPath)
+          throw new Error(`local path mismatch: ${file?.localPath} !== ${result.localPath}`)
+
+        await vercelBlobClient.put(result.pathname, await fs.readFile(file.localPath), {
+          access: 'public',
+          token: result.clientToken,
+          multipart: file.multipart,
+          // contentType not set since there's no way to override it so we'd just be inferring anyway
+        })
+        console.log('Uploaded: ' + result.viewUrl)
+      }
+      console.log('Upload complete')
+      return
+    } catch (e) {
+      console.log('response::::', res.status, responseText)
+      console.log('error::::', e)
+      throw e
+    }
   }
 }
 

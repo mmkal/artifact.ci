@@ -19,7 +19,7 @@
     "moduleResolution": "bundler",
     "noEmit": true,
     "strict": false,
-    "target": "es5",
+    "target": "ES2022",
     "strictNullChecks": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
