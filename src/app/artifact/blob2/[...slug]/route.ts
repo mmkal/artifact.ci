@@ -118,7 +118,7 @@ const tryGet = async (request: NextRequest) => {
 
   let storageResponse = await fetch(targetUrl)
 
-  if (storageResponse.status === 404 && false) {
+  if (storageResponse.status === 404 && Math.random() > 1) {
     // todo: store redirects in db
     // if 404, try serving `/index.html`
     storageResponse = await fetch(targetUrl.toString().replace(/\/?$/, '/index.html'))

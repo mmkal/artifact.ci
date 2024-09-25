@@ -143,7 +143,7 @@ if (require.main === module) {
   const scriptStep = parsed.runs.steps.find(s => s.name === 'upload blob')
   if (!scriptStep) throw new Error(`Expected to find step "upload blob", steps: ${JSON.stringify(parsed.runs.steps.map(s => s.name || null), null, 2)}`)
   scriptStep.with.script = [
-    `console.log('context:::::', JSON.stringify(context, null, 2))`,
+    // `console.log('context:::::', JSON.stringify(context, null, 2))`,
     `const inputs = \${{ toJson(inputs) }}`,
     '',
     `const cwd = process.cwd()`,

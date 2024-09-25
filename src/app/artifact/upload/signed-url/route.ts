@@ -1,11 +1,9 @@
-import {Octokit} from '@octokit/rest'
 import {handleUpload, type HandleUploadBody} from '@vercel/blob/client'
 import {lookup as mimeLookup} from 'mime-types'
 import {NextResponse} from 'next/server'
 import * as path from 'path'
 import {getJobsWithStatuses as loadWorkflowJobStatuses} from './job-statuses'
 import {BulkRequest, BulkResponse, BulkResponseItem, ClientPayload, tokenPayloadCodec} from './types'
-import {nullify404} from '~/app/artifact/browse/[...slug]/route'
 import {client, Id, sql} from '~/db'
 
 export const maxDuration = 59
