@@ -58,7 +58,8 @@ jobs:
       - name: setup
         run: |
           npm create astro@latest -- demosite --template starlight --yes
-          export BASE_PATH="/artifact/blob2/${{ github.repository }}/${{ github.run_id }}/website/demosite/dist"
+          export BASE_PATH="/artifact/blob2/${{ github.repository }}/${{ github.run_id }}/$GITHUB_RUN_ATTEMPT/website/demosite/dist"
+          echo "BASE_PATH=$BASE_PATH"
           sed -i "s|integrations|base: '$BASE_PATH', integrations|g" demosite/astro.config.mjs
           sed -i "s|link: /guides|link: $BASE_PATH/guides|g" demosite/src/content/docs/index.mdx
       - run: npm run build
@@ -76,7 +77,7 @@ jobs:
           npm install eslint eslint-plugin-mmkal @eslint/config-inspector --save-dev
           echo "module.exports = require('eslint-plugin-mmkal').recommendedFlatConfigs" >> eslint.config.js
       - name: inspect eslint config
-        run: npx @eslint/config-inspector build --base /artifact/blob2/${{ github.repository }}/${{ github.run_id }}/eslint/.eslint-config-inspector
+        run: npx @eslint/config-inspector build --base /artifact/blob2/${{ github.repository }}/${{ github.run_id }}/$GITHUB_RUN_ATTEMPT/eslint/.eslint-config-inspector
       - uses: ./upload
         with:
           name: eslint
