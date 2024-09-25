@@ -114,17 +114,28 @@ async function upload(
       },
     })
     console.log('response::::', res.status, Object.fromEntries(res.headers))
-    const responseText = await res.clone().text().catch(String)
-    console.log('responseText::::', responseText.slice(0, 100))
+    console.log({res})
+    const responseText = () => res.clone().text().catch(String)
+    // console.log('responseText::::', responseText.slice(0, 100))
     try {
-      if (!res.ok) throw new Error(`failed to upload: ${res.status} ${responseText}`)
+      console.log(1101)
+      if (!res.ok) throw new Error(`failed to upload: ${res.status} ${await responseText()}`)
+      console.log(1102)
       const data = (await res.json()) as BulkResponse
-      if (!data?.results?.length) throw new Error('no results: ' + responseText)
+      console.log(1103)
+      if (!data?.results?.length) throw new Error('no results: ' + (await responseText()))
+      console.log(1104)
       for (const result of data.results) {
+        console.log(1105)
         console.log('Uploading: ' + result.localPath)
+        console.log(1106)
         const file = pathnameToFile.get(result.localPath)
-        if (file?.localPath !== result.localPath)
+        console.log(1107)
+        if (file?.localPath !== result.localPath) {
+          console.log(1107.5)
           throw new Error(`local path mismatch: ${file?.localPath} !== ${result.localPath}`)
+        }
+        console.log(1108)
 
         await vercelBlobClient.put(result.pathname, await fs.readFile(file.localPath), {
           access: 'public',
