@@ -215,11 +215,9 @@ const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
         )
       }
 
-      // todo(paid): allow more stringent checks like making sure the ref exists
-
       return {
         allowedContentTypes: [mimeType],
-        addRandomSuffix: false, // todo(paid): allow this to be configurable?
+        addRandomSuffix: true,
         tokenPayload: tokenPayloadCodec.stringify({
           uploadRequestId,
           ...parsedClientPayload.data.commit,
