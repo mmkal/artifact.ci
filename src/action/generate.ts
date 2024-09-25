@@ -104,7 +104,7 @@ async function upload(
     if (!res.ok) throw new Error(`failed to upload: ${res.status} ${responseText}`)
     const data = (await res.json()) as BulkResponse
     for (const result of data.results) {
-      const file = pathnameToFile.get(result.pathname)
+      const file = pathnameToFile.get(result.localPath)
       if (file?.localPath !== result.localPath)
         throw new Error(`local path mismatch: ${file?.localPath} !== ${result.localPath}`)
 
@@ -178,4 +178,16 @@ if (require.main === module) {
     `await upload({context, inputs, dependencies})`,
   ].join('\n')
   writeFileSync(actionPath, yaml.stringify(parsed, {lineWidth: 0}))
+}
+
+const x = {
+  results: [
+    {
+      localPath: 'output.html',
+      viewUrl: 'https://www.artifact.ci/artifact/blob2/mmkal/artifact.ci/11041114299/1/ava/output.html',
+      pathname: 'mmkal/artifact.ci/11041114299/1/ava/output.html',
+      clientToken:
+        'vercel_blob_client_8Kc5vtDgp65U3fAR_MWUyNWI0NTU4OWY0NzJjMzFlZDJlNDY1ODE5NjUwYzQzNjkyN2E4NzhhODlkMTc2NTljMmJkMTc2MTY0N2ExOC5leUpoYkd4dmQyVmtRMjl1ZEdWdWRGUjVjR1Z6SWpwYkluUmxlSFF2YUhSdGJDSmRMQ0poWkdSU1lXNWtiMjFUZFdabWFYZ2lPblJ5ZFdVc0luUnZhMlZ1VUdGNWJHOWhaQ0k2SW50Y0luVndiRzloWkZKbGNYVmxjM1JKWkZ3aU9sd2lkWEJzYjJGa1gzSmxjWFZsYzNSZk1tMWFlVmQ1TURRd01qWkxlakpaVUVRMWEwTk1abkJuVGtoSFhDSXNYQ0p5WldaY0lqcGNJbkpsWm5NdmFHVmhaSE12YldGcGJsd2lMRndpYzJoaFhDSTZYQ0l4TURsaE1qazVNR1F4WVRWbU9EYzVZV1JoTVRBek5qWmtOekkyWVdOak56bGlaakE0T0dOaFhDSXNYQ0poWTNScGIyNXpYM0oxYmw5cFpGd2lPbHdpTVRFd05ERXhNVFF5T1RsY0luMGlMQ0p3WVhSb2JtRnRaU0k2SW0xdGEyRnNMMkZ5ZEdsbVlXTjBMbU5wTHpFeE1EUXhNVEUwTWprNUx6RXZZWFpoTDI5MWRIQjFkQzVvZEcxc0lpd2liMjVWY0d4dllXUkRiMjF3YkdWMFpXUWlPbnNpWTJGc2JHSmhZMnRWY213aU9pSm9kSFJ3Y3pvdkwzZDNkeTVoY25ScFptRmpkQzVqYVM5aGNuUnBabUZqZEM5MWNHeHZZV1F2YzJsbmJtVmtMWFZ5YkNJc0luUnZhMlZ1VUdGNWJHOWhaQ0k2SW50Y0luVndiRzloWkZKbGNYVmxjM1JKWkZ3aU9sd2lkWEJzYjJGa1gzSmxjWFZsYzNSZk1tMWFlVmQ1TURRd01qWkxlakpaVUVRMWEwTk1abkJuVGtoSFhDSXNYQ0p5WldaY0lqcGNJbkpsWm5NdmFHVmhaSE12YldGcGJsd2lMRndpYzJoaFhDSTZYQ0l4TURsaE1qazVNR1F4WVRWbU9EYzVZV1JoTVRBek5qWmtOekkyWVdOak56bGlaakE0T0dOaFhDSXNYQ0poWTNScGIyNXpYM0oxYmw5cFpGd2lPbHdpTVRFd05ERXhNVFF5T1RsY0luMGlmU3dpZG1Gc2FXUlZiblJwYkNJNk1UY3lOek13TWpBeU9EQXpOWDA9',
+    },
+  ],
 }

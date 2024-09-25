@@ -10,7 +10,7 @@ jobs:
       - name: setup
         working-directory: ./vitest
         run: |
-          rm ../package.json ../pnpm-lock.yaml ../vite.config.ts
+          rm ../package.json ../pnpm-lock.yaml
           npm install vitest @vitest/ui @types/node --save-dev
           cat package.json
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
