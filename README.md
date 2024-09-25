@@ -28,7 +28,7 @@ jobs:
 
 This will print a link to the artifact in your workflow run output, which you can click to view in your browser:
 
-![playwright report](https://www.artifact.ci/public/reports/playwright.png)
+![playwright report](https://www.artifact.ci/reports/playwright.png)
 
 ## Why
 
