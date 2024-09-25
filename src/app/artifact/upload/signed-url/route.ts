@@ -121,7 +121,8 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     try {
       const results = await Promise.all(
-        body.files.map(async ({pathname, multipart}) => {
+        body.files.map(async ({localPath, multipart}): Promise<BulkResponseItem> => {
+          const pathname = `artifacts/${ctx.repository}/${ctx.runId}/${ctx.runAttempt}/${ctx.job}/${localPath}`
           const uploadResponse = await handleUploadSingle(
             request,
             {
@@ -135,7 +136,13 @@ export async function POST(request: Request): Promise<NextResponse> {
             },
             insertedUploadRequest.id,
           )
-          return {pathname, clientToken: uploadResponse.clientToken} satisfies BulkResponseItem
+          const viewUrl = `${new URL(request.url).origin}/artifact/blob2/${pathname}`
+          return {
+            localPath,
+            viewUrl,
+            pathname,
+            clientToken: uploadResponse.clientToken,
+          }
         }),
       )
       return NextResponse.json({results} satisfies BulkResponse)

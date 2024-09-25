@@ -33,14 +33,14 @@ async function upload(
   const {glob, mimeTypes, fsPromises: fs, fs: fsSync, vercelBlobClient} = dependencies
 
   const githubToken = inputs['github-token']
-  const pathPrefix = '${{ github.repository }}/${{ github.run_id }}/' + inputs.name
+  // const pathPrefix = '${{ github.repository }}/${{ github.run_id }}/' + inputs.name
 
-  const refName = context.ref.replace('refs/heads/', '')
-  if (pathPrefix.startsWith('mmkal/artifact.ci') && refName !== 'main') {
-    const oldOrigin = inputs.origin
-    inputs.origin = `https://artifactci-git-${refName.replaceAll('/', '-')}-mmkals-projects.vercel.app`
-    console.log(`uploading to ${inputs.origin} instead of ${oldOrigin} because ref is ${refName}`)
-  }
+  // const refName = context.ref.replace('refs/heads/', '')
+  // if (pathPrefix.startsWith('mmkal/artifact.ci') && refName !== 'main') {
+  //   const oldOrigin = inputs.origin
+  //   inputs.origin = `https://artifactci-git-${refName.replaceAll('/', '-')}-mmkals-projects.vercel.app`
+  //   console.log(`uploading to ${inputs.origin} instead of ${oldOrigin} because ref is ${refName}`)
+  // }
 
   Object.assign(global, {
     window: {location: new URL(inputs.origin)}, // create a global `window` object to trick @vercel/blob/client into working. for some reason it refuses to run outside of the browser but it's just a `fetch` wrapper
@@ -57,16 +57,14 @@ async function upload(
 
   const filesWithPathnames = files.flatMap(f => {
     if (!fsSync.statSync(f).isFile()) return []
-    const pathname = pathPrefix + f.replace(process.cwd(), '')
+    // const pathname = pathPrefix + f.replace(process.cwd(), '')
     return {
-      localPath: f,
-      viewUrl: `${inputs.origin}/artifact/blob/${pathname}`,
-      pathname: pathname,
+      localPath: f.replace(process.cwd(), ''),
       contentType: mimeTypes.lookup(f) || 'text/plain',
       multipart: false,
     }
   })
-  const pathnameToFile = new Map(filesWithPathnames.map(f => [f.pathname, f]))
+  const pathnameToFile = new Map(filesWithPathnames.map(f => [f.localPath, f]))
 
   const redactedContext: BulkRequest['clientPayload']['context'] = {
     ...context,
@@ -102,25 +100,27 @@ async function upload(
       'user-agent': 'artifact.ci/action',
     },
   })
-  const response = await res.clone().text()
+  const responseText = await res.clone().text()
   try {
-    if (!res.ok) throw new Error(`failed to upload: ${res.status} ${response}`)
+    if (!res.ok) throw new Error(`failed to upload: ${res.status} ${responseText}`)
     const data = (await res.json()) as BulkResponse
     for (const result of data.results) {
       const file = pathnameToFile.get(result.pathname)
-      if (!file) throw new Error(`file not found for pathname ${result.pathname}`)
+      if (file?.localPath !== result.localPath)
+        throw new Error(`local path mismatch: ${file?.localPath} !== ${result.localPath}`)
+
       await vercelBlobClient.put(result.pathname, await fs.readFile(file.localPath), {
         access: 'public',
         token: result.clientToken,
         multipart: file.multipart,
         contentType: file.contentType,
       })
-      console.log('Uploaded: ' + file.viewUrl)
+      console.log('Uploaded: ' + result.viewUrl)
     }
     console.log('Upload complete')
     return
   } catch (e) {
-    console.log('response::::', res.status, response)
+    console.log('response::::', res.status, responseText)
     console.log('error::::', e)
     throw e
   }

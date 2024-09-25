@@ -34,7 +34,11 @@ export const TokenPayload = CommitProps.extend({
 export type GenerateClientTokenEvent = Extract<HandleUploadBody, {type: 'blob.generate-client-token'}>
 
 export const BulkRequestFile = z.object({
-  pathname: z.string(),
+  localPath: z.string().refine(s => {
+    if (s.startsWith('/')) return false
+    if (/^[A-Za-z]:/.test(s)) return false // windows
+    return true
+  }, 'Local path should not be absolute'),
   contentType: z.string(),
   multipart: z.boolean(),
 })
@@ -48,6 +52,8 @@ export const BulkRequest = z.object({
 export type BulkRequest = z.infer<typeof BulkRequest>
 
 export const BulkResponseItem = z.object({
+  localPath: z.string(),
+  viewUrl: z.string().url(),
   pathname: z.string(),
   clientToken: z.string(),
 })
