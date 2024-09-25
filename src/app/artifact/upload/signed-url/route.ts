@@ -153,6 +153,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             viewUrl,
             pathname: storagePathname,
             clientToken: uploadResponse.clientToken,
+            contentType: mimeLookup(localPath) || 'text/plain',
           }
         }),
       )

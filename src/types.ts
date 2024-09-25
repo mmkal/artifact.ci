@@ -55,6 +55,7 @@ export const BulkResponseItem = z.object({
   viewUrl: z.string().url(),
   pathname: z.string(),
   clientToken: z.string(),
+  contentType: z.string(),
 })
 export type BulkResponseItem = z.infer<typeof BulkResponseItem>
 

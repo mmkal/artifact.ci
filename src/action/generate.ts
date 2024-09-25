@@ -141,7 +141,7 @@ async function upload(
           access: 'public',
           token: result.clientToken,
           multipart: file.multipart,
-          // contentType not set since there's no way to override it so we'd just be inferring anyway
+          contentType: result.contentType,
         })
         console.log('Uploaded: ' + result.viewUrl)
       }
