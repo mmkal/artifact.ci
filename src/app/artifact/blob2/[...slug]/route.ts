@@ -124,6 +124,14 @@ const tryGet = async (request: NextRequest) => {
     storageResponse = await fetch(targetUrl.toString().replace(/\/?$/, '/index.html'))
   }
 
+  if (storageResponse.headers.get('x-matched-path') === '/docs/storage/vercel-blob/blocked-store') {
+    const message = `Failed to fetch blob at ${targetUrl.toString()}.`
+    return NextResponse.json(
+      {message, reason: `The upstream storage service has reached its limit.`}, //
+      {status: 503},
+    )
+  }
+
   if (!storageResponse.ok) {
     return NextResponse.json(
       {message: 'Failed to fetch blob at ' + targetUrl.toString()},
