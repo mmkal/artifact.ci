@@ -99,6 +99,9 @@ importers:
       typescript:
         specifier: 5.5.4
         version: 5.5.4
+      vitest:
+        specifier: ^2.1.1
+        version: 2.1.1(@types/node@17.0.45)(sass@1.78.0)
       yaml:
         specifier: ^2.5.1
         version: 2.5.1
@@ -6027,7 +6030,7 @@ snapshots:
       '@babel/helper-validator-identifier': 7.24.7
       chalk: 2.4.2
       js-tokens: 4.0.0
-      picocolors: 1.0.1
+      picocolors: 1.1.0
 
   '@babel/parser@7.25.4':
     dependencies:
@@ -8030,7 +8033,6 @@ snapshots:
       '@vitest/utils': 2.1.1
       chai: 5.1.1
       tinyrainbow: 1.2.0
-    optional: true
 
   '@vitest/mocker@2.1.1(@vitest/spy@2.1.1)(vite@5.4.6(@types/node@17.0.45)(sass@1.78.0))':
     dependencies:
@@ -8039,37 +8041,31 @@ snapshots:
       magic-string: 0.30.11
     optionalDependencies:
       vite: 5.4.6(@types/node@17.0.45)(sass@1.78.0)
-    optional: true
 
   '@vitest/pretty-format@2.1.1':
     dependencies:
       tinyrainbow: 1.2.0
-    optional: true
 
   '@vitest/runner@2.1.1':
     dependencies:
       '@vitest/utils': 2.1.1
       pathe: 1.1.2
-    optional: true
 
   '@vitest/snapshot@2.1.1':
     dependencies:
       '@vitest/pretty-format': 2.1.1
       magic-string: 0.30.11
       pathe: 1.1.2
-    optional: true
 
   '@vitest/spy@2.1.1':
     dependencies:
       tinyspy: 3.0.2
-    optional: true
 
   '@vitest/utils@2.1.1':
     dependencies:
       '@vitest/pretty-format': 2.1.1
       loupe: 3.1.1
       tinyrainbow: 1.2.0
-    optional: true
 
   '@xobotyi/scrollbar-width@1.9.5': {}
 
@@ -8248,8 +8244,7 @@ snapshots:
 
   assert-options@0.8.1: {}
 
-  assertion-error@2.0.1:
-    optional: true
+  assertion-error@2.0.1: {}
 
   ast-types-flow@0.0.8: {}
 
@@ -8329,8 +8324,7 @@ snapshots:
 
   bytes@3.1.2: {}
 
-  cac@6.7.14:
-    optional: true
+  cac@6.7.14: {}
 
   call-bind@1.0.7:
     dependencies:
@@ -8353,7 +8347,6 @@ snapshots:
       deep-eql: 5.0.2
       loupe: 3.1.1
       pathval: 2.0.0
-    optional: true
 
   chalk@2.3.0:
     dependencies:
@@ -8388,8 +8381,7 @@ snapshots:
 
   chardet@0.7.0: {}
 
-  check-error@2.1.1:
-    optional: true
+  check-error@2.1.1: {}
 
   cheerio-select@2.1.0:
     dependencies:
@@ -8777,8 +8769,7 @@ snapshots:
 
   dedent@1.5.3: {}
 
-  deep-eql@5.0.2:
-    optional: true
+  deep-eql@5.0.2: {}
 
   deep-equal@2.2.3:
     dependencies:
@@ -9736,8 +9727,7 @@ snapshots:
 
   gensync@1.0.0-beta.2: {}
 
-  get-func-name@2.0.2:
-    optional: true
+  get-func-name@2.0.2: {}
 
   get-intrinsic@1.2.4:
     dependencies:
@@ -10429,7 +10419,6 @@ snapshots:
   loupe@3.1.1:
     dependencies:
       get-func-name: 2.0.2
-    optional: true
 
   lru-cache@10.4.3: {}
 
@@ -10457,7 +10446,6 @@ snapshots:
   magic-string@0.30.11:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.0
-    optional: true
 
   make-error@1.3.6: {}
 
@@ -11407,8 +11395,7 @@ snapshots:
 
   pathe@1.1.2: {}
 
-  pathval@2.0.0:
-    optional: true
+  pathval@2.0.0: {}
 
   periscopic@3.1.0:
     dependencies:
@@ -12004,8 +11991,7 @@ snapshots:
       get-intrinsic: 1.2.4
       object-inspect: 1.13.2
 
-  siginfo@2.0.0:
-    optional: true
+  siginfo@2.0.0: {}
 
   signal-exit@3.0.7: {}
 
@@ -12079,8 +12065,7 @@ snapshots:
     dependencies:
       escape-string-regexp: 2.0.0
 
-  stackback@0.0.2:
-    optional: true
+  stackback@0.0.2: {}
 
   stackframe@1.3.4: {}
 
@@ -12097,8 +12082,7 @@ snapshots:
 
   statuses@2.0.1: {}
 
-  std-env@3.7.0:
-    optional: true
+  std-env@3.7.0: {}
 
   stop-iteration-iterator@1.0.0:
     dependencies:
@@ -12252,20 +12236,15 @@ snapshots:
       es5-ext: 0.10.64
       next-tick: 1.1.0
 
-  tinybench@2.9.0:
-    optional: true
+  tinybench@2.9.0: {}
 
-  tinyexec@0.3.0:
-    optional: true
+  tinyexec@0.3.0: {}
 
-  tinypool@1.0.1:
-    optional: true
+  tinypool@1.0.1: {}
 
-  tinyrainbow@1.2.0:
-    optional: true
+  tinyrainbow@1.2.0: {}
 
-  tinyspy@3.0.2:
-    optional: true
+  tinyspy@3.0.2: {}
 
   title@3.5.3:
     dependencies:
@@ -12557,7 +12536,7 @@ snapshots:
     dependencies:
       browserslist: 4.23.3
       escalade: 3.1.2
-      picocolors: 1.0.1
+      picocolors: 1.1.0
 
   uri-js@4.4.1:
     dependencies:
@@ -12653,7 +12632,6 @@ snapshots:
       - sugarss
       - supports-color
       - terser
-    optional: true
 
   vite@5.4.6(@types/node@17.0.45)(sass@1.78.0):
     dependencies:
@@ -12698,7 +12676,6 @@ snapshots:
       - sugarss
       - supports-color
       - terser
-    optional: true
 
   vscode-oniguruma@1.7.0: {}
 
@@ -12773,7 +12750,6 @@ snapshots:
     dependencies:
       siginfo: 2.0.0
       stackback: 0.0.2
-    optional: true
 
   word-wrap@1.2.5: {}
 
