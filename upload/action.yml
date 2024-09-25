@@ -8,59 +8,41 @@ inputs:
     description: Name of the artifact to upload
     required: false
     default: artifact
-  # from https://github.com/actions/upload-artifact/blob/main/action.yml
   if-no-files-found:
-    description: >
+    description: |
       The desired behavior if no files are found using the provided path.
-
       Available Options:
         warn: Output a warning but do not fail the action
         error: Fail the action with an error message
         ignore: Do not output any warnings or errors, the action does not fail
-    default: 'warn'
+    default: warn
   retention-days:
-    description: >
+    description: |
       Duration after which artifact will expire in days. 0 means using default retention.
-
-      Minimum 1 day.
-      Maximum 90 days unless changed from the repository settings page.
+      Minimum 1 day. Maximum 90 days unless changed from the repository settings page.
   compression-level:
-    description: >
-      The level of compression for Zlib to be applied to the artifact archive.
-      The value can range from 0 to 9:
-      - 0: No compression
-      - 1: Best speed
-      - 6: Default compression (same as GNU Gzip)
-      - 9: Best compression
-      Higher levels will result in better compression, but will take longer to complete.
-      For large files that are not easily compressed, a value of 0 is recommended for significantly faster uploads.
-    default: '6'
+    description: |
+      The level of compression for Zlib to be applied to the artifact archive. The value can range from 0 to 9: - 0: No compression - 1: Best speed - 6: Default compression (same as GNU Gzip) - 9: Best compression Higher levels will result in better compression, but will take longer to complete. For large files that are not easily compressed, a value of 0 is recommended for significantly faster uploads.
+    default: "6"
   overwrite:
-    description: >
-      If true, an artifact with a matching name will be deleted before a new one is uploaded.
-      If false, the action will fail if an artifact for the given name already exists.
-      Does not fail if the artifact does not exist.
-    default: 'false'
+    description: |
+      If true, an artifact with a matching name will be deleted before a new one is uploaded. If false, the action will fail if an artifact for the given name already exists. Does not fail if the artifact does not exist.
+    default: "false"
   include-hidden-files:
-    description: >
-      If true, hidden files will be included in the artifact.
-      If false, hidden files will be excluded from the artifact.
-    default: 'false'
-
+    description: |
+      If true, hidden files will be included in the artifact. If false, hidden files will be excluded from the artifact.
+    default: "false"
   artifactci_origin:
     description: The origin of the server to upload the artifact to
     required: false
     default: https://www.artifact.ci
   artifactci_debug:
-    description: >
-      If true, debug information will be printed to the console.
-      If false, debug information will not be printed to the console.
-      If not set, debug information will be printed if the commit message includes "artifactci_debug=<job-id>"
-    default: 'false'
+    description: |
+      If true, debug information will be printed to the console. If false, debug information will not be printed to the console. If not set, debug information will be printed if the commit message includes "artifactci_debug=<job-id>"
+    default: "false"
   artifactci_github_token:
     description: The GitHub token to use for the upload. If not set, the backend will look for the job via GitHub.com - so this is required for private repositories.
     required: false
-
 runs:
   using: composite
   steps:
@@ -125,7 +107,7 @@ runs:
                   return fn
                 }
               
-          async function upload({context,inputs,dependencies}){const logger={info:__name((...args)=>console.info(...args),"info"),warn:__name((...args)=>console.warn(...args),"warn"),error:__name((...args)=>console.error(...args),"error"),debug:__name((...args)=>{if(inputs.artifactci_debug&&inputs.artifactci_debug!=="false")console.info(...args)},"debug")};const{glob,fsPromises:fs,fs:fsSync,vercelBlobClient}=dependencies;const githubToken=inputs["artifactci_github_token"];const artifactCiDebugKeyword=context.repository==="mmkal/artifact.ci"?"debug":"artifactci_debug";inputs.artifactci_debug??="${{ github.event.head_commit.message }}".includes(`${artifactCiDebugKeyword}=${context.job}`);if(inputs.artifactci_debug==="false"){logger.warn(`artifactci_debug is set to "false" (string) - setting to false (boolean)`);inputs.artifactci_debug=false}Object.assign(global,{window:{location:new URL(inputs.origin)}});const stat=await fs.stat(inputs.path).catch(e=>{if(e.code==="ENOENT")return null;throw e});const globPattern=stat?.isDirectory()?`${inputs.path}/**/*`:inputs.path;const globber=await glob.create(globPattern);const files=await globber.glob();const filesWithPathnames=files.flatMap(f=>{if(!fsSync.statSync(f).isFile())return[];return{localPath:f.replace(process.cwd()+"/",""),multipart:false}});const pathnameToFile=new Map(filesWithPathnames.map(f=>[f.localPath,f]));const redactedContext={...context,runAttempt:Number(process.env.GITHUB_RUN_ATTEMPT),repository:process.env.GITHUB_REPOSITORY,githubOrigin:process.env.GITHUB_SERVER_URL,...{payload:null,payloadKeys:Object.keys(context.payload)}};const bulkRequest={type:"bulk",callbackUrl:`${inputs.origin}/artifact/upload/signed-url`,clientPayload:{githubToken,commit:{ref:context.ref,sha:context.sha,actions_run_id:context.runId.toString()},context:redactedContext},files:filesWithPathnames};if(filesWithPathnames.length===0){throw new Error("No files to upload")}console.log(`Sending bulk request to ${inputs.origin}/artifact/upload/signed-url (${filesWithPathnames.length} files)`);const chunk=__name((list,size)=>{const chunks=[];for(let i=0;i<list.length;i+=size){chunks.push(list.slice(i,i+size))}return chunks},"chunk");const MAX_FILES=500;const CHUNK_SIZE=MAX_FILES;if(bulkRequest.files.length>MAX_FILES){throw new Error(`Too many files: ${bulkRequest.files.length}`)}const chunked=chunk(bulkRequest.files,CHUNK_SIZE).map(chunkOfFiles=>{return{...bulkRequest,files:chunkOfFiles}});for(const[i,bulkRequest2]of chunked.entries()){logger.debug(`Uploading chunk ${i+1} of ${chunked.length}`);const res=await fetch(`${inputs.origin}/artifact/upload/signed-url`,{method:"POST",body:JSON.stringify(bulkRequest2),headers:{"content-type":"application/json","user-agent":"artifact.ci/action"}});logger.debug("response::::",res.status,Object.fromEntries(res.headers));logger.debug({res});const responseText=__name(()=>res.clone().text().catch(String),"responseText");try{if(!res.ok)throw new Error(`failed to upload: ${res.status} ${await responseText()}`);const data=await res.json();if(!data?.results?.length)throw new Error("no results: "+await responseText());for(const result of data.results){logger.debug("Uploading: "+result.localPath);const file=pathnameToFile.get(result.localPath);if(file?.localPath!==result.localPath){throw new Error(`local path mismatch: ${file?.localPath} !== ${result.localPath}`)}await vercelBlobClient.put(result.pathname,await fs.readFile(file.localPath),{access:"public",token:result.clientToken,multipart:file.multipart,contentType:result.contentType});logger.info("Uploaded: "+result.viewUrl)}logger.info(`Upload complete (${i+1} of ${chunked.length})`)}catch(e){logger.error("response::::",res.status,responseText);logger.error("error::::",e);throw e}}}
+          async function upload({context,inputs,dependencies}){const logger={info:__name((...args)=>console.info(...args),"info"),warn:__name((...args)=>console.warn(...args),"warn"),error:__name((...args)=>console.error(...args),"error"),debug:__name((...args)=>{if(inputs.artifactci_debug&&inputs.artifactci_debug!=="false")console.info(...args)},"debug")};const{glob,fsPromises:fs,fs:fsSync,vercelBlobClient}=dependencies;const githubToken=inputs.artifactci_github_token||null;const artifactCiDebugKeyword=context.repository==="mmkal/artifact.ci"?"debug":"artifactci_debug";inputs.artifactci_debug??="${{ github.event.head_commit.message }}".includes(`${artifactCiDebugKeyword}=${context.job}`);if(inputs.artifactci_debug==="false"){inputs.artifactci_debug=false}Object.assign(global,{window:{location:new URL(inputs.artifactci_origin)}});const stat=await fs.stat(inputs.path).catch(e=>{if(e.code==="ENOENT")return null;throw e});const globPattern=stat?.isDirectory()?`${inputs.path}/**/*`:inputs.path;const globber=await glob.create(globPattern);const files=await globber.glob();const filesWithPathnames=files.flatMap(f=>{if(!fsSync.statSync(f).isFile())return[];return{localPath:f.replace(process.cwd()+"/",""),multipart:false}});const pathnameToFile=new Map(filesWithPathnames.map(f=>[f.localPath,f]));const redactedContext={...context,runAttempt:Number(process.env.GITHUB_RUN_ATTEMPT),repository:process.env.GITHUB_REPOSITORY,githubOrigin:process.env.GITHUB_SERVER_URL,...{payload:null,payloadKeys:Object.keys(context.payload)}};const bulkRequest={type:"bulk",callbackUrl:`${inputs.artifactci_origin}/artifact/upload/signed-url`,clientPayload:{githubToken,commit:{ref:context.ref,sha:context.sha,actions_run_id:context.runId.toString()},context:redactedContext},files:filesWithPathnames};if(filesWithPathnames.length===0&&inputs["if-no-files-found"]==="error"){throw new Error("No files to upload")}else if(filesWithPathnames.length===0&&inputs["if-no-files-found"]==="warn"){logger.warn("No files to upload")}console.log(`Sending bulk request to ${inputs.artifactci_origin}/artifact/upload/signed-url (${filesWithPathnames.length} files)`);const chunk=__name((list,size)=>{const chunks=[];for(let i=0;i<list.length;i+=size){chunks.push(list.slice(i,i+size))}return chunks},"chunk");const MAX_FILES=500;const CHUNK_SIZE=MAX_FILES;if(bulkRequest.files.length>MAX_FILES){throw new Error(`Too many files: ${bulkRequest.files.length}`)}const chunked=chunk(bulkRequest.files,CHUNK_SIZE).map(chunkOfFiles=>{return{...bulkRequest,files:chunkOfFiles}});for(const[i,bulkRequest2]of chunked.entries()){logger.debug(`Uploading chunk ${i+1} of ${chunked.length}`);const res=await fetch(`${inputs.artifactci_origin}/artifact/upload/signed-url`,{method:"POST",body:JSON.stringify(bulkRequest2),headers:{"content-type":"application/json","user-agent":"artifact.ci/action"}});logger.debug("response::::",res.status,Object.fromEntries(res.headers));logger.debug({res});const responseText=__name(()=>res.clone().text().catch(String),"responseText");try{if(!res.ok)throw new Error(`failed to upload: ${res.status} ${await responseText()}`);const data=await res.json();if(!data?.results?.length)throw new Error("no results: "+await responseText());for(const result of data.results){logger.debug("Uploading: "+result.localPath);const file=pathnameToFile.get(result.localPath);if(file?.localPath!==result.localPath){throw new Error(`local path mismatch: ${file?.localPath} !== ${result.localPath}`)}await vercelBlobClient.put(result.pathname,await fs.readFile(file.localPath),{access:"public",token:result.clientToken,multipart:file.multipart,contentType:result.contentType});logger.info("Uploaded: "+result.viewUrl)}logger.info(`Upload complete (${i+1} of ${chunked.length})`)}catch(e){logger.error("response::::",res.status,responseText);logger.error("error::::",e);throw e}}}
 
           await upload({context, inputs, dependencies})
     - name: cleanup
