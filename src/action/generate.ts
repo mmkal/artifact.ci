@@ -121,6 +121,7 @@ async function upload(
       const data = (await res.json()) as BulkResponse
       if (!data?.results?.length) throw new Error('no results: ' + responseText)
       for (const result of data.results) {
+        console.log('Uploading: ' + result.localPath)
         const file = pathnameToFile.get(result.localPath)
         if (file?.localPath !== result.localPath)
           throw new Error(`local path mismatch: ${file?.localPath} !== ${result.localPath}`)
@@ -133,8 +134,7 @@ async function upload(
         })
         console.log('Uploaded: ' + result.viewUrl)
       }
-      console.log('Upload complete')
-      return
+      console.log(`Upload complete (${i + 1} of ${chunked.length})`)
     } catch (e) {
       console.log('response::::', res.status, responseText)
       console.log('error::::', e)
