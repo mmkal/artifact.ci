@@ -109,20 +109,17 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({message}, {status: 429})
     }
 
-    // todo: replace with sponsorship check?
-    if (process.env.ALLOWED_GITHUB_OWNERS && !process.env.ALLOWED_GITHUB_OWNERS.split(',').includes(owner)) {
-      const message = `Unauthorized - not allowed to upload to ${owner}/${repo}. Update env.ALLOWED_GITHUB_OWNERS to allow this repo.`
-      return NextResponse.json({message}, {status: 401})
-    }
-
-    const github = new Octokit({auth: body.clientPayload.githubToken, log: console})
-
-    const {data: repoData} = await github.rest.repos.get({owner, repo}).catch(nullify404)
-
-    if (!repoData) {
-      const message = `Repository not found - you may not have access to ${owner}/${repo}. If this repository is private, you will need to pass a "githubToken" in the client payload.`
-      throw new ResponseError(NextResponse.json({message}, {status: 404}))
-    }
+    // let repoData: {html_url: string} | null = null
+    // if (body.clientPayload.githubToken) {
+    // const github = new Octokit({auth: body.clientPayload.githubToken, log: console})
+    //   const repoResponse = await github.rest.repos.get({owner, repo}).catch(nullify404)
+    //   repoData = repoResponse.data
+    // } else {
+    // }
+    // if (!repoData) {
+    //   const message = `Repository not found - you may not have access to ${owner}/${repo}. If this repository is private, you will need to pass a "githubToken" in the client payload.`
+    //   throw new ResponseError(NextResponse.json({message}, {status: 404}))
+    // }
 
     try {
       const results = await Promise.all(
