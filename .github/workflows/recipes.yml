@@ -13,6 +13,7 @@ jobs:
           rm ../package.json
           rm ../pnpm-lock.yaml
           npm install vitest @vitest/ui @types/node --save-dev
+          cat package.json
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + 1' >> calc.ts
           echo 'export const sub = (a: number, b: number) => a - b' >> calc.ts

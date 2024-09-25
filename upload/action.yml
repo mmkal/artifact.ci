@@ -25,11 +25,6 @@ runs:
       with:
         name: ${{ inputs.name }}
         path: ${{ inputs.path }}
-    - name: print url
-      shell: bash
-      run: |
-        echo 'View your artifact here:'
-        echo '${{ inputs.origin }}/artifact/browse/${{ github.repository }}/${{ github.run_id }}/${{ inputs.name }}'
     - name: Checkout artifact.ci
       uses: actions/checkout@v4
       with:

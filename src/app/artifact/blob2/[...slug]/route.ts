@@ -114,15 +114,8 @@ const tryGet = async (request: NextRequest) => {
     throw new Error('STORAGE_ORIGIN environment variable is not set')
   }
 
-  const targetUrl = new URL(pathname, storageOrigin)
-
-  let storageResponse = await fetch(targetUrl)
-
-  if (storageResponse.status === 404 && Math.random() > 1) {
-    // todo: store redirects in db
-    // if 404, try serving `/index.html`
-    storageResponse = await fetch(targetUrl.toString().replace(/\/?$/, '/index.html'))
-  }
+  const targetUrl = blobInfo.blob_url
+  const storageResponse = await fetch(targetUrl)
 
   if (storageResponse.headers.get('x-matched-path') === '/docs/storage/vercel-blob/blocked-store') {
     const message = `Failed to fetch blob at ${targetUrl.toString()}.`
