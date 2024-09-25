@@ -99,7 +99,7 @@ async function upload(
     return chunks
   }
 
-  const chunked = chunk(bulkRequest.files, 5).map((chunkOfFiles): BulkRequest => {
+  const chunked = chunk(bulkRequest.files, 500).map((chunkOfFiles): BulkRequest => {
     return {...bulkRequest, files: chunkOfFiles}
   })
   // eslint-disable-next-line @typescript-eslint/no-shadow
