@@ -45,7 +45,7 @@ jobs:
           echo 'test("add well", () => expect(calc.add(1, 1)).toEqual(2))' >> test/adding.test.ts
           echo 'test("add badly", () => expect(calc.addBad(1, 1)).toEqual(2))' >> test/adding.test.ts
       - name: run tests
-        run: npx playwright test --reporter html || echo failed
+        run: npx playwright test adding.test.ts --reporter html || echo failed
       - uses: ./upload
         with:
           name: playwright

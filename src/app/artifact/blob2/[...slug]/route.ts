@@ -132,13 +132,14 @@ const tryGet = async (request: NextRequest) => {
     )
   }
 
-  const mimeType = mimeTypeLookup(pathname) || 'text/plain'
+  const mimeType = mimeTypeLookup(targetUrl) || 'text/plain'
 
   const headers = new Headers({} || storageResponse.headers)
   headers.set('Content-Type', mimeType)
   headers.delete('Content-Disposition') // rely on default browser behavior
   headers.delete('Content-Security-Policy') // be careful!
   headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+  headers.set('x-storage-location', targetUrl)
 
   return new NextResponse(storageResponse.body, {
     status: storageResponse.status,
