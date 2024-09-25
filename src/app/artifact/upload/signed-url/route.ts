@@ -4,7 +4,14 @@ import {NextResponse} from 'next/server'
 import * as path from 'path'
 import {client, Id, sql} from '~/db'
 import {getJobsWithStatuses as loadWorkflowJobStatuses} from '~/github/job-statuses'
-import {BulkRequest, BulkResponse, BulkResponseItem, ClientPayload, tokenPayloadCodec} from '~/types'
+import {
+  BulkRequest,
+  BulkResponse,
+  BulkResponseItem,
+  ClientPayload,
+  GithubActionsContext,
+  tokenPayloadCodec,
+} from '~/types'
 
 export const maxDuration = 59
 
@@ -12,6 +19,10 @@ class ResponseError extends Error {
   constructor(readonly response: NextResponse<object>) {
     super()
   }
+}
+
+function buildStoragePathname(ctx: GithubActionsContext, localPath: string) {
+  return path.join(ctx.repository, ctx.runId.toString(), ctx.runAttempt.toString(), ctx.job, localPath)
 }
 
 const allowedContentTypes = new Set([
@@ -122,7 +133,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     try {
       const results = await Promise.all(
         body.files.map(async ({localPath, multipart}): Promise<BulkResponseItem> => {
-          const pathname = `artifacts/${ctx.repository}/${ctx.runId}/${ctx.runAttempt}/${ctx.job}/${localPath}`
+          const storagePathname = buildStoragePathname(ctx, localPath)
           const uploadResponse = await handleUploadSingle(
             request,
             {
@@ -130,17 +141,17 @@ export async function POST(request: Request): Promise<NextResponse> {
               payload: {
                 callbackUrl: body.callbackUrl,
                 clientPayload: JSON.stringify(body.clientPayload),
-                pathname,
+                pathname: storagePathname,
                 multipart,
               },
             },
             insertedUploadRequest.id,
           )
-          const viewUrl = `${new URL(request.url).origin}/artifact/blob2/${pathname}`
+          const viewUrl = `${new URL(request.url).origin}/artifact/blob2/${storagePathname}`
           return {
             localPath,
             viewUrl,
-            pathname,
+            pathname: storagePathname,
             clientToken: uploadResponse.clientToken,
           }
         }),

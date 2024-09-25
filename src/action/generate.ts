@@ -59,9 +59,8 @@ async function upload(
     if (!fsSync.statSync(f).isFile()) return []
     // const pathname = pathPrefix + f.replace(process.cwd(), '')
     return {
-      localPath: f.replace(process.cwd(), ''),
-      contentType: mimeTypes.lookup(f) || 'text/plain',
-      multipart: false,
+      localPath: f.replace(process.cwd() + '/', ''),
+      multipart: false, // consider letting users set this and content-type?
     }
   })
   const pathnameToFile = new Map(filesWithPathnames.map(f => [f.localPath, f]))
@@ -113,7 +112,7 @@ async function upload(
         access: 'public',
         token: result.clientToken,
         multipart: file.multipart,
-        contentType: file.contentType,
+        // contentType not set since there's no way to override it so we'd just be inferring anyway
       })
       console.log('Uploaded: ' + result.viewUrl)
     }

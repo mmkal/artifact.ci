@@ -39,7 +39,6 @@ export const BulkRequestFile = z.object({
     if (/^[A-Za-z]:/.test(s)) return false // windows
     return true
   }, 'Local path should not be absolute'),
-  contentType: z.string(),
   multipart: z.boolean(),
 })
 
