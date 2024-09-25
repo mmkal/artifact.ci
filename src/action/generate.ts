@@ -191,6 +191,13 @@ if (require.main === module) {
     `,
     `process.chdir(cwd)`,
     '',
+    `
+      const __name = (fn, value) => {
+        // for some reason tsx .toString() relies on this
+        Object.defineProperty(fn, 'name', {value})
+        return fn
+      }
+    `,
     `${upload.toString()}`,
     ``,
     `await upload({context, inputs, dependencies})`,
