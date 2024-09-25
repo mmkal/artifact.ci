@@ -1,8 +1,8 @@
 import {readFileSync, writeFileSync} from 'fs'
 import * as yaml from 'yaml'
 
-type BulkRequest = import('../app/artifact/upload/signed-url/types').BulkRequest
-type BulkResponse = import('../app/artifact/upload/signed-url/types').BulkResponse
+type BulkRequest = import('../types').BulkRequest
+type BulkResponse = import('../types').BulkResponse
 
 type UploadParams = {
   inputs: {

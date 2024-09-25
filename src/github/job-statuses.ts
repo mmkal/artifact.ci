@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio'
-import {type GithubActionsContext} from './types'
+import {type GithubActionsContext} from '../types'
 
 /** Fetches a `run` page as ✨HTML✨ and parses to get the statuses of all jobs! */
 // todo: use github api if token is available
