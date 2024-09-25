@@ -156,6 +156,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           }
         }),
       )
+      console.log('bulk results for ' + body.clientPayload.context.job, results)
       return NextResponse.json({results} satisfies BulkResponse)
     } catch (error) {
       if (error instanceof ResponseError) {
@@ -204,8 +205,6 @@ const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
     body,
     request,
     onBeforeGenerateToken: async (pathname, payload) => {
-      console.log('onBeforeGenerateToken', pathname, payload)
-
       if (!uploadRequestId) {
         const message = 'Unauthorized - no upload request specified in client payload'
         throw new ResponseError(NextResponse.json({message}, {status: 401}))

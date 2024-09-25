@@ -89,7 +89,7 @@ async function upload(
 
   console.log(
     `Sending bulk request to ${inputs.origin}/artifact/upload/signed-url (${filesWithPathnames.length} files)`,
-    {redactedContext},
+    // {redactedContext},
   )
   const res = await fetch(`${inputs.origin}/artifact/upload/signed-url`, {
     method: 'POST',
@@ -99,10 +99,13 @@ async function upload(
       'user-agent': 'artifact.ci/action',
     },
   })
-  const responseText = await res.clone().text()
+  console.log('response::::', res.status, Object.fromEntries(res.headers))
+  const responseText = await res.clone().text().catch(String)
+  console.log('responseText::::', responseText.slice(0, 100))
   try {
     if (!res.ok) throw new Error(`failed to upload: ${res.status} ${responseText}`)
     const data = (await res.json()) as BulkResponse
+    if (!data?.results?.length) throw new Error('no results: ' + responseText)
     for (const result of data.results) {
       const file = pathnameToFile.get(result.localPath)
       if (file?.localPath !== result.localPath)
