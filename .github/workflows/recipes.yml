@@ -182,7 +182,6 @@ jobs:
             name: mocha
             path: output.html
   pdf:
-    name: Pee Dee Eff
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

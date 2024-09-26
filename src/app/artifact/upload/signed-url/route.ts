@@ -4,7 +4,7 @@ import {NextResponse} from 'next/server'
 import * as path from 'path'
 import {ARTIFACT_BLOB_PREFIX} from '../../view/[...slug]/route'
 import {client, Id, sql} from '~/db'
-import {getJobsWithStatuses as loadWorkflowJobStatuses} from '~/github/job-statuses'
+import {getJobsWithStatuses} from '~/github/job-statuses'
 import {
   BulkRequest,
   BulkResponse,
@@ -106,17 +106,18 @@ export async function POST(request: Request): Promise<NextResponse> {
     const [owner, repo] = ctx.repository.split('/')
     const htmlUrl = `${ctx.githubOrigin}/${owner}/${repo}`
 
-    const jobsResult = await loadWorkflowJobStatuses(ctx, body.clientPayload)
-    if (jobsResult.outcome === 'api_failure') {
-      const message = `Failed to load job statuses for ${ctx.job}. Did you pass the correct "githubToken"?`
-      return NextResponse.json({message, error: jobsResult.response}, {status: 400})
-    }
-    if (jobsResult.outcome === 'fetch_failure') {
+    const jobsResult = await getJobsWithStatuses(ctx, body.clientPayload)
+    if (jobsResult.outcome === 'failure' && jobsResult.mode === 'web') {
       const message = `Failed to load job statuses for ${ctx.job} on ${htmlUrl}. If this is a private repo, you may need to pass a "githubToken" in the client payload.`
       return NextResponse.json({message, error: jobsResult.response.statusText}, {status: jobsResult.response.status})
     }
+    if (jobsResult.outcome === 'failure') {
+      const message = `Failed to load job statuses for ${ctx.job}. Did you pass a valid "githubToken"?`
+      return NextResponse.json({message, error: jobsResult.response}, {status: 400})
+    }
     if (jobsResult.outcome !== 'success') {
-      const message = `Unexpected outcome ${jobsResult.outcome} when getting job statuses for ${ctx.job} on ${htmlUrl}.`
+      const outcome = (jobsResult satisfies never as {outcome: string})?.outcome
+      const message = `Unexpected outcome ${outcome} when getting job statuses for ${ctx.job} on ${htmlUrl}.`
       return NextResponse.json({message}, {status: 500})
     }
 
