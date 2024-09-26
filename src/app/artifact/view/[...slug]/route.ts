@@ -6,7 +6,9 @@ import {NextResponse} from 'next/server'
 import {getGithubAccessToken} from '../../../../auth'
 import {client, sql} from '~/db'
 
-// sample: http://localhost:3000/artifact/blob2/mmkal/artifact.ci/11020882214/mocha/output.html
+export const ARTIFACT_BLOB_PREFIX = '/artifact/view/'
+
+// sample: http://localhost:3000/artifact/view/mmkal/artifact.ci/11020882214/mocha/output.html
 export const GET = async (request: NextRequest) => {
   try {
     const res = await tryGet(request)
@@ -42,8 +44,7 @@ const tryGet = async (request: NextRequest) => {
     return NextResponse.json({message: 'Not authenticated with GitHub', token: redactedToken}, {status: 401})
   }
 
-  const artifactBlobPrefix = '/artifact/blob2/'
-  const pathname = request.nextUrl.pathname.slice(artifactBlobPrefix.length)
+  const pathname = request.nextUrl.pathname.slice(ARTIFACT_BLOB_PREFIX.length)
   const [owner, repo] = pathname.split('/')
 
   const blobInfo = await client.maybeOne(sql<queries.BlobInfo>`

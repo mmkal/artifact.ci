@@ -2,6 +2,7 @@ import {handleUpload, type HandleUploadBody} from '@vercel/blob/client'
 import {lookup as mimeLookup} from 'mime-types'
 import {NextResponse} from 'next/server'
 import * as path from 'path'
+import {ARTIFACT_BLOB_PREFIX} from '../../view/[...slug]/route'
 import {client, Id, sql} from '~/db'
 import {getJobsWithStatuses as loadWorkflowJobStatuses} from '~/github/job-statuses'
 import {
@@ -124,18 +125,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({message}, {status: 429})
     }
 
-    // let repoData: {html_url: string} | null = null
-    // if (body.clientPayload.githubToken) {
-    // const github = new Octokit({auth: body.clientPayload.githubToken, log: console})
-    //   const repoResponse = await github.rest.repos.get({owner, repo}).catch(nullify404)
-    //   repoData = repoResponse.data
-    // } else {
-    // }
-    // if (!repoData) {
-    //   const message = `Repository not found - you may not have access to ${owner}/${repo}. If this repository is private, you will need to pass a "githubToken" in the client payload.`
-    //   throw new ResponseError(NextResponse.json({message}, {status: 404}))
-    // }
-
     try {
       const results = await Promise.all(
         body.files.map(async ({localPath, multipart}): Promise<BulkResponseItem> => {
@@ -153,7 +142,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             },
             insertedUploadRequest.id,
           )
-          const viewUrl = `${new URL(request.url).origin}/artifact/blob2/${storagePathname}`
+          const viewUrl = new URL(request.url).origin + ARTIFACT_BLOB_PREFIX + storagePathname
           return {
             localPath,
             viewUrl,
