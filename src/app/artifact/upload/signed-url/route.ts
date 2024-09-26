@@ -4,7 +4,7 @@ import {NextResponse} from 'next/server'
 import * as path from 'path'
 import {ARTIFACT_BLOB_PREFIX} from '../../view/[...slug]/route'
 import {client, Id, sql} from '~/db'
-import {getJobsWithStatuses as loadWorkflowJobStatuses} from '~/github/job-statuses'
+import {getJobsWithStatuses} from '~/github/job-statuses'
 import {
   BulkRequest,
   BulkResponse,
@@ -106,24 +106,35 @@ export async function POST(request: Request): Promise<NextResponse> {
     const [owner, repo] = ctx.repository.split('/')
     const htmlUrl = `${ctx.githubOrigin}/${owner}/${repo}`
 
-    const jobsResult = await loadWorkflowJobStatuses(ctx, body.clientPayload)
-    if (jobsResult.outcome === 'api_failure') {
-      const message = `Failed to load job statuses for ${ctx.job}. Did you pass the correct "githubToken"?`
-      return NextResponse.json({message, error: jobsResult.response}, {status: 400})
-    }
-    if (jobsResult.outcome === 'fetch_failure') {
+    const jobsResult = await getJobsWithStatuses(ctx, body.clientPayload)
+    if (jobsResult.outcome === 'failure' && jobsResult.mode === 'web') {
       const message = `Failed to load job statuses for ${ctx.job} on ${htmlUrl}. If this is a private repo, you may need to pass a "githubToken" in the client payload.`
       return NextResponse.json({message, error: jobsResult.response.statusText}, {status: jobsResult.response.status})
     }
+    if (jobsResult.outcome === 'failure') {
+      const message = `Failed to load job statuses for ${ctx.job}. Did you pass a valid "githubToken"?`
+      return NextResponse.json({message, error: jobsResult.response}, {status: 400})
+    }
     if (jobsResult.outcome !== 'success') {
-      const message = `Unexpected outcome ${jobsResult.outcome} when getting job statuses for ${ctx.job} on ${htmlUrl}.`
+      const outcome = (jobsResult satisfies never as {outcome: string})?.outcome
+      const message = `Unexpected outcome ${outcome} when getting job statuses for ${ctx.job} on ${htmlUrl}.`
       return NextResponse.json({message}, {status: 500})
     }
 
     const {jobs} = jobsResult
     console.log('loadWorkflowJobStatuses result', jobs)
 
-    const matchingJob = jobsResult.jobs[ctx.job]
+    let matchingJob = jobsResult.jobs.find(job => ctx.job === job.jobId)
+    if (!matchingJob) {
+      const matchingJobsByName = jobsResult.jobs.filter(job =>
+        job.jobName.toLowerCase().includes(ctx.job.toLowerCase()),
+      )
+      if (matchingJobsByName.length > 1) {
+        const message = `Ambiguous job name - ${ctx.job}. Matching jobs: ${matchingJobsByName.map(j => j.jobName).join(', ')}. Try removing the job "name" property to rely on its key in the workflow definition (recommended), or ensure the name is the only one that matches the job key. See https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/using-jobs-in-a-workflow#setting-an-id-for-a-job for more details.`
+        return NextResponse.json({message}, {status: 400})
+      }
+      matchingJob = matchingJobsByName.at(0)
+    }
 
     if (!matchingJob || matchingJob.status !== 'running') {
       const message = `Job ${ctx.job} not found or was not running. Job info: ${JSON.stringify(jobs, null, 2)}`

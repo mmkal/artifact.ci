@@ -23,6 +23,7 @@ export interface AugmentedSession {
   token_note: string | null
 }
 
+// todo: github app auth
 export const {handlers, signIn, signOut, auth} = NextAuth({
   providers: [Github],
   callbacks: {

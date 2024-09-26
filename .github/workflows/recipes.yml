@@ -187,7 +187,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: setup
+        env:
+          json: '${{ toJson(github) }}'
         run: |
+          echo $json
           npm install pdfkit
           echo '
             const fs = require("fs")
