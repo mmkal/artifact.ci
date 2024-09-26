@@ -4,7 +4,7 @@ import {type GithubActionsContext} from '../types'
 
 export type JobInfo = {
   href: string
-  jobId: string
+  jobId: string | null
   jobName: string
   status: 'running' | 'success' | 'failed' | 'unexpected'
 }
@@ -12,7 +12,7 @@ export type GetJobsWithStatusesResult =
   | {
       mode: 'api' | 'web'
       outcome: 'success'
-      jobs: Record<string, JobInfo>
+      jobs: JobInfo[]
     }
   | {
       mode: 'api'
@@ -59,19 +59,17 @@ async function getJobsWithStatusesViaApi(
     return {mode: 'api', outcome: 'failure', response} as const
   }
 
-  const jobs = Object.fromEntries(
-    response.data.jobs.map((job): [string, JobInfo] => {
-      let status: 'running' | 'success' | 'failed' | 'unexpected' = 'running'
-      if (job.status === 'in_progress') status = 'running'
-      else if (job.status === 'completed' && job.conclusion === 'success') status = 'success'
-      else if (job.status === 'completed' && job.conclusion === 'failure') status = 'failed'
-      else status = 'unexpected'
+  const jobs = response.data.jobs.map((job): JobInfo => {
+    let status: 'running' | 'success' | 'failed' | 'unexpected' = 'running'
+    if (job.status === 'in_progress') status = 'running'
+    else if (job.status === 'completed' && job.conclusion === 'success') status = 'success'
+    else if (job.status === 'completed' && job.conclusion === 'failure') status = 'failed'
+    else status = 'unexpected'
 
-      if (job.name.includes('Pee')) console.log('job', job)
+    if (job.name.includes('Pee')) console.log('job', job)
 
-      return [job.id.toString(), {href: job.html_url!.slice(), jobId: job.name, jobName: job.name, status}]
-    }),
-  )
+    return {href: job.html_url!.slice(), jobId: null, jobName: job.name, status}
+  })
   return {mode: 'api', outcome: 'success', jobs} as const
 }
 
@@ -92,7 +90,7 @@ export async function getJobsWithStatusesViaWeb(context: GithubActionsContext): 
   } as const
 }
 
-export function parseJobStatuses(runPageHtml: string): Record<string, JobInfo> {
+export function parseJobStatuses(runPageHtml: string): JobInfo[] {
   const $ = cheerio.load(runPageHtml)
 
   const jobAnchors = $(`streaming-graph-job[data-job-id]`)
@@ -116,5 +114,5 @@ export function parseJobStatuses(runPageHtml: string): Record<string, JobInfo> {
     }
   })
 
-  return Object.fromEntries(jobs.toArray().map(a => [a.jobId, a]))
+  return jobs.toArray()
 }

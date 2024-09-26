@@ -124,7 +124,17 @@ export async function POST(request: Request): Promise<NextResponse> {
     const {jobs} = jobsResult
     console.log('loadWorkflowJobStatuses result', jobs)
 
-    const matchingJob = jobsResult.jobs[ctx.job]
+    let matchingJob = jobsResult.jobs.find(job => ctx.job === job.jobId)
+    if (!matchingJob) {
+      const matchingJobsByName = jobsResult.jobs.filter(job =>
+        job.jobName.toLowerCase().includes(ctx.job.toLowerCase()),
+      )
+      if (matchingJobsByName.length > 1) {
+        const message = `Ambiguous job name - ${ctx.job}. Matching jobs: ${matchingJobsByName.map(j => j.jobName).join(', ')}. Try removing the job "name" property to rely on its key in the workflow definition (recommended), or ensure the name is the only one that matches the job key. See https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/using-jobs-in-a-workflow#setting-an-id-for-a-job for more details.`
+        return NextResponse.json({message}, {status: 400})
+      }
+      matchingJob = matchingJobsByName.at(0)
+    }
 
     if (!matchingJob || matchingJob.status !== 'running') {
       const message = `Job ${ctx.job} not found or was not running. Job info: ${JSON.stringify(jobs, null, 2)}`
