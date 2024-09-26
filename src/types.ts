@@ -61,6 +61,7 @@ export type BulkResponseItem = z.infer<typeof BulkResponseItem>
 
 export const BulkResponse = z.object({
   results: z.array(BulkResponseItem),
+  entrypoints: z.array(z.string()),
 })
 export type BulkResponse = z.infer<typeof BulkResponse>
 

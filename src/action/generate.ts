@@ -144,8 +144,11 @@ async function upload({context, inputs, dependencies}: UploadParams) {
     const responseText = () => res.clone().text().catch(String)
     try {
       if (!res.ok) throw new Error(`failed to upload: ${res.status} ${await responseText()}`)
+
       const data = (await res.json()) as BulkResponse
       if (!data?.results?.length) throw new Error('no results: ' + (await responseText()))
+
+      const entrypoints = new Set(data.entrypoints)
       for (const result of data.results) {
         logger.debug('Uploading: ' + result.localPath)
         const file = pathnameToFile.get(result.localPath)
@@ -159,8 +162,11 @@ async function upload({context, inputs, dependencies}: UploadParams) {
           multipart: file.multipart,
           contentType: result.contentType,
         })
-        logger.info('Uploaded: ' + result.viewUrl)
+
+        const log = entrypoints.has(result.pathname) || entrypoints.size === 0 ? logger.info : logger.debug
+        log(`Uploaded: ${result.viewUrl}`)
       }
+
       logger.info(`Upload complete (${i + 1} of ${chunked.length})`)
     } catch (e) {
       logger.error('response::::', res.status, responseText)

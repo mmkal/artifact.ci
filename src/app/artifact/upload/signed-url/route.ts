@@ -26,6 +26,42 @@ function buildStoragePathname(ctx: GithubActionsContext, localPath: string) {
   return path.join(ctx.repository, ctx.runId.toString(), ctx.runAttempt.toString(), ctx.job, localPath)
 }
 
+const getEntrypoints = (pathnames: string[], requestedEntrypoints: string[] = []) => {
+  let bestEntrypoint: string | undefined = pathnames[0]
+
+  const aliases = pathnames.map(pathname => {
+    bestEntrypoint = bestEntrypoint ?? pathname
+    const paths: string[] = [pathname]
+
+    if (pathname.endsWith('.html')) {
+      const shortened = pathname.slice(0, -5)
+      if (!bestEntrypoint || shortened.length < bestEntrypoint.length) {
+        bestEntrypoint = shortened
+      }
+      paths.push(path.dirname(pathname))
+    }
+
+    if (pathname.endsWith('/index.html')) {
+      const shortened = path.dirname(pathname)
+      if (!bestEntrypoint || shortened.length < bestEntrypoint.length) {
+        bestEntrypoint = shortened
+      }
+      paths.push(path.dirname(pathname))
+    }
+
+    return {original: pathname, paths}
+  })
+
+  const set = new Set(aliases.flatMap(a => a.paths))
+
+  const entrypoints = requestedEntrypoints.filter(pathname => set.has(pathname))
+  if (entrypoints.length === 0 && bestEntrypoint) {
+    entrypoints.push(bestEntrypoint)
+  }
+
+  return {aliases, entrypoints}
+}
+
 const allowedContentTypes = new Set([
   'image/jpeg',
   'image/png',
@@ -153,7 +189,9 @@ export async function POST(request: Request): Promise<NextResponse> {
         }),
       )
       console.log('bulk results for ' + body.clientPayload.context.job, results)
-      return NextResponse.json({results} satisfies BulkResponse)
+      const {entrypoints} = getEntrypoints(results.map(r => r.viewUrl))
+
+      return NextResponse.json({results, entrypoints} satisfies BulkResponse)
     } catch (error) {
       if (error instanceof ResponseError) {
         console.log(error.response.status + ' handling upload', error)
@@ -247,12 +285,7 @@ const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
           ),
         )
       }
-      const pathnames = [blob.pathname]
-      if (blob.pathname.endsWith('/index.html')) {
-        pathnames.push(path.dirname(blob.pathname))
-      } else if (blob.pathname.endsWith('.html')) {
-        pathnames.push(blob.pathname.slice(0, -5))
-      }
+      const {aliases} = getEntrypoints([blob.pathname])
 
       const mimeType = getMimeType(blob.pathname)
       const uploads = await client.many(
@@ -262,7 +295,7 @@ const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
           from jsonb_populate_recordset(
             null::uploads,
             ${JSON.stringify(
-              pathnames.map(pathname => ({
+              aliases.map(pathname => ({
                 pathname,
                 mime_type: mimeType,
                 blob_url: blob.url,
