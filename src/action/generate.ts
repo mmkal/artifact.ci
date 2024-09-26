@@ -20,18 +20,26 @@ type UploadParams = {
   }
   context: ScriptContext
   dependencies: {
-    fs: typeof import('fs')
     fsPromises: typeof import('fs/promises')
     vercelBlobClient: typeof import('@vercel/blob/client')
     glob: {
       create: (
         pattern: string,
+        options?: {matchDirectories?: boolean},
       ) => Promise<{globGenerator: () => AsyncGenerator<string, void, unknown>; glob: () => Promise<string[]>}>
     }
   }
 }
 
 async function upload({context, inputs, dependencies}: UploadParams) {
+  const artifactCiDebugKeyword = context.repository === 'mmkal/artifact.ci' ? 'debug' : 'artifactci_debug'
+  inputs.artifactci_debug ??= '${{ github.event.head_commit.message }}'.includes(
+    `${artifactCiDebugKeyword}=${context.job}`,
+  )
+  if (inputs.artifactci_debug === 'false') {
+    inputs.artifactci_debug = false
+  }
+
   const logger = {
     info: (...args: unknown[]) => console.info(...args),
     warn: (...args: unknown[]) => console.warn(...args),
@@ -41,16 +49,11 @@ async function upload({context, inputs, dependencies}: UploadParams) {
     },
   }
 
-  const {glob, fsPromises: fs, fs: fsSync, vercelBlobClient} = dependencies
+  logger.debug('context:::::', context)
+
+  const {glob, fsPromises: fs, vercelBlobClient} = dependencies
 
   const githubToken = inputs.artifactci_github_token || null
-  const artifactCiDebugKeyword = context.repository === 'mmkal/artifact.ci' ? 'debug' : 'artifactci_debug'
-  inputs.artifactci_debug ??= '${{ github.event.head_commit.message }}'.includes(
-    `${artifactCiDebugKeyword}=${context.job}`,
-  )
-  if (inputs.artifactci_debug === 'false') {
-    inputs.artifactci_debug = false
-  }
 
   // const pathPrefix = '${{ github.repository }}/${{ github.run_id }}/' + inputs.name
 
@@ -71,12 +74,10 @@ async function upload({context, inputs, dependencies}: UploadParams) {
   })
   const globPattern = stat?.isDirectory() ? `${inputs.path}/**/*` : inputs.path
 
-  const globber = await glob.create(globPattern)
+  const globber = await glob.create(globPattern, {matchDirectories: false})
   const files = await globber.glob()
 
-  const filesWithPathnames = files.flatMap(f => {
-    if (!fsSync.statSync(f).isFile()) return []
-    // const pathname = pathPrefix + f.replace(process.cwd(), '')
+  const filesWithPathnames = files.map(f => {
     return {
       localPath: f.replace(process.cwd() + '/', ''),
       multipart: false, // consider letting users set this and content-type?
@@ -84,20 +85,19 @@ async function upload({context, inputs, dependencies}: UploadParams) {
   })
   const pathnameToFile = new Map(filesWithPathnames.map(f => [f.localPath, f]))
 
-  const redactedContext: BulkRequest['clientPayload']['context'] = {
-    ...context,
-    runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
-    repository: process.env.GITHUB_REPOSITORY!,
-    githubOrigin: process.env.GITHUB_SERVER_URL!,
-    ...({payload: null, payloadKeys: Object.keys(context.payload)} as {}),
-  }
   const bulkRequest = {
     type: 'bulk',
     callbackUrl: `${inputs.artifactci_origin}/artifact/upload/signed-url`,
     clientPayload: {
       githubToken,
       commit: {ref: context.ref, sha: context.sha, actions_run_id: context.runId.toString()},
-      context: redactedContext,
+      context: {
+        ...context,
+        runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+        repository: process.env.GITHUB_REPOSITORY!,
+        githubOrigin: process.env.GITHUB_SERVER_URL!,
+        ...({payload: null, payloadKeys: Object.keys(context.payload)} as {}),
+      },
     },
     files: filesWithPathnames,
   } satisfies BulkRequest
@@ -108,10 +108,9 @@ async function upload({context, inputs, dependencies}: UploadParams) {
     logger.warn('No files to upload')
   }
 
-  console.log(
-    `Sending bulk request to ${inputs.artifactci_origin}/artifact/upload/signed-url (${filesWithPathnames.length} files)`,
-    // {redactedContext},
-  )
+  logger.info(`Requesting tokens for ${filesWithPathnames.length} files`)
+  logger.debug(filesWithPathnames)
+
   const chunk = <T>(list: T[], size: number) => {
     const chunks: T[][] = []
     for (let i = 0; i < list.length; i += size) {
@@ -211,7 +210,6 @@ if (require.main === module) {
     `process.chdir('tmp/artifact.ci')`, // change into the directory where node_modules is available
     `
       const dependencies = {
-        fs: require('fs'),
         fsPromises: require('fs/promises'),
         vercelBlobClient: require('@vercel/blob/client'),
         glob, // ambient variable available from actions/github-script

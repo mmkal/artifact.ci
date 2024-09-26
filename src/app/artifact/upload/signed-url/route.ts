@@ -69,14 +69,20 @@ export async function POST(request: Request): Promise<NextResponse> {
     const [owner, repo] = ctx.repository.split('/')
     const htmlUrl = `${ctx.githubOrigin}/${owner}/${repo}`
 
-    const jobsResult = await loadWorkflowJobStatuses(ctx)
-    if (!jobsResult.success) {
-      const message = `Failed to load job statuses for ${ctx.job} on ${htmlUrl}. If this is a private repo, you may need to pass a "githubToken" in the client payload.`
-      return NextResponse.json(
-        {message, error: jobsResult.response.statusText},
-        {status: jobsResult.response.status === 404 ? 404 : 500},
-      )
+    const jobsResult = await loadWorkflowJobStatuses(ctx, body.clientPayload)
+    if (jobsResult.outcome === 'api_failure') {
+      const message = `Failed to load job statuses for ${ctx.job}. Did you pass the correct "githubToken"?`
+      return NextResponse.json({message, error: jobsResult.response}, {status: 400})
     }
+    if (jobsResult.outcome === 'fetch_failure') {
+      const message = `Failed to load job statuses for ${ctx.job} on ${htmlUrl}. If this is a private repo, you may need to pass a "githubToken" in the client payload.`
+      return NextResponse.json({message, error: jobsResult.response.statusText}, {status: jobsResult.response.status})
+    }
+    if (jobsResult.outcome !== 'success') {
+      const message = `Unexpected outcome ${jobsResult.outcome} when getting job statuses for ${ctx.job} on ${htmlUrl}.`
+      return NextResponse.json({message}, {status: 500})
+    }
+
     const {jobs} = jobsResult
     console.log('loadWorkflowJobStatuses result', jobs)
 
