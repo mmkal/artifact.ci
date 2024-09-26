@@ -49,8 +49,8 @@ async function upload({context, inputs, dependencies}: UploadParams) {
     },
   }
 
-  logger.debug('context:::::', context)
-  logger.debug('toJson(github)', `\${{ toJson(github) }}`)
+  logger.info('context:::::', context)
+  logger.info('toJson(github)', `\${{ toJson(github) }}`)
 
   const {glob, fsPromises: fs, vercelBlobClient} = dependencies
 
