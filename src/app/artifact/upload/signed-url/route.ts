@@ -256,7 +256,7 @@ const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
       if (blob.pathname.endsWith('/index.html')) {
         pathnames.push(path.dirname(blob.pathname))
       } else if (blob.pathname.endsWith('.html')) {
-        pathnames.push(path.dirname(blob.pathname))
+        pathnames.push(blob.pathname.slice(0, -5))
       }
 
       const mimeType = getMimeType(blob.pathname)
