@@ -2,13 +2,6 @@ import {HandleUploadBody} from '@vercel/blob/client'
 import {z} from 'zod'
 import {Id} from '~/db'
 
-export const CommitProps = z.object({
-  ref: z.string(),
-  sha: z.string(),
-  actions_run_id: z.string(),
-})
-export type CommitProps = z.infer<typeof CommitProps>
-
 export const GithubActionsContext = z.object({
   ref: z.string(),
   sha: z.string(),
@@ -17,19 +10,15 @@ export const GithubActionsContext = z.object({
   job: z.string(), // this is the job id - i.e. the key in the yaml definition, not the `name` property in the job object.
   repository: z.string().refine(s => s.split('/').length === 2, 'Repository should be in the format of owner/repo'),
   githubOrigin: z.string(), // usually https://github.com
+  githubRetentionDays: z.number().int().min(1).max(400),
 })
 export type GithubActionsContext = z.infer<typeof GithubActionsContext>
 
 export const ClientPayload = z.object({
   githubToken: z.string().nullable(),
-  commit: CommitProps,
   context: GithubActionsContext,
 })
 export type ClientPayload = z.infer<typeof ClientPayload>
-
-export const TokenPayload = CommitProps.extend({
-  uploadRequestId: Id('upload_requests'),
-})
 
 export type GenerateClientTokenEvent = Extract<HandleUploadBody, {type: 'blob.generate-client-token'}>
 
@@ -65,6 +54,10 @@ export const BulkResponse = z.object({
 })
 export type BulkResponse = z.infer<typeof BulkResponse>
 
+export const TokenPayload = z.object({
+  uploadRequestId: Id('upload_requests'),
+  retentionDays: z.number().int().min(1).max(400),
+})
 export type TokenPayload = z.infer<typeof TokenPayload>
 
 export const tokenPayloadCodec = {

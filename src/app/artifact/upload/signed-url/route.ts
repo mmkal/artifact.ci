@@ -271,7 +271,7 @@ const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
         addRandomSuffix: true,
         tokenPayload: tokenPayloadCodec.stringify({
           uploadRequestId,
-          ...parsedClientPayload.data.commit,
+          retentionDays: parsedClientPayload.data.context.githubRetentionDays,
         }),
       }
     },
@@ -290,8 +290,8 @@ const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
       const mimeType = getMimeType(blob.pathname)
       const uploads = await client.many(
         sql<queries.Upload>`
-          insert into uploads (pathname, mime_type, blob_url, upload_request_id)
-          select pathname, mime_type, blob_url, upload_request_id
+          insert into uploads (pathname, mime_type, blob_url, upload_request_id, expires_at)
+          select pathname, mime_type, blob_url, upload_request_id, expires_at
           from jsonb_populate_recordset(
             null::uploads,
             ${JSON.stringify(
@@ -300,6 +300,7 @@ const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
                 mime_type: mimeType,
                 blob_url: blob.url,
                 upload_request_id: payload.uploadRequestId,
+                expires_at: new Date(Date.now() + payload.retentionDays * 24 * 60 * 60 * 1000),
               })),
             )}
           )
@@ -375,5 +376,8 @@ export declare namespace queries {
 
     /** column: `public.uploads.upload_request_id`, not null: `true`, regtype: `prefixed_ksuid` */
     upload_request_id: string
+
+    /** column: `public.uploads.expires_at`, not null: `true`, regtype: `timestamp with time zone` */
+    expires_at: Date
   }
 }

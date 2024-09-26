@@ -90,12 +90,12 @@ async function upload({context, inputs, dependencies}: UploadParams) {
     callbackUrl: `${inputs.artifactci_origin}/artifact/upload/signed-url`,
     clientPayload: {
       githubToken,
-      commit: {ref: context.ref, sha: context.sha, actions_run_id: context.runId.toString()},
       context: {
         ...context,
         runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
         repository: process.env.GITHUB_REPOSITORY!,
         githubOrigin: process.env.GITHUB_SERVER_URL!,
+        githubRetentionDays: Number(inputs['retention-days'] || process.env.GITHUB_RETENTION_DAYS),
         ...({payload: null, payloadKeys: Object.keys(context.payload)} as {}),
       },
     },

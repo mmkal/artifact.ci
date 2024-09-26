@@ -94,6 +94,7 @@ create table uploads (
     pathname text not null,
     mime_type text not null,
     blob_url text not null,
+	expires_at timestamptz not null,
     created_at timestamp with time zone not null default current_timestamp,
     updated_at timestamp with time zone not null default current_timestamp
 );

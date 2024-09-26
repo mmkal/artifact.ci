@@ -53,6 +53,7 @@ const tryGet = async (request: NextRequest) => {
       mime_type,
       r.owner as repo_owner,
       r.name as repo_name,
+      u.expires_at,
       true in (
         select true from usage_credits
         where github_login = ${githubUser.login}
@@ -108,6 +109,17 @@ const tryGet = async (request: NextRequest) => {
       `)
       hasAccess = true
     }
+  }
+
+  if (!blobInfo.expires_at?.toISOString) {
+    console.warn(`expires_at is not a valid date?`, blobInfo)
+    blobInfo.expires_at = new Date(blobInfo.expires_at)
+  }
+  if (blobInfo.expires_at < new Date()) {
+    return NextResponse.json(
+      {message: `Artifact ${pathname} expired at ${blobInfo.expires_at.toISOString()}`},
+      {status: 410},
+    )
   }
 
   const storageOrigin = process.env.STORAGE_ORIGIN
@@ -171,6 +183,9 @@ export declare namespace queries {
 
     /** column: `public.repos.name`, not null: `true`, regtype: `text` */
     repo_name: string
+
+    /** column: `public.uploads.expires_at`, not null: `true`, regtype: `timestamp with time zone` */
+    expires_at: Date
 
     /** regtype: `boolean` */
     has_credit: boolean | null
