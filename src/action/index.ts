@@ -41,8 +41,6 @@ async function main() {
   if (isDebug()) {
     console.log(uploadResult)
   }
-  const url = 'https://www.artifact.ci/github/events'
-
   const bulkRequest = {
     type: 'bulk',
     callbackUrl: `${inputs.artifactci_origin}/artifact/upload/signed-url`,
@@ -60,6 +58,7 @@ async function main() {
     files: JSON.stringify(uploadResult || null) as never,
   } satisfies BulkRequest
 
+  const url = `${inputs.artifactci_origin}/github/events`
   const http = new HttpClient('artifact.ci/action/v0')
   const resp = await http.post(url, JSON.stringify(bulkRequest))
   const body = await resp.readBody()
