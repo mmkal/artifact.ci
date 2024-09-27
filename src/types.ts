@@ -7,9 +7,13 @@ export const GithubActionsContext = z.object({
   sha: z.string(),
   runId: z.number().int(),
   runAttempt: z.number().int(),
-  job: z.string(), // this is the job id - i.e. the key in the yaml definition, not the `name` property in the job object.
+  /** this is the job id - i.e. the key in the yaml definition, not the `name` property in the job object. */
+  job: z.string(),
   repository: z.string().refine(s => s.split('/').length === 2, 'Repository should be in the format of owner/repo'),
-  githubOrigin: z.string(), // usually https://github.com
+  /** usually https://github.com */
+  githubOrigin: z.string(),
+  /** usually https://api.github.com */
+  githubApiUrl: z.string(),
   githubRetentionDays: z.number().int().min(1).max(400),
 })
 export type GithubActionsContext = z.infer<typeof GithubActionsContext>
