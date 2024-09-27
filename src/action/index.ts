@@ -4,22 +4,28 @@ import * as glob from '@actions/glob'
 import {HttpClient} from '@actions/http-client'
 import {readFile} from 'fs/promises'
 import {z} from 'zod'
-import {ScriptContext} from './generate'
 import {BulkRequest} from '~/types'
 
 async function main() {
   setOutput('artifacts_uploaded', false)
 
-  if (isDebug()) {
-    console.log('getInput(artifactci-origin)', getInput('artifactci-origin'))
-  }
   const event = JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH!, {encoding: 'utf8'})) as ScriptContext
+
   function isDebug() {
-    if (Math.random()) return true // todo delete
     if (isDebugCore()) return true
-    const artifactCiDebugKeyword = event.repository === 'mmkal/artifact.ci' ? 'debug' : 'artifactci_debug'
-    return '${{ github.event.head_commit.message }}'.includes(`${artifactCiDebugKeyword}=${context.job}`)
+    if (event.repository === 'mmkal/artifact.ci' && event.ref !== 'refs/heads/main') return true
+    return false
+    // const artifactCiDebugKeyword = event.repository === 'mmkal/artifact.ci' ? 'debug' : 'artifactci_debug'
+    // return '${{ github.event.head_commit.message }}'.includes(`${artifactCiDebugKeyword}=${context.job}`)
   }
+  const logger = {
+    info: (...args: unknown[]) => console.info(...args),
+    warn: (...args: unknown[]) => console.warn(...args),
+    error: (...args: unknown[]) => console.error(...args),
+    debug: (...args: unknown[]) => (isDebug() ? console.info(...args) : void 0),
+  }
+  logger.debug('event', JSON.stringify(event, null, 2))
+  logger.debug('getInput(artifactci-origin)', getInput('artifactci-origin'))
 
   const StringyBoolean = z.boolean().or(z.enum(['true', 'false']).transform(s => s === 'true'))
   const Inputs = z.object({
@@ -33,17 +39,18 @@ async function main() {
     artifactciOrigin: z.string(),
     artifactciGithubToken: z.string().optional(),
   })
-  const inputs = Inputs.parse(
-    Object.fromEntries(
-      Object.entries(Inputs.shape).map(([camelKey, value]) => {
-        const kebabKey = camelKey.replaceAll(/([A-Z])/g, '-$1').toLowerCase()
-        console.log({camelCaseKey: camelKey, kebabKey, input: getInput(kebabKey, {trimWhitespace: true})})
-        if (value instanceof z.ZodBoolean) return [camelKey, getBooleanInput(kebabKey, {trimWhitespace: true})]
-        if (value instanceof z.ZodNumber) return [camelKey, Number(getInput(kebabKey))]
-        return [camelKey, getInput(kebabKey)]
-      }),
-    ),
-  )
+  const coercedInput = Object.fromEntries(
+    Object.entries(Inputs.shape).map(([camelKey, value]) => {
+      const kebabKey = camelKey.replaceAll(/([A-Z])/g, '-$1').toLowerCase()
+      logger.debug({camelCaseKey: camelKey, kebabKey, input: getInput(kebabKey, {trimWhitespace: true})})
+      if (value instanceof z.ZodBoolean) return [camelKey, getBooleanInput(kebabKey, {trimWhitespace: true})]
+      if (value instanceof z.ZodNumber) return [camelKey, Number(getInput(kebabKey))]
+      return [camelKey, getInput(kebabKey)]
+    }),
+  ) as {}
+  logger.debug({coercedInput})
+  const inputs = Inputs.parse(coercedInput)
+  logger.debug({inputs})
   // const inputs = {
   //   path: getInput('path'),
   //   name: getInput('name'),
@@ -56,8 +63,6 @@ async function main() {
   //   artifactciGithubToken: getInput('artifactci_github_token') || undefined,
   //   artifactciDebug: getInput('artifactci_debug') === 'true' ? true : getInput('artifactci_debug') || undefined,
   // }
-
-  const context = event
 
   if (isDebug()) {
     console.log(event)
@@ -83,12 +88,12 @@ async function main() {
     clientPayload: {
       githubToken: null,
       context: {
-        ...context,
+        ...event,
         runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
         repository: process.env.GITHUB_REPOSITORY!,
         githubOrigin: process.env.GITHUB_SERVER_URL!,
         githubRetentionDays: inputs.retentionDays,
-        ...({payload: null, payloadKeys: Object.keys(context.payload)} as {}),
+        ...({payload: null, payloadKeys: Object.keys(event.payload)} as {}),
       },
     },
     files: JSON.stringify(uploadResult || null) as never,
@@ -115,3 +120,21 @@ async function main() {
     setFailed(String(error).replace(/^Error: /, ''))
   }
 })()
+
+export type ScriptContext = typeof _exampleScriptContext
+const _exampleScriptContext = {
+  payload: {} as Record<string, unknown>,
+  eventName: 'push',
+  sha: 'f7767c385252ae7d911923a4a8b29aac4be7cec6',
+  ref: 'refs/heads/main',
+  workflow: 'Recipes',
+  action: '__self',
+  actor: 'mmkal',
+  job: 'mocha',
+  runNumber: 31,
+  runId: 10_963_802_899,
+  repository: 'mmkal/artifact.ci',
+  apiUrl: 'https://api.github.com',
+  serverUrl: 'https://github.com',
+  graphqlUrl: 'https://api.github.com/graphql',
+}
