@@ -72,6 +72,7 @@ async function main() {
     compressionLevel: inputs.compressionLevel,
   })
   logger.debug({uploadResult})
+  const url = `${inputs.artifactciOrigin}/github/events?mode=test`
   const bulkRequest = BulkRequest.parse({
     type: 'bulk',
     callbackUrl: `${inputs.artifactciOrigin}/artifact/upload/signed-url`,
@@ -91,9 +92,8 @@ async function main() {
     },
     files: [],
   } satisfies BulkRequest)
-  logger.debug({bulkRequest})
 
-  const url = `${inputs.artifactciOrigin}/github/events?mode=test`
+  logger.debug({bulkRequest})
   const http = new HttpClient('artifact.ci/action/v0')
   const resp = await http.post(url, JSON.stringify(bulkRequest))
   const body = await resp.readBody()
