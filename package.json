@@ -11,6 +11,7 @@
     "build-composite-action": "tsx src/action/generate.ts",
     "build-action": "esbuild src/action/index.ts --bundle --platform=node --target=node20 --outfile=upload/action.js --minify",
     "dev": "next dev",
+    "prepare": "simple-git-hooks",
     "build": "next build",
     "start": "next start",
     "lint": "pnpm eslint .",
@@ -53,10 +54,13 @@
     "esbuild": "^0.24.0",
     "eslint": "^8.57.0",
     "eslint-plugin-mmkal": "0.10.0",
-    "lefthook": "^1.7.17",
+    "simple-git-hooks": "^2.11.1",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.0",
     "typescript": "5.5.4",
     "yaml": "^2.5.1"
+  },
+  "simple-git-hooks": {
+    "pre-push": "git diff origin/main --quiet upload src/action || (pnpm generate && git diff upload/action.js --quiet || (echo amending commit && git add upload/action.js && git commit --amend --no-edit))"
   }
 }
