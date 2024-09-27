@@ -7,7 +7,7 @@ import {ArtifactciInputs, ScriptContext} from './generate'
 import {BulkRequest} from '~/types'
 
 async function main() {
-  setOutput('autofix_started!!', false)
+  setOutput('autofix_started!!!', false)
 
   const inputs = JSON.parse(`\${{ toJson(inputs) }}`) as ArtifactciInputs
   const event = JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH!, {encoding: 'utf8'})) as ScriptContext
