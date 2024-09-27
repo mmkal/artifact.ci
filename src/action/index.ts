@@ -41,15 +41,12 @@ async function main() {
     artifactciGithubToken: z.string().optional(),
   })
   const coercedInput = Object.fromEntries(
-    Object.entries(Inputs.shape).map(([camelKey, value]) => {
+    Object.entries(Inputs.shape).map(([camelKey]) => {
       const kebabKey = camelKey.replaceAll(/([A-Z])/g, '-$1').toLowerCase()
-      logger.debug({camelCaseKey: camelKey, kebabKey, input: getInput(kebabKey, {trimWhitespace: true})})
-      if (value instanceof z.ZodBoolean) return [camelKey, getBooleanInput(kebabKey, {trimWhitespace: true})]
-      if (value instanceof z.ZodNumber) return [camelKey, Number(getInput(kebabKey))]
-      return [camelKey, getInput(kebabKey)]
+      return [camelKey, getInput(kebabKey, {trimWhitespace: true}) || undefined]
     }),
   ) as {}
-  logger.debug({coercedInput})
+  logger.debug({coercedInput}, process.env.GITHUB_RETENTION_DAYS)
   const inputs = Inputs.parse(coercedInput)
   logger.debug({inputs})
 
@@ -86,7 +83,7 @@ async function main() {
         githubRetentionDays: inputs.retentionDays,
       },
     },
-    files: JSON.stringify(uploadResult || null) as never,
+    files: [],
   } satisfies BulkRequest)
   logger.debug({bulkRequest})
 
