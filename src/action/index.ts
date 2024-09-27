@@ -94,7 +94,7 @@ async function main() {
     files: [],
   } satisfies BulkRequest)
 
-  logger.debug({bulkRequest})
+  logger.debug({url, bulkRequest})
   const http = new HttpClient('artifact.ci/action/v0')
   const resp = await http.post(url, JSON.stringify(bulkRequest))
   const body = await resp.readBody()
