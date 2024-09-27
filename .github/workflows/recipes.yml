@@ -2,6 +2,14 @@ name: Recipes
 on: [push, pull_request]
 
 jobs:
+  html:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "<marquee>Hello, cruel world</marquee>" > index.html
+      - uses: ./upload
+        with:
+          name: html
+          path: index.html
   vitest:
     runs-on: ubuntu-latest
     steps:

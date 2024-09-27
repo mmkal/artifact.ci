@@ -32,15 +32,11 @@ inputs:
     description: |
       If true, hidden files will be included in the artifact. If false, hidden files will be excluded from the artifact.
     default: "false"
-  artifactci_origin:
+  artifactci-origin:
     description: The origin of the server to upload the artifact to
     required: false
     default: https://www.artifact.ci
-  artifactci_debug:
-    description: |
-      If true, debug information will be printed to the console. If false, debug information will not be printed to the console. If not set, debug information will be printed if the commit message includes "artifactci_debug=<job-id>"
-    default: "false"
-  artifactci_github_token:
+  artifactci-github-token:
     description: The GitHub token to use for the upload. If not set, the backend will look for the job via GitHub.com - so this is required for private repositories.
     required: false
 runs:
