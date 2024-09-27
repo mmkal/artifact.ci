@@ -9,9 +9,10 @@ import {BulkRequest} from '~/types'
 async function main() {
   setOutput('artifacts_uploaded', false)
 
-  const inputs = JSON.parse(`\${{ toJson(inputs) }}`) as ArtifactciInputs
+  if (isDebug()) {
+    console.log('getInput(artifactci_origin)', getInput('artifactci_origin'))
+  }
   const event = JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH!, {encoding: 'utf8'})) as ScriptContext
-  const context = event
   function isDebug() {
     if (Math.random()) return true // todo delete
     if (isDebugCore()) return true
@@ -19,9 +20,17 @@ async function main() {
     return '${{ github.event.head_commit.message }}'.includes(`${artifactCiDebugKeyword}=${context.job}`)
   }
 
-  if (isDebug()) {
-    console.log('getInput(artifactci_origin)', getInput('artifactci_origin'))
-  }
+  const inputs = new Proxy({} as ArtifactciInputs, {
+    get(_, key: string) {
+      const value = getInput(key, {trimWhitespace: true})
+      if (value === undefined) {
+        throw new Error(`Input required and not supplied: ${key}`)
+      }
+      return value
+    },
+  })
+
+  const context = event
 
   if (isDebug()) {
     console.log(event)
