@@ -7,6 +7,13 @@ import {readFile} from 'fs/promises'
 import {z} from 'zod'
 import {BulkRequest} from '~/types'
 
+export const getLogger = ({debug = false}) => ({
+  info: (...args: unknown[]) => console.info(...args),
+  warn: (...args: unknown[]) => console.warn(...args),
+  error: (...args: unknown[]) => console.error(...args),
+  debug: (...args: unknown[]) => (debug ? console.info(...args) : void 0),
+})
+
 async function main() {
   setOutput('artifacts_uploaded', false)
 
@@ -20,12 +27,7 @@ async function main() {
     // const artifactCiDebugKeyword = event.repository === 'mmkal/artifact.ci' ? 'debug' : 'artifactci_debug'
     // return '${{ github.event.head_commit.message }}'.includes(`${artifactCiDebugKeyword}=${context.job}`)
   }
-  const logger = {
-    info: (...args: unknown[]) => console.info(...args),
-    warn: (...args: unknown[]) => console.warn(...args),
-    error: (...args: unknown[]) => console.error(...args),
-    debug: (...args: unknown[]) => (isDebug() ? console.info(...args) : void 0),
-  }
+  const logger = getLogger({debug: isDebug()})
   logger.debug('event', JSON.stringify(event, null, 2))
   logger.debug('getInput(artifactci-origin)', getInput('artifactci-origin'))
 
@@ -73,7 +75,7 @@ async function main() {
     compressionLevel: inputs.compressionLevel,
   })
   logger.debug({uploadResult})
-  const url = `${inputs.artifactciOrigin}/gh/events?mode=test`
+  const url = `${inputs.artifactciOrigin}/github/events?mode=test`
   const bulkRequest = BulkRequest.parse({
     type: 'bulk',
     callbackUrl: `${inputs.artifactciOrigin}/artifact/upload/signed-url`,
@@ -96,7 +98,9 @@ async function main() {
 
   logger.debug({url, bulkRequest})
   const http = new HttpClient('artifact.ci/action/v0')
-  const resp = await http.post(url, JSON.stringify(bulkRequest))
+  const resp = await http.post(url, JSON.stringify(bulkRequest), {
+    'artifactci-debug': isDebug() ? 'true' : 'false',
+  })
   const body = await resp.readBody()
   logger.debug({statusCode: resp.message.statusCode, body: body.slice(0, 100)})
   if (resp.message.statusCode === 200) {
