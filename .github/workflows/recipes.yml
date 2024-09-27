@@ -5,12 +5,14 @@ jobs:
   html:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - run: echo "<marquee>Hello, cruel world</marquee>" > index.html
       - uses: ./upload
         with:
           name: html
           path: index.html
   vitest:
+    needs: html
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,6 +39,7 @@ jobs:
           name: vitest
           path: vitest/html
   playwright:
+    needs: html
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,6 +62,7 @@ jobs:
           name: playwright
           path: playwright-report
   website:
+    needs: html
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -77,6 +81,7 @@ jobs:
           name: website
           path: demosite/dist
   eslint:
+    needs: html
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -94,6 +99,7 @@ jobs:
           if-no-files-found: error
 
   jest:
+    needs: html
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -122,6 +128,7 @@ jobs:
           name: jest
           path: report
   ava:
+    needs: html
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -144,6 +151,7 @@ jobs:
           name: ava
           path: output.html
   pytest:
+    needs: html
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -169,6 +177,7 @@ jobs:
           name: pytest
           path: report
   mocha:
+    needs: html
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -190,6 +199,7 @@ jobs:
             name: mocha
             path: output.html
   pdf:
+    needs: html
     name: Pee Dee Eff
     runs-on: ubuntu-latest
     steps:
@@ -245,6 +255,7 @@ jobs:
           name: pdf
           path: output.pdf
   go:
+    needs: html
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

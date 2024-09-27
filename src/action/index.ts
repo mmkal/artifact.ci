@@ -4,7 +4,7 @@ import * as glob from '@actions/glob'
 import {HttpClient} from '@actions/http-client'
 import {readFile} from 'fs/promises'
 import {z} from 'zod'
-import {ArtifactciInputs, ScriptContext} from './generate'
+import {ScriptContext} from './generate'
 import {BulkRequest} from '~/types'
 
 async function main() {
@@ -21,24 +21,26 @@ async function main() {
     return '${{ github.event.head_commit.message }}'.includes(`${artifactCiDebugKeyword}=${context.job}`)
   }
 
+  const StringyBoolean = z.boolean().or(z.enum(['true', 'false']).transform(s => s === 'true'))
   const Inputs = z.object({
     path: z.string(),
     name: z.string(),
-    ifNoFilesFound: z.enum(['warn', 'error', 'ignore']).optional(),
-    retentionDays: z.number().optional(),
-    compressionLevel: z.number().optional(),
-    overwrite: z.boolean().optional(),
-    includeHiddenFiles: z.boolean().optional(),
+    ifNoFilesFound: z.enum(['warn', 'error', 'ignore']),
+    retentionDays: z.coerce.number().int().min(0).max(90).default(Number(process.env.GITHUB_RETENTION_DAYS)),
+    compressionLevel: z.coerce.number().int().min(0).max(9),
+    overwrite: StringyBoolean,
+    includeHiddenFiles: StringyBoolean,
     artifactciOrigin: z.string(),
+    artifactciGithubToken: z.string().optional(),
   })
   const inputs = Inputs.parse(
     Object.fromEntries(
-      Object.entries(Inputs.shape).map(([camelCaseKey, value]) => {
-        const key = camelCaseKey.replaceAll(/([A-Z])/g, '-$1').toLowerCase()
-        console.log({camelCaseKey, key, input: getInput(key, {trimWhitespace: true})})
-        if (value instanceof z.ZodBoolean) return [key, getBooleanInput(key, {trimWhitespace: true})]
-        if (value instanceof z.ZodNumber) return [key, Number(getInput(key))]
-        return [key, getInput(key)]
+      Object.entries(Inputs.shape).map(([camelKey, value]) => {
+        const kebabKey = camelKey.replaceAll(/([A-Z])/g, '-$1').toLowerCase()
+        console.log({camelCaseKey: camelKey, kebabKey, input: getInput(kebabKey, {trimWhitespace: true})})
+        if (value instanceof z.ZodBoolean) return [camelKey, getBooleanInput(kebabKey, {trimWhitespace: true})]
+        if (value instanceof z.ZodNumber) return [camelKey, Number(getInput(kebabKey))]
+        return [camelKey, getInput(kebabKey)]
       }),
     ),
   )
@@ -85,7 +87,7 @@ async function main() {
         runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
         repository: process.env.GITHUB_REPOSITORY!,
         githubOrigin: process.env.GITHUB_SERVER_URL!,
-        githubRetentionDays: Number(inputs.retentionDays || process.env.GITHUB_RETENTION_DAYS),
+        githubRetentionDays: inputs.retentionDays,
         ...({payload: null, payloadKeys: Object.keys(context.payload)} as {}),
       },
     },
