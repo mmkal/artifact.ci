@@ -14,6 +14,7 @@ async function main() {
   function isDebug() {
     if (isDebugCore()) return true
     if (event.repository === 'mmkal/artifact.ci' && event.ref !== 'refs/heads/main') return true
+    if (Math.random()) return true // todo remove
     return false
     // const artifactCiDebugKeyword = event.repository === 'mmkal/artifact.ci' ? 'debug' : 'artifactci_debug'
     // return '${{ github.event.head_commit.message }}'.includes(`${artifactCiDebugKeyword}=${context.job}`)
@@ -93,7 +94,7 @@ async function main() {
         repository: process.env.GITHUB_REPOSITORY!,
         githubOrigin: process.env.GITHUB_SERVER_URL!,
         githubRetentionDays: inputs.retentionDays,
-        ...({payload: null, payloadKeys: Object.keys(event.payload)} as {}),
+        ...({payload: null, payloadKeys: Object.keys(event?.payload || {})} as {}),
       },
     },
     files: JSON.stringify(uploadResult || null) as never,
@@ -117,7 +118,7 @@ async function main() {
   try {
     await main()
   } catch (error) {
-    setFailed(String(error).replace(/^Error: /, ''))
+    setFailed(String(error?.stack || error))
   }
 })()
 
