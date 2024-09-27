@@ -33,9 +33,8 @@ inputs:
       If true, hidden files will be included in the artifact. If false, hidden files will be excluded from the artifact.
     default: "false"
   artifactci-origin:
-    description: The origin of the server to upload the artifact to
+    description: The origin of the server to upload the artifact to. Defaults to https://www.artifact.ci
     required: false
-    default: https://www.artifact.ci
   artifactci-github-token:
     description: The GitHub token to use for the upload. If not set, the backend will look for the job via GitHub.com - so this is required for private repositories.
     required: false

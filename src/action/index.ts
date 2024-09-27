@@ -37,7 +37,13 @@ async function main() {
     compressionLevel: z.coerce.number().int().min(0).max(9),
     overwrite: StringyBoolean,
     includeHiddenFiles: StringyBoolean,
-    artifactciOrigin: z.string(),
+    artifactciOrigin: z
+      .string()
+      .default(
+        event.repository.full_name === 'mmkal/artifact.ci' && event.ref !== 'refs/heads/main'
+          ? `https://artifactci-git-${event.ref.replace('refs/heads/', '').replaceAll(/\W/g, '-')}-mmkals-projects.vercel.app`
+          : 'https://www.artifact.ci',
+      ),
     artifactciGithubToken: z.string().optional(),
   })
   const coercedInput = Object.fromEntries(
