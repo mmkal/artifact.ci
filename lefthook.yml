@@ -2,6 +2,6 @@
 pre-commit:
   commands:
     generate:
-      glob: "src/action/**"
+      glob: "{src/action/**,upload/**}"
       run: pnpm generate
       stage_fixed: true
