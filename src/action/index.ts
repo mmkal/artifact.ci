@@ -7,7 +7,7 @@ import {ArtifactciInputs, ScriptContext} from './generate'
 import {BulkRequest} from '~/types'
 
 async function main() {
-  setOutput('autofix_started.', false)
+  setOutput('artifacts_uploaded', false)
 
   const inputs = JSON.parse(`\${{ toJson(inputs) }}`) as ArtifactciInputs
   const event = JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH!, {encoding: 'utf8'})) as ScriptContext
@@ -63,8 +63,8 @@ async function main() {
   const resp = await http.post(url, JSON.stringify(bulkRequest))
   const body = await resp.readBody()
   if (resp.message.statusCode === 200) {
-    setFailed('✅ Autofix task started.')
-    setOutput('autofix_started', true)
+    console.log('✅ Upload done.')
+    setOutput('artifacts_uploaded', true)
   } else {
     console.log(resp.message.statusCode, body)
     setFailed(body)
