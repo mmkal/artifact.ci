@@ -61,7 +61,7 @@
     "yaml": "^2.5.1"
   },
   "simple-git-hooks": {
-    "pre-commit": "git diff origin/main --quiet upload src/action || (pnpm generate && git diff --quiet upload/action.js || (echo amending commit && git add upload/action.js && git commit --amend --no-edit))",
+    "pre-commit": "git diff origin/main --quiet upload src/action || (pnpm generate && git diff --quiet upload/action.js || git add upload/action.js)",
     "pre-push": "git diff origin/main --quiet upload src/action || (pnpm generate && git diff --quiet upload/action.js || (echo amending commit && git add upload/action.js && git commit --amend --no-edit && exit 1))"
   }
 }
