@@ -2,6 +2,7 @@ import {DefaultArtifactClient} from '@actions/artifact'
 import {getBooleanInput, getInput, isDebug as isDebugCore, setFailed, setOutput} from '@actions/core'
 import * as glob from '@actions/glob'
 import {HttpClient} from '@actions/http-client'
+import * as cheerio from 'cheerio'
 import {readFile} from 'fs/promises'
 import {z} from 'zod'
 import {BulkRequest, GithubActionsContext} from '~/types'
@@ -97,12 +98,13 @@ async function main() {
   const http = new HttpClient('artifact.ci/action/v0')
   const resp = await http.post(url, JSON.stringify(bulkRequest))
   const body = await resp.readBody()
-  logger.debug({statusCode: resp.message.statusCode, body})
+  logger.debug({statusCode: resp.message.statusCode, body: body.slice(0, 100)})
   if (resp.message.statusCode === 200) {
     console.log('✅ Upload done.')
     setOutput('artifacts_uploaded', true)
   } else {
-    console.log(resp.message.statusCode, body)
+    const printable = body.toLowerCase().includes('<!doctype html>') ? cheerio.load(body).text() : body
+    console.log(resp.message.statusCode, printable)
     setFailed(body)
   }
 }
