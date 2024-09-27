@@ -1,23 +1,26 @@
 import {readFileSync, writeFileSync} from 'fs'
 import * as yaml from 'yaml'
 
+// better approach: https://github.com/autofix-ci/action/blob/main/index.ts
+
 type BulkRequest = import('../types').BulkRequest
 type BulkResponse = import('../types').BulkResponse
 
-type UploadParams = {
-  inputs: {
-    path: string
-    name: string
-    'if-no-files-found'?: 'warn' | 'error' | 'ignore'
-    'retention-days'?: number
-    'compression-level'?: number
-    overwrite?: boolean
-    'include-hidden-files'?: boolean
+export type ArtifactciInputs = {
+  path: string
+  name: string
+  'if-no-files-found'?: 'warn' | 'error' | 'ignore'
+  'retention-days'?: number
+  'compression-level'?: number
+  overwrite?: boolean
+  'include-hidden-files'?: boolean
+  artifactci_origin: string
+  artifactci_github_token?: string
+  artifactci_debug?: string | boolean
+}
 
-    artifactci_origin: string
-    artifactci_github_token?: string
-    artifactci_debug?: string | boolean
-  }
+type UploadParams = {
+  inputs: ArtifactciInputs
   context: ScriptContext
   dependencies: {
     fsPromises: typeof import('fs/promises')

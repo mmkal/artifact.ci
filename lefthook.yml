@@ -1,0 +1,7 @@
+# https://github.com/evilmartians/lefthook/blob/master/docs/configuration.md
+pre-commit:
+  commands:
+    generate:
+      glob: "src/action/**"
+      run: pnpm generate
+      stage_fixed: true
