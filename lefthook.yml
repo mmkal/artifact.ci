@@ -1,5 +1,6 @@
 # https://github.com/evilmartians/lefthook/blob/master/docs/configuration.md
 pre-commit:
+  files: git diff --name-only
   commands:
     generate:
       glob: "{src/action/**,upload/**}"
