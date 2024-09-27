@@ -1,11 +1,11 @@
 import {DefaultArtifactClient} from '@actions/artifact'
-import {getBooleanInput, getInput, isDebug as isDebugCore, setFailed, setOutput} from '@actions/core'
+import {getInput, isDebug as isDebugCore, setFailed, setOutput} from '@actions/core'
 import * as glob from '@actions/glob'
 import {HttpClient} from '@actions/http-client'
 import * as cheerio from 'cheerio'
 import {readFile} from 'fs/promises'
 import {z} from 'zod'
-import {BulkRequest, GithubActionsContext} from '~/types'
+import {BulkRequest} from '~/types'
 
 async function main() {
   setOutput('artifacts_uploaded', false)
@@ -73,7 +73,7 @@ async function main() {
     compressionLevel: inputs.compressionLevel,
   })
   logger.debug({uploadResult})
-  const url = `${inputs.artifactciOrigin}/github/events?mode=test`
+  const url = `${inputs.artifactciOrigin}/gh/events?mode=test`
   const bulkRequest = BulkRequest.parse({
     type: 'bulk',
     callbackUrl: `${inputs.artifactciOrigin}/artifact/upload/signed-url`,

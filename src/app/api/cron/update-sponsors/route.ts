@@ -1,6 +1,6 @@
 import {NextResponse} from 'next/server'
 import {sql, client} from '~/db'
-import {getGithubSponsors} from '~/github/sponsors'
+import {getGithubSponsors} from '~/gh/sponsors'
 
 export const dynamic = 'force-dynamic'
 

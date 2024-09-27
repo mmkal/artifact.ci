@@ -4,7 +4,7 @@ import {NextResponse} from 'next/server'
 import * as path from 'path'
 import {ARTIFACT_BLOB_PREFIX} from '../../view/[...slug]/route'
 import {client, Id, sql} from '~/db'
-import {getJobsWithStatuses} from '~/github/job-statuses'
+import {getJobsWithStatuses} from '~/gh/job-statuses'
 import {
   BulkRequest,
   BulkResponse,
