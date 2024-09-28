@@ -9,13 +9,14 @@
     "pgkit": "node node_modules/pgkit/dist/cli.js",
     "generate": "pnpm build-action",
     "build-composite-action": "tsx src/action/generate.ts",
-    "build-action": "esbuild src/action/index.ts --bundle --platform=node --target=node20 --outfile=upload/action.js --minify",
+    "build-action": "esbuild src/action/index.ts --bundle --platform=node --target=node20 --outfile=upload/action.min.js --minify",
     "dev": "next dev",
     "prepare": "simple-git-hooks",
     "build": "next build",
     "start": "next start",
     "lint": "pnpm eslint .",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "z": "tsx zignoreme/cli.ts"
   },
   "dependencies": {
     "@actions/artifact": "^2.1.9",
@@ -62,7 +63,7 @@
     "yaml": "^2.5.1"
   },
   "simple-git-hooks": {
-    "pre-commit": "git diff --quiet origin upload src/action || (node --run generate && git diff --quiet upload/action.js || git add upload/action.js)",
-    "pre-push": "git diff --quiet origin upload src/action || (node --run generate && git diff --quiet upload/action.js)"
+    "pre-commit": "git diff --quiet origin upload src/action || (node --run generate && git diff --quiet upload/action.min.js || git add upload/action.min.js)",
+    "pre-push": "git diff --quiet origin upload src/action || (node --run generate && git diff --quiet upload/action.min.js)"
   }
 }
