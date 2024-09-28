@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ok: true, total: data.total_count, artifacts})
   }
 
+  logger.warn('unknown event type', body)
   return NextResponse.json(
     {ok: false, error: 'unknown event type', eventType: event.eventType, action: event.action},
     {status: 400},
