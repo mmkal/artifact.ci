@@ -7,7 +7,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: echo "<marquee>Hello, cruel world</marquee>" > index.html
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: html
           path: index.html
@@ -34,7 +34,7 @@ jobs:
       - name: run tests
         working-directory: ./vitest
         run: npx vitest --reporter html || echo failed
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: vitest
           path: vitest/html
@@ -57,7 +57,7 @@ jobs:
           echo 'test("add badly", () => expect(calc.addBad(1, 1)).toEqual(2))' >> test/adding.test.ts
       - name: run tests
         run: npx playwright test adding.test.ts --reporter html || echo failed
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: playwright
           path: playwright-report
@@ -76,7 +76,7 @@ jobs:
           sed -i "s|link: /guides|link: $BASE_PATH/guides|g" demosite/src/content/docs/index.mdx
       - run: npm run build
         working-directory: demosite
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: website
           path: demosite/dist
@@ -91,7 +91,7 @@ jobs:
           echo "module.exports = require('eslint-plugin-mmkal').recommendedFlatConfigs" >> eslint.config.js
       - name: inspect eslint config
         run: npx @eslint/config-inspector build --base /artifact/view/$GITHUB_REPOSITORY/$GITHUB_RUN_ID/$GITHUB_RUN_ATTEMPT/eslint/.eslint-config-inspector
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: eslint
           path: .eslint-config-inspector
@@ -123,7 +123,7 @@ jobs:
           npm install jest jest-html-reporters --save-dev
       - name: run tests
         run: npx jest --coverage || echo failed
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: jest
           path: report
@@ -146,7 +146,7 @@ jobs:
           echo 'test("add badly", t => t.is(addBad(1, 1), 2))' >> test/adding.test.js
       - name: run tests
         run: npx ava --tap | npx tap-html --out output.html || echo failed
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: ava
           path: output.html
@@ -172,7 +172,7 @@ jobs:
           pip install pytest-html
       - name: run tests
         run: pytest test.py --html report/index.html || echo failed
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: pytest
           path: report
@@ -193,7 +193,7 @@ jobs:
           echo 'it("adds well", () => assert.strictEqual(add(1, 1), 2))' >> test/adding.test.js
           echo 'it("adds badly", () => assert.strictEqual(addBad(1, 1), 2))' >> test/adding.test.js
       - run: npx mocha --reporter doc > output.html || echo failed
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
             name: mocha
@@ -250,7 +250,7 @@ jobs:
           ' > create-pdf.js
       - name: create pdf
         run: node create-pdf.js
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: pdf
           path: output.pdf
@@ -298,7 +298,7 @@ jobs:
       - run: ls ~/go/bin
       - name: run tests
         run: go test -json | ~/go/bin/go-test-report || echo failed
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: go
           path: test_report.html

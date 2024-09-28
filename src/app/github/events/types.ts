@@ -13,12 +13,13 @@ export const WorkflowJobCompleted = z.object({
     run_attempt: z.number(),
     status: z.string(),
     conclusion: z.string(),
-    name: z.string(),
+    name: z.string().brand('WorkflowJobName'),
   }),
   repository: z.object({
     full_name: z.string(),
   }),
 })
+export type WorkflowJobCompleted = z.infer<typeof WorkflowJobCompleted>
 
 export const AppWebhookEvent = z.union([
   WorkflowJobCompleted.transform(data => ({...data, eventType: 'workflow_job_completed'})), //

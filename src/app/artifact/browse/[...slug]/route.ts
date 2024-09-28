@@ -120,7 +120,6 @@ const tryGet = async (request: NextRequest) => {
         blob: blob.size,
         status: zipRes.status,
         match,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call -- meh, @typescript-eslint/no-unsafe-call -- meh
         headers: Object.fromEntries(zipRes.headers.entries()),
         location: zipRes.headers.get('location'),
         token,
