@@ -5,14 +5,8 @@ import {HttpClient} from '@actions/http-client'
 import * as cheerio from 'cheerio'
 import {readFile} from 'fs/promises'
 import {z} from 'zod'
+import {getLogger} from '~/logger'
 import {BulkRequest} from '~/types'
-
-export const getLogger = ({debug = false}) => ({
-  info: (...args: unknown[]) => console.info(...args),
-  warn: (...args: unknown[]) => console.warn(...args),
-  error: (...args: unknown[]) => console.error(...args),
-  debug: (...args: unknown[]) => (debug ? console.info(...args) : void 0),
-})
 
 async function main() {
   setOutput('artifacts_uploaded', false)
