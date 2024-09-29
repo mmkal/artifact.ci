@@ -1,5 +1,6 @@
+import AdmZip from 'adm-zip'
 import {NextRequest, NextResponse} from 'next/server'
-import {App} from 'octokit'
+import {App, Octokit} from 'octokit'
 import {z} from 'zod'
 import {fromError} from 'zod-validation-error'
 import {AppWebhookEvent, WorkflowJobCompleted} from './types'
@@ -55,11 +56,28 @@ export async function POST(request: NextRequest) {
       repo,
       run_id: job.run_id,
     })
-    const {origin} = new URL(request.url)
-    const artifacts = data.artifacts.map(a => {
-      const viewUrl = `${origin}/artifact/view/${owner}/${repo}/${job.run_id}/${job.run_attempt}/${a.name}`
-      return {name: a.name, viewUrl}
-    })
+
+    // reruns can mean there are duplicates. Object.fromEntries effectively does last-write-wins
+    // however if you have two artifacts with the same name, the first one will be dropped. so don't do that.
+    const dedupedArtifacts = Object.values(Object.fromEntries(data.artifacts.map(a => [a.name, a])))
+
+    // decision to be made - use sha or run_id as part of the url? sha is more accessible/meaningful, but run_id is more unique, though still not unique because of reruns.
+    // maybe it can be either? like default template exists but user can override somehow?
+    console.log('workflow run for go', dedupedArtifacts.find(a => a.name === 'go')!.workflow_run)
+
+    const artifacts = await Promise.all(
+      dedupedArtifacts.map(async a => {
+        const {origin} = new URL(request.url)
+        const viewUrl = `${origin}/artifact/view/${owner}/${repo}/${job.id}/${job.run_attempt}/${a.name}`
+        const {entries} = await loadZip(octokit, a.archive_download_url)
+        return {
+          name: a.name,
+          viewUrl,
+          archiveDownloadUrl: a.archive_download_url,
+          entries: entries.map(e => e.entryName),
+        }
+      }),
+    )
     return NextResponse.json({ok: true, total: data.total_count, artifacts})
   }
 
@@ -68,6 +86,15 @@ export async function POST(request: NextRequest) {
     {ok: false, error: 'unknown event type', eventType: event.eventType, action: event.action},
     {status: 400},
   )
+}
+
+const loadZip = async (octokit: Octokit, url: string) => {
+  const zipRes = await octokit.request(`GET ${url}`, {
+    mediaType: {format: 'zip'},
+  })
+  const arrayBuffer = z.instanceof(ArrayBuffer).parse(zipRes.data)
+  const zip = new AdmZip(Buffer.from(arrayBuffer))
+  return {zip, entries: zip.getEntries()}
 }
 
 const Env = z.object({
