@@ -138,6 +138,8 @@ alter table repos enable row level security;
 alter table uploads enable row level security;
 alter table sponsors enable row level security;
 alter table usage_credits enable row level security;
+alter table repo_access_permissions enable row level security;
+alter table upload_requests enable row level security;
 
 -- Create indexes
 create index idx_uploads_upload_request_id on uploads(upload_request_id);
