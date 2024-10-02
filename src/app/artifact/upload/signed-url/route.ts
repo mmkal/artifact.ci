@@ -31,7 +31,15 @@ export const getEntrypoints = (pathnames: string[], requestedEntrypoints: string
 
   const aliases = pathnames.flatMap(pathname => {
     bestEntrypoint = bestEntrypoint ?? pathname
-    const paths: string[] = [pathname]
+    const paths: string[] = []
+
+    if (pathname.endsWith('/index.html')) {
+      const shortened = path.dirname(pathname)
+      if (!bestEntrypoint || shortened.length < bestEntrypoint.length) {
+        bestEntrypoint = shortened
+      }
+      paths.push(path.dirname(pathname))
+    }
 
     if (pathname.endsWith('.html')) {
       const shortened = pathname.slice(0, -5)
@@ -41,13 +49,7 @@ export const getEntrypoints = (pathnames: string[], requestedEntrypoints: string
       paths.push(path.dirname(pathname))
     }
 
-    if (pathname.endsWith('/index.html')) {
-      const shortened = path.dirname(pathname)
-      if (!bestEntrypoint || shortened.length < bestEntrypoint.length) {
-        bestEntrypoint = shortened
-      }
-      paths.push(path.dirname(pathname))
-    }
+    paths.push(pathname)
 
     return {original: pathname, paths}
   })

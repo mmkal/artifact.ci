@@ -112,6 +112,9 @@ export async function POST(request: NextRequest) {
             const branchPathname = `${owner}/${repo}/branch/${event.workflow_job.head_branch}/${a.name}/${entry.entryName}`
             // todo: tags?
             const {flatAliases: aliases} = getEntrypoints([runPathname, shaPathname, branchPathname])
+            if (a.name === 'website' && runPathname.endsWith('.html')) {
+              console.log(a.name, runPathname, {aliases})
+            }
             const mimeType = mime.getType(entry.entryName) || 'text/plain'
 
             return {mimeType, aliases, runPathname, entry}
