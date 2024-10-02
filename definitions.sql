@@ -134,6 +134,28 @@ create table repo_access_permissions (
 	unique(repo_id, github_login)
 );
 
+create table artifacts (
+	id prefixed_ksuid primary key default generate_prefixed_ksuid('artifact'),
+	repo_id prefixed_ksuid not null references repos(id),
+	name text not null,
+	sha text not null,
+	workflow_run_id int8 not null,
+	workflow_run_attempt int not null,
+	created_at timestamp with time zone not null default current_timestamp,
+	updated_at timestamp with time zone not null default current_timestamp,
+	unique(repo_id, name, workflow_run_id, workflow_run_attempt)
+);
+
+create table artifact_files (
+	id prefixed_ksuid primary key default generate_prefixed_ksuid('artifact_file'),
+	artifact_id prefixed_ksuid not null references artifacts(id),
+	filepath text not null,
+	bucket text not null,
+	provider text not null, -- e.g. "supabase" or "s3"
+	created_at timestamp with time zone not null default current_timestamp,
+	updated_at timestamp with time zone not null default current_timestamp
+);
+
 alter table repos enable row level security;
 alter table uploads enable row level security;
 alter table sponsors enable row level security;

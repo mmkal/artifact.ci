@@ -16,6 +16,8 @@
     "start": "next start",
     "lint": "pnpm eslint .",
     "e2e": "playwright test",
+    "typegen": "pgkit generate",
+    "def": "pgkit migrate.definitions.updateDb",
     "z": "tsx zignoreme/cli.ts"
   },
   "dependencies": {

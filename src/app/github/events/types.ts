@@ -10,6 +10,7 @@ export const WorkflowJobCompleted = z.object({
     run_id: z.number(),
     workflow_name: z.string(),
     head_branch: z.string(),
+    head_sha: z.string(),
     run_attempt: z.number(),
     status: z.string(),
     conclusion: z.string(),

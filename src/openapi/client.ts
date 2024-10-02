@@ -18,38 +18,31 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
       ...options.serializers,
     },
   }
-  console.log('creating proxy client', options, segments)
-  const method = (m: Method) => async (input: any) => {
-    console.log('method', m, input)
+  const method = (methodName: Method) => async (input: any) => {
     input ||= {}
-    const bodyOptions =
-      input.body && 'json' in input.body
-        ? {type: 'json' as const, contentType: 'application/json', body: JSON.stringify(input.body.json)}
-        : input.body && 'content' in input.body
-          ? {
-              type: 'general' as const,
-              contentType: Object.keys(input.body.content)[0],
-              body: Object.values(input.body.content)[0],
-            }
-          : undefined
+    const headers = new Headers({...options.headers, ...input.headers})
+    let body: BodyInit | null | undefined
+    if (input && 'json' in input) {
+      body = JSON.stringify(input.json)
+      headers.set('content-type', 'application/json')
+    } else if (input && 'content' in input) {
+      const contentType = Object.keys(input.content)[0]
+      const serializer = options.serializers?.[contentType]
+      const content = input.content[contentType]
+      body = serializer ? serializer.stringify(content) : content
+      headers.set('content-type', contentType)
+    }
     let url = options.baseUrl
     if (segments.length > 0) url += '/' + segments.join('/')
     if (input.query) url += `?${new URLSearchParams(input.query)}`
 
-    console.log('fetching', url)
-    const res = await fetch(url, {
-      headers: {...options.headers, ...input.headers},
-      body: bodyOptions?.body as any,
-      method: m,
-    })
+    const res = await fetch(url, {method: methodName, headers, body})
     const text = await res.clone().text()
-    console.log('response', res, {text})
     const partial = {
       // text: () => res.text(),
       // blob: () => res.blob(),
       // arrayBuffer: () => res.arrayBuffer(),
       matchStatus: (...matches: StatusCodeMatchable[]) => {
-        console.log('matchStatus', matches)
         const match = matchStatuses(matches)
         const result = {match, headers: res.headers, status: res.status}
         addSerializerGetters(result, matches)
@@ -63,10 +56,8 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
 
     function matchStatuses(matches: StatusCodeMatchable[]) {
       const actualStatusDigits = res.status.toString().split('')
-      console.log('actualStatusDigits', actualStatusDigits)
       const match = matches.find(s => {
         const expectedDigits = s.toLowerCase().split('')
-        console.log('expectedDigits', expectedDigits)
         return (
           expectedDigits.length === 3 &&
           expectedDigits.every((ch, i) => {
@@ -75,9 +66,8 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
         )
       })
       if (!match) {
-        throw new Error(
-          `status code ${res.status} does not match any of the allowed status codes: ${matches.join(', ')}`,
-        )
+        const message = `status code ${res.status} does not match any of the allowed status codes: ${matches.join(', ')}`
+        throw new Error(message)
       }
       return match
     }
@@ -114,7 +104,9 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
     patch: method('patch'),
     trace: method('trace'),
   }
-  const definePathParamFn = (value: string) => createProxyClientInner<Paths, RO>(options, [...segments, value])
+  const definePathParamFn = (value: string) => {
+    return createProxyClientInner<Paths, RO>(options, [...segments.slice(0, -1), value])
+  }
   return new Proxy(Object.assign(definePathParamFn, methods), {
     get(_, p: string) {
       if (p === '$options') return options
@@ -198,7 +190,7 @@ type HeaderParameters<Def, RO extends RequestOptions> = Def extends {parameters:
 type RequestBodyParameters<Def, M extends Method, RO extends RequestOptions> = Def extends {requestBody?: infer RB}
   ? RequestBodyInput<RB, M, RO>
   : {}
-type CookieParameters<Def, _RO extends RequestOptions> = Get<Def, ['parameters', 'cookie']>
+type CookieParameters<Def, _RO extends RequestOptions> = Get<Def, ['parameters', 'cookie'], Record<string, string>>
 
 type Get<T, Path extends (string | number)[], Default = undefined> = Path extends []
   ? T
@@ -280,7 +272,7 @@ type Digit = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 type PositiveDigit = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 type StringDigit = `${Digit}`
 type StatusCode = `${PositiveDigit}${StringDigit}${StringDigit}`
-type X = 'x' | 'X'
+type X = 'X'
 type StatusCodeMatchable = `${PositiveDigit | X}${StringDigit | X}${StringDigit | X}`
 
 type GetRequestOptionStatus<RO extends RequestOptions> = RO extends {status: {type: 'accept'; match: [...infer MS]}}
@@ -303,7 +295,7 @@ type ResolveRequestOptions<RO extends RequestOptions> = {
 type ResponseHelpers<Def, RO extends RequestOptions, Params> = {
   // @ts-expect-error trust me bro
   [K in keyof GetRequestOptionSerializersByKey<RO>]: Def['responses']['200']['content'][GetRequestOptionSerializersByKey<RO>[K]['contentType']]
-} & DropNevers<{
+} & {
   headers: ResponseHeaders<Def>
   status: number
   matchStatus: <TStatus extends StatusCodeMatchable>(
@@ -323,7 +315,7 @@ type ResponseHelpers<Def, RO extends RequestOptions, Params> = {
   // arrayBuffer: () => Promise<ArrayBuffer>
   $types: Def
   $params: Params
-}>
+}
 
 type EndpointFnParams<Def, M extends Method, RO extends RequestOptions> = RequestBodyParameters<Def, M, RO> &
   OptionalizeEmpties<{
@@ -338,6 +330,10 @@ type OptionalizeEmpties<T> = DropNevers<{
   DropNevers<{
     [K in keyof T]: {} extends T[K] ? never : T[K]
   }>
+
+// type OptionalizeEmpties<T> = Cleanup<{
+//   [K in keyof T]: [T[K]] extends [never] ? never : {} extends NonNullable<T[K]> ? T[K] | undefined : T[K]
+// }>
 
 type EndpointFn<Def, M extends Method, RO extends RequestOptions> =
   EndpointFnParams<Def, M, RO> extends infer Params
@@ -437,3 +433,39 @@ type CommonHeaders =
   | 'retry-after'
 
 type Header = CommonHeaders | (string & {})
+
+// 10-02
+
+type NeverableKeys<T> = {
+  [K in keyof T]: [T[K]] extends [never] ? K : never
+}[keyof T]
+
+type UndefinedableKeys<T> = {
+  [K in keyof T]: undefined extends T[K] ? K : never
+}[keyof T]
+
+type NonUndefinedableKeys<T> = {
+  [K in keyof T]: T[K] extends {} | null ? K : never
+}[keyof T]
+
+/**
+ * Makes a type more ergonomic in a couple of opinionated ways:
+ * - Drops keys whose value type is `never`
+ * - Makes optional keys whose value type includes `undefined`
+ *
+ * @example
+ * type Input = {a: 1; b: never; c: 3 | undefined}
+ * type Output = Cleanup<Input> // equivalent to {a: 1; c?: 3}
+ */
+type Cleanup<T> = Pick<
+  {
+    [K in keyof T]?: T[K]
+  },
+  UndefinedableKeys<T>
+> &
+  Pick<
+    {
+      [K in keyof T]: T[K]
+    },
+    Exclude<NonUndefinedableKeys<T>, NeverableKeys<T>>
+  >
