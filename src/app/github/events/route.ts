@@ -94,7 +94,19 @@ export async function POST(request: NextRequest) {
             },
           })
 
-          const buckets = await storageClient.bucket[''].get({})
+          const buckets = await storageClient.bucket[''].get()
+          const existing = buckets.json.find(b => b.name === 'artifact_files')
+          if (!existing) {
+            const created = await storageClient.bucket[''].post({
+              json: {
+                name: 'artifact_files',
+                public: false,
+              },
+            })
+            console.log('created bucket', created)
+          }
+
+          // await storageClient.bucket
 
           const dbFiles = await client.any(sql<queries.DbFile>`
             with deleted_files as (

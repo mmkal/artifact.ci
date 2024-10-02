@@ -153,29 +153,6 @@ type ProxyClientRHSValue<
     [Trace[0], `${Trace[1]}/${K}`]
   >
 
-type Droppable<T> = [T] extends [undefined] ? true : false
-type Andable<T> = Droppable<T> extends true ? never : unknown
-type GoodKeys<T> = {
-  [K in keyof T]-?: Andable<T[K]> & K
-}[keyof T]
-type DropNevers<T> = Optionalize<{
-  [K in GoodKeys<T>]: T[K]
-}>
-type Optionalize<T> = Omit<
-  {
-    [K in OptionalKeys<T>]?: T[K]
-  } & {
-    [K in RequiredKeys<T>]-?: T[K]
-  },
-  never
->
-type OptionalKeys<T> = {
-  [K in keyof T]: undefined extends T[K] ? K : never
-}[keyof T]
-type RequiredKeys<T> = {
-  [K in keyof T]: undefined extends T[K] ? never : K
-}[keyof T]
-
 type Method = 'get' | 'post' | 'put' | 'delete' | 'options' | 'head' | 'patch' | 'trace'
 type NoBodyMethod = 'get' | 'options' | 'head' | 'trace'
 
@@ -279,26 +256,9 @@ type ResponseHeaders<R> = R extends {headers: infer H} ? H & Headers : never
 type Digit = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 type PositiveDigit = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 type StringDigit = `${Digit}`
-type StatusCode = `${PositiveDigit}${StringDigit}${StringDigit}`
+type _StatusCode = `${PositiveDigit}${StringDigit}${StringDigit}`
 type X = 'X'
 type StatusCodeMatchable = `${PositiveDigit | X}${StringDigit | X}${StringDigit | X}`
-
-type GetRequestOptionStatus<RO extends RequestOptions> = RO extends {status: {type: 'accept'; match: [...infer MS]}}
-  ? MS[number]
-  : '200'
-
-type ResolveRequestOptions<RO extends RequestOptions> = {
-  serializersByKey: GetRequestOptionSerializersByKey<RO>
-  status: GetRequestOptionStatus<RO>
-}
-
-// type ProxyType<T> = {
-//   [K in string]: K extends '$end' ? T : K extends keyof T ? ProxyType<T[K]> : ProxyType<[K, {}]>
-// }
-
-// type GenericThing<T> = {
-//   status: ProxyType<T>['foo']
-// }
 
 type ResponseHelpers<Def, RO extends RequestOptions, Params> = {
   // @ts-expect-error trust me bro
