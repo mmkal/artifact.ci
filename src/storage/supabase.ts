@@ -73,14 +73,15 @@ export const loadFile = async (filepath: string) => {
     join storage.objects o on fa.object_id = o.id::text
     where alias = ${filepath}
     and o.name is not null
-  `)
+    limit 1
+  `) // ^ not sure why limit 1 is needed here?
 
   if (!dbFile || !dbFile.storage_pathname) {
     return null
   }
 
   const file = await storage.object.bucketName('artifact_files').wildcard(dbFile.storage_pathname).get()
-  return file
+  return {pathname: dbFile.storage_pathname, object: file}
 }
 
 export declare namespace queries {
@@ -89,7 +90,7 @@ export declare namespace queries {
   /** - query: `insert into file_aliases (alias, artifac... [truncated] ...n conflict (alias, object_id) do nothing` */
   export type _void = {}
 
-  /** - query: `select fa.object_id, o.name as storage_p... [truncated] ... where alias = $1 and o.name is not null` */
+  /** - query: `select fa.object_id, o.name as storage_p... [truncated] ...lias = $1 and o.name is not null limit 1` */
   export interface DbFile {
     /** column: `public.file_aliases.object_id`, not null: `true`, regtype: `text` */
     object_id: string

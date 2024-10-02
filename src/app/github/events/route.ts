@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     const artifacts = await Promise.all(
       dedupedArtifacts.map(async a => {
         const {origin} = new URL(request.url)
-        const viewUrl = `${origin}/artifact/view/${owner}/${repo}/${job.id}/${job.run_attempt}/${a.name}`
+        const viewUrl = `${origin}/artifact/view/${owner}/${repo}/${job.run_id}/${job.run_attempt}/${a.name}`
         const {entries} = await loadZip(octokit, a.archive_download_url)
         const dbArtifact = await client.one(sql<queries.Artifact>`
           with repo as (

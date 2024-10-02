@@ -47,17 +47,17 @@ const tryGet = async (request: NextRequest) => {
 
   const pathname = request.nextUrl.pathname.slice(ARTIFACT_BLOB_PREFIX.length)
 
-  if (pathname.startsWith('supabase/')) {
-    const file = await loadFile(pathname.replace('supabase/', ''))
+  if (pathname) {
+    const file = await loadFile(pathname)
     if (!file) {
       return NextResponse.json(
         {message: `Upload for ${pathname} not found`, githubUser: githubUser.login},
         {status: 404},
       )
     }
-    return new NextResponse(file.response.body, {
+    return new NextResponse(file.object.response.body, {
       headers: {
-        'content-type': mimeTypeLookup(pathname) || 'text/plain',
+        'content-type': mimeTypeLookup(file.pathname) || 'text/plain',
       },
     })
   }
