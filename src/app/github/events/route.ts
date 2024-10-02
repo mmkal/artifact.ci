@@ -123,6 +123,7 @@ export async function POST(request: NextRequest) {
             name: `artifact.ci: ${a.name}`,
             head_sha: event.workflow_job.head_sha,
             status: 'completed',
+            conclusion: 'success',
             output: {
               title: 'artifact.ci',
               summary: 'your artifacts are ready',
