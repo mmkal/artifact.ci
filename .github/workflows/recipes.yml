@@ -5,6 +5,9 @@ jobs:
   html:
     runs-on: ubuntu-latest
     steps:
+      - run: echo $event_json
+        env:
+          event_json: ${{ toJson(github) }}
       - uses: actions/checkout@v4
       - run: echo "<marquee>Hello, cruel world</marquee>" > index.html
       - uses: actions/upload-artifact@v4
