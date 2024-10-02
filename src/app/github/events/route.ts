@@ -100,6 +100,8 @@ export async function POST(request: NextRequest) {
           viewUrl,
           archiveDownloadUrl: a.archive_download_url,
           entries: entries.map(e => e.entryName),
+          files: null,
+          inserts: null,
         }
 
         if (dbArtifact.updated) {
@@ -117,26 +119,40 @@ export async function POST(request: NextRequest) {
 
           console.log('inserted', inserts.length)
 
-          await octokit.rest.checks.create({
-            owner,
-            repo,
-            name: `artifact.ci: ${a.name}`,
-            head_sha: event.workflow_job.head_sha,
-            status: 'completed',
-            conclusion: 'success',
-            output: {
-              title: 'artifact.ci',
-              summary: 'your artifacts are ready',
-              text: files
-                .map(f => f.aliases[0]) //
-                .join('\n'),
-            },
-          })
+          return {...meta, files, inserts}
         }
 
         return meta
       }),
     )
+
+    const summaries = artifacts.map(arti => {
+      if (!arti.files) return []
+      const {entrypoints} = getEntrypoints(arti.files.map(f => f.aliases[0]))
+      const bullets = entrypoints.map(e => {
+        const url = new URL(request.url).origin + '/artifact/view/supabase/' + e
+        return `- [${e}](${url})`
+      })
+
+      return `## ${arti.name}\n\n${bullets.join('\n')}`
+    })
+
+    if (summaries.length > 0) {
+      const output = {
+        title: `${artifacts.length} artifacts`,
+        summary: 'your artifacts are ready',
+        text: summaries.join('\n\n'),
+      }
+      await octokit.rest.checks.create({
+        owner,
+        repo,
+        name: `artifact.ci`,
+        head_sha: event.workflow_job.head_sha,
+        status: 'completed',
+        conclusion: 'success',
+        output,
+      })
+    }
     return NextResponse.json({ok: true, total: data.total_count, artifacts})
   }
 

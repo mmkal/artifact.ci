@@ -38,7 +38,7 @@ export const insertFiles = async (dbArtifact: {id: string}, fileInfo: FileInfo[]
         .post({content: {[mimeType]: entry.getData()}})
 
       console.log('uploaded', jobPathname, file.json.Id, file.json.Key)
-      return {file, workflowPathname: jobPathname, aliases}
+      return {file, jobPathname, aliases}
     },
     {concurrency: 10},
   )
