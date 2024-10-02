@@ -6,6 +6,7 @@ import {z} from 'zod'
 import {fromError} from 'zod-validation-error'
 import {AppWebhookEvent, WorkflowJobCompleted} from './types'
 import {getEntrypoints} from '~/app/artifact/upload/signed-url/route'
+import {ARTIFACT_BLOB_PREFIX} from '~/app/artifact/view/[...slug]/route'
 import {client, sql} from '~/db'
 import {getLogger as getLoggerBase} from '~/logger'
 import {insertFiles} from '~/storage/supabase'
@@ -106,18 +107,18 @@ export async function POST(request: NextRequest) {
 
         if (dbArtifact.updated) {
           const fileInfo = entries.map(entry => {
-            const jobPathname = `${owner}/${repo}/job/${job.id}/${job.run_attempt}/${a.name}/${entry.entryName}`
+            const runPathname = `${owner}/${repo}/run/${job.run_id}/${job.run_attempt}/${a.name}/${entry.entryName}`
             const shaPathname = `${owner}/${repo}/sha/${event.workflow_job.head_sha}/${a.name}/${entry.entryName}`
             const branchPathname = `${owner}/${repo}/branch/${event.workflow_job.head_branch}/${a.name}/${entry.entryName}`
             // todo: tags?
-            const {flatAliases: aliases} = getEntrypoints([jobPathname, shaPathname, branchPathname])
+            const {flatAliases: aliases} = getEntrypoints([runPathname, shaPathname, branchPathname])
             const mimeType = mime.getType(entry.entryName) || 'text/plain'
 
-            return {mimeType, aliases, jobPathname, entry}
+            return {mimeType, aliases, runPathname, entry}
           })
           const {inserts, files} = await insertFiles(dbArtifact, fileInfo)
 
-          console.log('inserted', inserts.length)
+          console.log(`inserted ${inserts.length} records for ${files.length} files`)
 
           return {...meta, files, inserts}
         }
@@ -130,7 +131,7 @@ export async function POST(request: NextRequest) {
       if (!arti.files) return []
       const {entrypoints} = getEntrypoints(arti.files.map(f => f.aliases[0]))
       const bullets = entrypoints.map(e => {
-        const url = new URL(request.url).origin + '/artifact/view/supabase/' + e
+        const url = new URL(request.url).origin + ARTIFACT_BLOB_PREFIX + e
         return `- [${e}](${url})`
       })
 

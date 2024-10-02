@@ -24,21 +24,19 @@ export type FileInfo = {
   entry: {entryName: string; getData: () => Buffer}
   aliases: string[]
   mimeType: string
-  jobPathname: string
 }
 export const insertFiles = async (dbArtifact: {id: string}, fileInfo: FileInfo[]) => {
   const storage = createStorageClient()
   const files = await pMap(
     fileInfo,
-    async ({entry, aliases, mimeType, jobPathname}) => {
-      console.log('uploading entry', entry.entryName, 'to', jobPathname, 'as', mimeType)
+    async ({entry, aliases, mimeType}) => {
+      console.log('uploading entry', entry.entryName, 'to', aliases[0], 'as', mimeType)
       const file = await storage.object
         .bucketName('artifact_files')
-        .wildcard('github/job/' + jobPathname) // job pathname should be unique so use that in the storage backend. this is for convenience, we could use a random pathname here since we'll store the aliases in the db
+        .wildcard('github/run/' + aliases[0]) // the first alias should be unique so use that in the storage backend. this is for convenience, we could use a random pathname here since we'll store the aliases in the db
         .post({content: {[mimeType]: entry.getData()}})
 
-      console.log('uploaded', jobPathname, file.json.Id, file.json.Key)
-      return {file, jobPathname, aliases}
+      return {file, aliases}
     },
     {concurrency: 10},
   )
