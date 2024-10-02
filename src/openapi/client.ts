@@ -22,15 +22,23 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
     input ||= {}
     const headers = new Headers({...options.headers, ...input.headers})
     let body: BodyInit | null | undefined
-    if (input && 'json' in input) {
+    if ('json' in input) {
       body = JSON.stringify(input.json)
       headers.set('content-type', 'application/json')
-    } else if (input && 'content' in input) {
-      const contentType = Object.keys(input.content)[0]
-      const serializer = options.serializers?.[contentType]
-      const content = input.content[contentType]
-      body = serializer ? serializer.stringify(content) : content
+    } else if (input.content) {
+      const [contentType, ...otherKeys] = Object.keys(input.content)
+      if (otherKeys.length > 0) {
+        throw new Error(`Multiple content types specified: ${Object.keys(input.content).join(', ')}`)
+      }
+
       headers.set('content-type', contentType)
+      const content = input.content[contentType]
+      if (content instanceof Buffer) {
+        body = content
+      } else {
+        const serializer = options.serializers?.[contentType as never] as RequestOptionSerializer | undefined
+        body = serializer ? serializer.stringify(content) : content
+      }
     }
     let url = options.baseUrl
     if (segments.length > 0) url += '/' + segments.join('/')
@@ -39,20 +47,18 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
     const res = await fetch(url, {method: methodName, headers, body})
     const text = await res.clone().text()
     const partial = {
-      // text: () => res.text(),
-      // blob: () => res.blob(),
-      // arrayBuffer: () => res.arrayBuffer(),
-      matchStatus: (...matches: StatusCodeMatchable[]) => {
+      matchStatus: (...matches) => {
         const match = matchStatuses(matches)
         const result = {match, headers: res.headers, status: res.status}
         addSerializerGetters(result, matches)
-        return result
+        return result as never
       },
+      response: res,
       $types: {} as any,
       $params: input,
       status: res.status,
       headers: res.headers,
-    }
+    } satisfies Partial<ResponseHelpers<any, any, any>>
 
     function matchStatuses(matches: StatusCodeMatchable[]) {
       const actualStatusDigits = res.status.toString().split('')
@@ -75,11 +81,11 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
     function addSerializerGetters(obj: {}, matches: StatusCodeMatchable[]) {
       Object.entries(options.serializers as Record<string, RequestOptionSerializer>).forEach(
         ([contentType, serializer]: [string, RequestOptionSerializer]) => {
+          const contentTypeFromHeader = res.headers.get('content-type')?.split(';')[0]
           Object.defineProperty(obj, serializer.key, {
-            enumerable: true,
+            enumerable: contentTypeFromHeader === contentType,
             get() {
               matchStatuses(matches)
-              const contentTypeFromHeader = res.headers.get('content-type')?.split(';')[0]
               if (contentTypeFromHeader !== contentType) {
                 throw new Error(`content-type header is ${contentTypeFromHeader}, so can't parse as ${contentType}`)
               }
@@ -220,6 +226,11 @@ const defaultSerializers = {
     parse: JSON.parse,
     stringify: JSON.stringify,
   },
+  'text/plain': {
+    key: 'text',
+    parse: body => body,
+    stringify: String,
+  },
 } as const satisfies RequestOptions['serializers']
 type DefaultSerializers = typeof defaultSerializers
 
@@ -266,6 +277,8 @@ type ResponseHelpers<Def, RO extends RequestOptions, Params> = {
 } & {
   headers: ResponseHeaders<Def>
   status: number
+  /** The raw `fetch` response object */
+  response: Response
   matchStatus: <TStatus extends StatusCodeMatchable>(
     ...statuses: TStatus[]
   ) => {

@@ -1,4 +1,5 @@
 import AdmZip from 'adm-zip'
+import mime from 'mime'
 import {NextRequest, NextResponse} from 'next/server'
 import {App, Octokit} from 'octokit'
 import {z} from 'zod'
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
             SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
           })
           const env = Env.parse(process.env)
-          const storageClient = createProxyClient<paths>().configure({
+          const storage = createProxyClient<paths>().configure({
             baseUrl: `${env.SUPABASE_PROJECT_URL}/storage/v1`,
             headers: {
               apikey: env.SUPABASE_SERVICE_ROLE_KEY,
@@ -94,19 +95,18 @@ export async function POST(request: NextRequest) {
             },
           })
 
-          const buckets = await storageClient.bucket[''].get()
-          const existing = buckets.json.find(b => b.name === 'artifact_files')
-          if (!existing) {
-            const created = await storageClient.bucket[''].post({
-              json: {
-                name: 'artifact_files',
-                public: false,
-              },
-            })
-            console.log('created bucket', created)
+          for (const entry of entries) {
+            const fullPathname = `${owner}/${repo}/${job.id}/${job.run_attempt}/${a.name}/${entry.entryName}`
+            const mimeType = mime.getType(entry.entryName) || 'text/plain'
+            const file = await storage.object
+              .bucketName('artifact_files')
+              .wildcard(fullPathname)
+              .put({
+                content: {
+                  [mimeType]: entry.getData(),
+                },
+              })
           }
-
-          // await storageClient.bucket
 
           const dbFiles = await client.any(sql<queries.DbFile>`
             with deleted_files as (
