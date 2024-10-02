@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
                 artifactName: a.name,
                 entryPath: entry.entryName,
               })
-              const {aliases} = getEntrypoints([defaultPathname])
+              const {flatAliases: aliases} = getEntrypoints([defaultPathname])
               const mimeType = mime.getType(entry.entryName) || 'text/plain'
               console.log('uploading entry', entry.entryName, 'to', defaultPathname, 'as', mimeType)
               const file = await storage.object
@@ -142,12 +142,12 @@ export async function POST(request: NextRequest) {
             from jsonb_populate_recordset(
               null::file_aliases,
               ${JSON.stringify(
-                files.flatMap(f =>
-                  f.aliases.map(alias => ({
+                files.flatMap(f => {
+                  return f.aliases.flatMap(alias => ({
                     alias,
                     object_id: f.file.json.Id,
-                  })),
-                ),
+                  }))
+                }),
               )}
             )
             on conflict (alias, object_id) do nothing

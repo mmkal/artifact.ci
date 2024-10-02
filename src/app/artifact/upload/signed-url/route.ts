@@ -29,7 +29,7 @@ function buildStoragePathname(ctx: GithubActionsContext, localPath: string) {
 export const getEntrypoints = (pathnames: string[], requestedEntrypoints: string[] = []) => {
   let bestEntrypoint: string | undefined = pathnames[0]
 
-  const aliases = pathnames.map(pathname => {
+  const aliases = pathnames.flatMap(pathname => {
     bestEntrypoint = bestEntrypoint ?? pathname
     const paths: string[] = [pathname]
 
@@ -52,14 +52,15 @@ export const getEntrypoints = (pathnames: string[], requestedEntrypoints: string
     return {original: pathname, paths}
   })
 
-  const set = new Set(aliases.flatMap(a => a.paths))
+  const flatAliases = aliases.flatMap(a => a.paths)
+  const set = new Set(flatAliases)
 
   const entrypoints = requestedEntrypoints.filter(pathname => set.has(pathname))
   if (entrypoints.length === 0 && bestEntrypoint) {
     entrypoints.push(bestEntrypoint)
   }
 
-  return {aliases, entrypoints}
+  return {aliases, entrypoints, flatAliases}
 }
 
 const allowedContentTypes = new Set([
@@ -296,7 +297,7 @@ const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
           ),
         )
       }
-      const {aliases} = getEntrypoints([blob.pathname])
+      const {flatAliases: aliases} = getEntrypoints([blob.pathname])
 
       const mimeType = getMimeType(blob.pathname)
       const uploads = await client.many(
