@@ -70,7 +70,7 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
       })
       if (!match) {
         const message = `status code ${res.status} does not match any of the allowed status codes: ${matches.join(', ')}`
-        throw new Error(message)
+        throw new Error(message, {cause: res})
       }
       return match
     }

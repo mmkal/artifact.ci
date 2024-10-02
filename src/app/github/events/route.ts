@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     // decision to be made - use sha or run_id as part of the url? sha is more accessible/meaningful, but run_id is more unique, though still not unique because of reruns.
     // maybe it can be either? like default template exists but user can override somehow?
-    console.log('workflow run for go', dedupedArtifacts.find(a => a.name === 'go')!.workflow_run)
+    console.log('workflow run found', dedupedArtifacts.find(a => a.name === 'html')?.workflow_run)
 
     const artifacts = await Promise.all(
       dedupedArtifacts.map(async a => {
@@ -75,8 +75,12 @@ export async function POST(request: NextRequest) {
         const viewUrl = `${origin}/artifact/view/${owner}/${repo}/${job.id}/${job.run_attempt}/${a.name}`
         const {entries} = await loadZip(octokit, a.archive_download_url)
         const dbArtifact = await client.one(sql<queries.Artifact>`
+          with repo as (
+            select id as repo_id from repos where name = ${repo} and owner = ${owner}
+          )
           insert into artifacts (repo_id, name, sha, workflow_run_id, workflow_run_attempt)
-          values (${repo}, ${a.name}, ${event.workflow_job.head_sha}, ${job.run_id}, ${job.run_attempt})
+          select repo.repo_id, ${a.name} as name, ${event.workflow_job.head_sha} as sha, ${job.run_id} as workflow_run_id, ${job.run_attempt} as workflow_run_attempt
+          from repo
           on conflict (repo_id, name, workflow_run_id, workflow_run_attempt) do update set updated_at = current_timestamp
           returning id, updated_at = current_timestamp as updated
         `)
@@ -109,7 +113,7 @@ export async function POST(request: NextRequest) {
             const file = await storage.object
               .bucketName('artifact_files')
               .wildcard(fullPathname)
-              .put({
+              .post({
                 content: {[mimeType]: entry.getData()},
               })
 

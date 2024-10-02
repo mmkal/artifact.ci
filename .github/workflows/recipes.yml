@@ -13,7 +13,7 @@ jobs:
           path: index.html
   vitest:
     needs: html
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,7 +41,7 @@ jobs:
           path: vitest/html
   playwright:
     needs: html
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -65,7 +65,7 @@ jobs:
           path: playwright-report
   website:
     needs: html
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -85,7 +85,7 @@ jobs:
           path: demosite/dist
   eslint:
     needs: html
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -104,7 +104,7 @@ jobs:
 
   jest:
     needs: html
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -134,7 +134,7 @@ jobs:
           path: report
   ava:
     needs: html
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -158,7 +158,7 @@ jobs:
           path: output.html
   pytest:
     needs: html
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -185,7 +185,7 @@ jobs:
           path: report
   mocha:
     needs: html
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -208,7 +208,7 @@ jobs:
             path: output.html
   pdf:
     needs: html
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     name: Pee Dee Eff
     runs-on: ubuntu-latest
     steps:
@@ -265,7 +265,7 @@ jobs:
           path: output.pdf
   go:
     needs: html
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
