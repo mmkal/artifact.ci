@@ -45,18 +45,15 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
     if (input.query) url += `?${new URLSearchParams(input.query)}`
 
     const res = await fetch(url, {method: methodName, headers, body})
+    const acceptStatus = input.accepStatus || options.acceptStatus || ['2XX']
+    const statusMatch = matchStatuses(acceptStatus)
     const text = await res.clone().text()
     const partial = {
-      matchStatus: (...matches) => {
-        const match = matchStatuses(matches)
-        const result = {match, headers: res.headers, status: res.status}
-        addSerializerGetters(result, matches)
-        return result as never
-      },
       response: res,
       $types: {} as any,
       $params: input,
-      status: res.status,
+      statusMatch,
+      rawStatus: res.status,
       headers: res.headers,
     } satisfies Partial<ResponseHelpers<any, any, any>>
 
@@ -137,25 +134,25 @@ export type ProxyClient<Paths extends {}, RO extends RequestOptions, Trace exten
 type ProxyClientRHSValue<
   Paths extends {},
   K extends string,
-  RO extends RequestOptions,
+  BaseRequestOptions extends RequestOptions,
   Trace extends [{}, string],
 > = (`/${K}` extends keyof Paths
   ? Paths[`/${K}`] extends infer D
     ? Cleanup<{
-        get: EndpointFnOf<D, 'get', RO>
-        post: EndpointFnOf<D, 'post', RO>
-        put: EndpointFnOf<D, 'put', RO>
-        delete: EndpointFnOf<D, 'delete', RO>
-        options: EndpointFnOf<D, 'options', RO>
-        head: EndpointFnOf<D, 'head', RO>
-        patch: EndpointFnOf<D, 'patch', RO>
-        trace: EndpointFnOf<D, 'trace', RO>
+        get: EndpointFnOf<D, 'get', BaseRequestOptions>
+        post: EndpointFnOf<D, 'post', BaseRequestOptions>
+        put: EndpointFnOf<D, 'put', BaseRequestOptions>
+        delete: EndpointFnOf<D, 'delete', BaseRequestOptions>
+        options: EndpointFnOf<D, 'options', BaseRequestOptions>
+        head: EndpointFnOf<D, 'head', BaseRequestOptions>
+        patch: EndpointFnOf<D, 'patch', BaseRequestOptions>
+        trace: EndpointFnOf<D, 'trace', BaseRequestOptions>
       }>
     : never
   : {}) &
   ProxyClient<
     {[L in keyof Paths as L extends `/${K}${infer Rest}` ? Rest : never]: Paths[L]}, //
-    RO,
+    BaseRequestOptions,
     [Trace[0], `${Trace[1]}/${K}`]
   >
 
@@ -204,10 +201,8 @@ type RequestOptionSerializer = {
 type RequestOptions = {
   baseUrl: string
   headers?: Record<string, string>
-  status?: {
-    type: 'accept' // | 'reject'
-    match: AllowableStatusCode[]
-  }
+  /** default ['2XX'] */
+  acceptStatus?: AllowableStatusCode[]
   serializers?: {
     [K in ContentType]?: RequestOptionSerializer | null
   }
@@ -271,38 +266,71 @@ type _StatusCode = `${PositiveDigit}${StringDigit}${StringDigit}`
 type X = 'X'
 type StatusCodeMatchable = `${PositiveDigit | X}${StringDigit | X}${StringDigit | X}`
 
-type ResponseHelpers<Def, RO extends RequestOptions, Params> = {
-  // @ts-expect-error trust me bro
-  [K in keyof GetRequestOptionSerializersByKey<RO>]: Def['responses']['200']['content'][GetRequestOptionSerializersByKey<RO>[K]['contentType']]
-} & {
-  headers: ResponseHeaders<Def>
-  status: number
-  /** The raw `fetch` response object */
-  response: Response
-  matchStatus: <TStatus extends StatusCodeMatchable>(
-    ...statuses: TStatus[]
-  ) => {
-    [S in TStatus]: {
-      match: S
-      // @ts-expect-error trust me bro
-      headers: ResponseHeaders<Def['responses'][S]>
-    } & {
-      // @ts-expect-error trust me bro
-      [K in keyof GetRequestOptionSerializersByKey<RO>]: Def['responses'][S]['content'][GetRequestOptionSerializersByKey<RO>[K]['contentType']]
-    }
-  }[TStatus]
-  // text: () => Promise<string>
-  // blob: () => Promise<Blob>
-  // arrayBuffer: () => Promise<ArrayBuffer>
-  $types: Def
-  $params: Params
+type ExtractStatusCode<StatusCode extends StatusCodeMatchable, Matchable extends StatusCodeMatchable> =
+  CheckMatchable<StatusCode, Matchable> extends true ? StatusCode : never
+
+type CheckMatchable<L extends string, R extends string> = L extends ''
+  ? R extends ''
+    ? true
+    : false
+  : L extends `${'X' | R[0]}${infer LTail}`
+    ? R extends `${R[0]}${infer RTail}`
+      ? CheckMatchable<LTail, RTail>
+      : false
+    : false
+
+type test = ExtractStatusCode<'2XX', '200'>
+
+type SelectStatusCodeValues<DefResponses, StatusCode extends StatusCodeMatchable> = {
+  [K in keyof DefResponses]: CheckMatchable<`${Extract<K, string | number>}`, StatusCode> extends true
+    ? DefResponses[K]
+    : never
+}[keyof DefResponses]
+
+type ResponseHelpers<Def, BaseRequestOptions extends RequestOptions, Params> = {
+  [S in AccpetedStatus<BaseRequestOptions, Params>]: {
+    // @ts-expect-error trust me bro
+    [K in keyof GetRequestOptionSerializersByKey<BaseRequestOptions>]: Def['responses'][S]['content'][GetRequestOptionSerializersByKey<BaseRequestOptions>[K]['contentType']]
+  } & {
+    headers: ResponseHeaders<Def>
+    statusMatch: S
+    rawStatus: number
+    /** The raw `fetch` response object */
+    response: Response
+    // matchStatus: <TStatus extends StatusCodeMatchable>(
+    //   ...statuses: TStatus[]
+    // ) => {
+    //   [S in TStatus]: {
+    //     match: S
+    //     // @ts-expect-error trust me bro
+    //     headers: ResponseHeaders<Def['responses'][S]>
+    //   } & {
+    //     // @ts-expect-error trust me bro
+    //     [K in keyof GetRequestOptionSerializersByKey<RO>]: Def['responses'][S]['content'][GetRequestOptionSerializersByKey<RO>[K]['contentType']]
+    //   }
+    // }[TStatus]
+    // text: () => Promise<string>
+    // blob: () => Promise<Blob>
+    // arrayBuffer: () => Promise<ArrayBuffer>
+    $types: Def
+    $params: Params
+  }
+}[AccpetedStatus<BaseRequestOptions, Params>]
+
+type AccpetedStatus<BaseRequestOptions extends RequestOptions, Params> = Params extends {
+  acceptStatus: AllowableStatusCode[]
 }
+  ? Params['acceptStatus'][number]
+  : BaseRequestOptions['acceptStatus'] extends AllowableStatusCode[]
+    ? BaseRequestOptions['acceptStatus'][number]
+    : '2XX'
 
 type EndpointFnParams<Def, M extends Method, RO extends RequestOptions> = RequestBodyParameters<Def, M, RO> &
   OptionalizeEmpties<{
     query: QueryParameters<Def, RO>
     headers: HeaderParameters<Def, RO>
     cookie?: Partial<CookieParameters<Def, RO>>
+    acceptStatus?: AllowableStatusCode[]
   }>
 
 // type OptionalizeEmpties<T> = DropNevers<{
@@ -316,14 +344,16 @@ type OptionalizeEmpties<T> = Cleanup<{
   [K in keyof T]: [T[K]] extends [never] ? never : {} extends NonNullable<T[K]> ? T[K] | undefined : T[K]
 }>
 
-type EndpointFn<Def, M extends Method, RO extends RequestOptions> =
-  EndpointFnParams<Def, M, RO> extends infer Params
+type EndpointFn<Def, M extends Method, BaseRequestOptions extends RequestOptions> =
+  EndpointFnParams<Def, M, BaseRequestOptions> extends infer Params
     ? {} extends Params
-      ? <P extends Partial<Params>>(input?: Params & P) => Promise<ResponseHelpers<Def, RO, P>>
-      : <P extends Partial<Params>>(input: Params & P) => Promise<ResponseHelpers<Def, RO, P>>
+      ? <P extends Partial<Params>>(input?: Params & P) => Promise<ResponseHelpers<Def, BaseRequestOptions, P>>
+      : <P extends Partial<Params>>(input: Params & P) => Promise<ResponseHelpers<Def, BaseRequestOptions, P>>
     : never
-type EndpointFnOf<Parent, M extends Method, RO extends RequestOptions> = Parent extends {[K in M]: infer D}
-  ? EndpointFn<D, M, RO>
+type EndpointFnOf<Parent, M extends Method, BaseRequestOptions extends RequestOptions> = Parent extends {
+  [K in M]: infer D
+}
+  ? EndpointFn<D, M, BaseRequestOptions>
   : never
 
 export type Split<S extends string, Delimiter extends string> = S extends `${infer Start}${Delimiter}${infer End}`
