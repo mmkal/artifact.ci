@@ -156,6 +156,15 @@ create table artifact_files (
 	updated_at timestamp with time zone not null default current_timestamp
 );
 
+create table file_aliases (
+	id prefixed_ksuid primary key default generate_prefixed_ksuid('file_alias'),
+	alias text not null,
+	object_id text not null, -- references storage.objects(id) but pgkit doesn't know about the storage schema
+	created_at timestamp with time zone not null default current_timestamp,
+	updated_at timestamp with time zone not null default current_timestamp,
+	unique(alias, object_id)
+);
+
 alter table repos enable row level security;
 alter table uploads enable row level security;
 alter table sponsors enable row level security;

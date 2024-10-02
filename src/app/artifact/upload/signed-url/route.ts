@@ -26,7 +26,7 @@ function buildStoragePathname(ctx: GithubActionsContext, localPath: string) {
   return path.join(ctx.repository, ctx.runId.toString(), ctx.runAttempt.toString(), ctx.job, localPath)
 }
 
-const getEntrypoints = (pathnames: string[], requestedEntrypoints: string[] = []) => {
+export const getEntrypoints = (pathnames: string[], requestedEntrypoints: string[] = []) => {
   let bestEntrypoint: string | undefined = pathnames[0]
 
   const aliases = pathnames.map(pathname => {
