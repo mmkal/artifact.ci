@@ -2,6 +2,7 @@ import AdmZip from 'adm-zip'
 import mime from 'mime'
 import {NextRequest, NextResponse} from 'next/server'
 import {App, Octokit} from 'octokit'
+import pMap from 'p-map'
 import {z} from 'zod'
 import {fromError} from 'zod-validation-error'
 import {AppWebhookEvent, WorkflowJobCompleted} from './types'
@@ -107,26 +108,30 @@ export async function POST(request: NextRequest) {
             },
           })
 
-          for (const entry of entries) {
-            const fullPathname = getFilepath({
-              githubOwner: owner,
-              githubRepo: repo,
-              workflowRunId: job.id,
-              workflowRunAttempt: job.run_attempt,
-              artifactName: a.name,
-              entryPath: entry.entryName,
-            })
-            const mimeType = mime.getType(entry.entryName) || 'text/plain'
-            console.log('uploading entry', entry.entryName, 'to', fullPathname, 'as', mimeType)
-            const file = await storage.object
-              .bucketName('artifact_files')
-              .wildcard(fullPathname)
-              .post({
-                content: {[mimeType]: entry.getData()},
+          await pMap(
+            entries,
+            async entry => {
+              const fullPathname = getFilepath({
+                githubOwner: owner,
+                githubRepo: repo,
+                workflowRunId: job.id,
+                workflowRunAttempt: job.run_attempt,
+                artifactName: a.name,
+                entryPath: entry.entryName,
               })
+              const mimeType = mime.getType(entry.entryName) || 'text/plain'
+              console.log('uploading entry', entry.entryName, 'to', fullPathname, 'as', mimeType)
+              const file = await storage.object
+                .bucketName('artifact_files')
+                .wildcard(fullPathname)
+                .post({
+                  content: {[mimeType]: entry.getData()},
+                })
 
-            console.log('uploaded', file.json)
-          }
+              console.log('uploaded', file.json)
+            },
+            {concurrency: 10},
+          )
         }
 
         return {
