@@ -86,53 +86,35 @@ export async function POST(request: NextRequest) {
             SUPABASE_PROJECT_URL: z.string().url(),
             SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
           })
-          const env = Env.parse(process.env)
+          const supabaseEnv = Env.parse(process.env)
           const storage = createProxyClient<paths>().configure({
-            baseUrl: `${env.SUPABASE_PROJECT_URL}/storage/v1`,
+            baseUrl: `${supabaseEnv.SUPABASE_PROJECT_URL}/storage/v1`,
             headers: {
-              apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-              authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+              apikey: supabaseEnv.SUPABASE_SERVICE_ROLE_KEY,
+              authorization: `Bearer ${supabaseEnv.SUPABASE_SERVICE_ROLE_KEY}`,
             },
           })
 
           for (const entry of entries) {
-            const fullPathname = `${owner}/${repo}/${job.id}/${job.run_attempt}/${a.name}/${entry.entryName}`
+            const fullPathname = getFilepath({
+              githubOwner: owner,
+              githubRepo: repo,
+              workflowRunId: job.id,
+              workflowRunAttempt: job.run_attempt,
+              artifactName: a.name,
+              entryPath: entry.entryName,
+            })
             const mimeType = mime.getType(entry.entryName) || 'text/plain'
+            console.log('uploading entry', entry.entryName, 'to', fullPathname, 'as', mimeType)
             const file = await storage.object
               .bucketName('artifact_files')
               .wildcard(fullPathname)
               .put({
-                content: {
-                  [mimeType]: entry.getData(),
-                },
+                content: {[mimeType]: entry.getData()},
               })
-          }
 
-          const dbFiles = await client.any(sql<queries.DbFile>`
-            with deleted_files as (
-              delete from artifact_files where artifact_id = ${dbArtifact.id}
-              returning *
-            ),
-            num_deleted as (select count(*) from deleted_files),
-            inserted_files as (
-              insert into artifact_files (artifact_id, filepath, bucket, provider)
-              select ${dbArtifact.id} as artifact_id, filepath, bucket, provider
-              from jsonb_populate_recordset(
-                null::artifact_files,
-                ${JSON.stringify(
-                  entries.map(e => ({
-                    filepath: e.entryName,
-                    bucket: 'artifacts',
-                    provider: 'supabase',
-                  })),
-                )}
-              )
-              returning id, artifact_id, filepath, bucket, provider
-            )
-            select inserted_files.*, num_deleted.count as num_deleted
-            from inserted_files
-            join num_deleted on true
-          `)
+            console.log('uploaded', file.json)
+          }
         }
 
         return {
@@ -151,6 +133,17 @@ export async function POST(request: NextRequest) {
     {ok: false, error: 'unknown event type', eventType: event.eventType, action: event.action},
     {status: 400},
   )
+}
+
+const getFilepath = (params: {
+  githubOwner: string
+  githubRepo: string
+  workflowRunId: number
+  workflowRunAttempt: number
+  artifactName: string
+  entryPath: string
+}) => {
+  return `${params.githubOwner}/${params.githubRepo}/${params.workflowRunId}/${params.workflowRunAttempt}/${params.artifactName}/${params.entryPath}`
 }
 
 const loadZip = async (octokit: Octokit, url: string) => {
