@@ -44,6 +44,14 @@ export async function POST(request: NextRequest) {
     privateKey: env.GITHUB_APP_PRIVATE_KEY,
   })
 
+  if (event.eventType === 'ignored_action') {
+    return NextResponse.json({
+      ok: true,
+      eventType: event.eventType,
+      action: event.action,
+    })
+  }
+
   if (event.eventType === 'workflow_job_completed') {
     const previewOrigin = getPreviewOrigin(request, event)
     if (previewOrigin) {
@@ -133,10 +141,7 @@ export async function POST(request: NextRequest) {
   }
 
   logger.warn('unknown event type', body)
-  return NextResponse.json(
-    {ok: false, error: 'unknown event type', eventType: event.eventType, action: event.action},
-    {status: 400},
-  )
+  return NextResponse.json({ok: false, error: 'unexpected body', keys: Object.keys(event)}, {status: 400})
 }
 
 const getFilepath = (params: {

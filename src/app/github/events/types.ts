@@ -27,7 +27,7 @@ export const AppWebhookEvent = z.union([
   // WorkflowJobOther.transform(data => ({...data, eventType: 'workflow_job_other' as const})),
   z
     .object({action: z.string(), worfklow_job: z.undefined().optional()})
-    .transform(data => ({...data, eventType: 'unknown' as const})),
+    .transform(data => ({...data, eventType: 'ignored_action' as const})),
 ])
 export type AppWebhookEvent = z.infer<typeof AppWebhookEvent>
 
