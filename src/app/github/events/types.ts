@@ -25,7 +25,9 @@ export type WorkflowJobCompleted = z.infer<typeof WorkflowJobCompleted>
 export const AppWebhookEvent = z.union([
   WorkflowJobCompleted.transform(data => ({...data, eventType: 'workflow_job_completed' as const})), //
   // WorkflowJobOther.transform(data => ({...data, eventType: 'workflow_job_other' as const})),
-  z.object({eventType: z.literal('unknown'), action: z.string()}),
+  z
+    .object({action: z.string(), worfklow_job: z.undefined().optional()})
+    .transform(data => ({...data, eventType: 'unknown' as const})),
 ])
 export type AppWebhookEvent = z.infer<typeof AppWebhookEvent>
 
