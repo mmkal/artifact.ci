@@ -108,6 +108,9 @@ importers:
       eslint-plugin-mmkal:
         specifier: 0.10.0
         version: 0.10.0(eslint@8.57.0)(typescript@5.5.4)(vitest@2.1.1(@types/node@17.0.45)(sass@1.78.0))
+      expect-type:
+        specifier: ^0.20.0
+        version: 0.20.0
       simple-git-hooks:
         specifier: ^2.11.1
         version: 2.11.1
@@ -3647,6 +3650,10 @@ packages:
   execa@5.1.1:
     resolution: {integrity: sha512-8uSpZZocAZRBAPIEINJj3Lo9HyGitllczc27Eh5YYojjMFMn8yHMDMaUHE2Jqfq05D/wucwI4JGURyXt1vchyg==}
     engines: {node: '>=10'}
+
+  expect-type@0.20.0:
+    resolution: {integrity: sha512-uHaC9LYNv6BcW+8SvXcwUUDCrrUxt3GSa61DFvTHj8JC+M0hekMFBwMlCarLQDk5bbpZ2vStpnQPIwRuV98YMw==}
+    engines: {node: '>=12.0.0'}
 
   expect@29.7.0:
     resolution: {integrity: sha512-2Zks0hf1VLFYI1kbh0I5jP3KHHyCHpkfyHBzsSXRFgl/Bg9mWYfMW8oD+PdMPlEwy5HNsR9JutYy6pMeOh61nw==}
@@ -10756,6 +10763,8 @@ snapshots:
       onetime: 5.1.2
       signal-exit: 3.0.7
       strip-final-newline: 2.0.0
+
+  expect-type@0.20.0: {}
 
   expect@29.7.0:
     dependencies:
