@@ -95,6 +95,13 @@ export async function POST(request: NextRequest) {
             updated_at = current_timestamp as updated
         `)
 
+        const meta = {
+          name: a.name,
+          viewUrl,
+          archiveDownloadUrl: a.archive_download_url,
+          entries: entries.map(e => e.entryName),
+        }
+
         if (dbArtifact.updated) {
           const fileInfo = entries.map(entry => {
             const jobPathname = `${owner}/${repo}/job/${job.id}/${job.run_attempt}/${a.name}/${entry.entryName}`
@@ -106,17 +113,27 @@ export async function POST(request: NextRequest) {
 
             return {mimeType, aliases, jobPathname, entry}
           })
-          const {inserts} = await insertFiles(dbArtifact, fileInfo)
+          const {inserts, files} = await insertFiles(dbArtifact, fileInfo)
 
           console.log('inserted', inserts.length)
+
+          await octokit.rest.checks.create({
+            owner,
+            repo,
+            name: `artifact.ci: ${a.name}`,
+            head_sha: event.workflow_job.head_sha,
+            status: 'completed',
+            output: {
+              title: 'artifact.ci',
+              summary: 'your artifacts are ready',
+              text: files
+                .map(f => f.aliases[0]) //
+                .join('\n'),
+            },
+          })
         }
 
-        return {
-          name: a.name,
-          viewUrl,
-          archiveDownloadUrl: a.archive_download_url,
-          entries: entries.map(e => e.entryName),
-        }
+        return meta
       }),
     )
     return NextResponse.json({ok: true, total: data.total_count, artifacts})
