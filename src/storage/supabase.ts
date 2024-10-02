@@ -27,7 +27,15 @@ export type FileInfo = {
 }
 export const insertFiles = async (dbArtifact: {id: string}, fileInfo: FileInfo[]) => {
   const storage = createStorageClient()
-  const datePrefix = new Date().toISOString().split(/\D/).slice(0, 3).join('/')
+  const datePrefix = [...new Date().toISOString().split(/\D/).slice(0, 3), Date.now()].join('/')
+
+  fileInfo.forEach((f, i) => {
+    const firstIndex = fileInfo.findIndex(o => f.entry.entryName === o.entry.entryName)
+    if (firstIndex !== i) {
+      console.error('Duplicate entry', f.entry.entryName, firstIndex, i, fileInfo)
+      throw new Error(`Duplicate entry: ${f.entry.entryName}`)
+    }
+  })
   const files = await pMap(
     fileInfo,
     async ({entry, aliases, mimeType}) => {
