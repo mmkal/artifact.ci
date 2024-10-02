@@ -55,6 +55,7 @@ const tryGet = async (request: NextRequest) => {
         {status: 404},
       )
     }
+    console.log({pathname, file})
     return new NextResponse(file.object.response.body, {
       headers: {
         'content-type': mimeTypeLookup(file.pathname) || 'text/plain',
