@@ -79,8 +79,9 @@ export const loadFile = async (filepath: string) => {
     join storage.objects o on fa.object_id = o.id::text
     where alias = ${filepath}
     and o.name is not null
+    order by fa.created_at desc
     limit 1
-  `) // ^ not sure why limit 1 is needed here?
+  `)
 
   if (!dbFile || !dbFile.storage_pathname) {
     return null
