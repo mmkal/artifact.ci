@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     const artifacts = await Promise.all(
       dedupedArtifacts.map(async a => {
         const {origin} = new URL(request.url)
-        const viewUrl = `${origin}/artifact/view/${owner}/${repo}/${job.run_id}/${job.run_attempt}/${a.name}`
+        const viewUrl = `${origin + ARTIFACT_BLOB_PREFIX}${owner}/${repo}/${job.run_id}/${job.run_attempt}/${a.name}`
         const {entries} = await loadZip(octokit, a.archive_download_url)
         const dbArtifact = await client.one(sql<queries.Artifact>`
           with repo as (
@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
           on conflict (repo_id, name, workflow_run_id, workflow_run_attempt) do update set updated_at = current_timestamp
           returning
             id,
+            created_at,
             updated_at = current_timestamp as updated
         `)
 
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest) {
           })
           const {inserts, files} = await insertFiles(dbArtifact, fileInfo)
 
-          console.log(`inserted ${inserts.length} records for ${files.length} files`)
+          console.log(`${a.name}: inserted ${inserts.length} records for ${files.length} files`)
 
           return {...meta, files, inserts}
         }
@@ -185,6 +186,9 @@ export declare namespace queries {
   export interface Artifact {
     /** column: `public.artifacts.id`, not null: `true`, regtype: `prefixed_ksuid` */
     id: import('~/db').Id<'artifacts'>
+
+    /** column: `public.artifacts.created_at`, not null: `true`, regtype: `timestamp with time zone` */
+    created_at: Date
 
     /** regtype: `boolean` */
     updated: boolean | null
