@@ -95,18 +95,7 @@ export async function POST(request: NextRequest) {
           })
 
           const buckets = await storageClient.bucket[''].get({})
-          const bucketGet = await storageClient.bucket[''].get({
-            headers: {
-              authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-            },
-          })
-          const matched = bucketGet.matchStatus('200', '4XX')
-          if (matched.match === '4XX') {
-            if (matched.json.statusCode === '404') {
-            }
-          } else {
-            matched.json[0].name
-          }
+
           const dbFiles = await client.any(sql<queries.DbFile>`
             with deleted_files as (
               delete from artifact_files where artifact_id = ${dbArtifact.id}

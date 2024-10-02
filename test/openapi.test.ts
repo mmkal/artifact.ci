@@ -39,6 +39,11 @@ test('supabase-storage', async () => {
   await authed.bucket.bucketId('abc').empty.post({headers: {authorization: 'Bearer xyz'}})
   await authed.bucket.bucketId('abc').empty.post({headers: {authorization: 'Bearer xyz', 'x-custom': '123'}})
 
+  // make sure we can get the source types easily
+  expectTypeOf(authed.bucket.bucketId('abc').empty.$types['/bucket/{bucketId}/empty']).toMatchTypeOf<{
+    post: {parameters: {}} //
+  }>()
+
   // @ts-expect-error invalid headers
   await authed.bucket.bucketId('abc').empty.post({headers: {authorization: ['Bearer xyz']}})
 

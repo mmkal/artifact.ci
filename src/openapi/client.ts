@@ -116,19 +116,26 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
   }) as never
 }
 
-export type ProxyClient<Paths extends {}, RO extends RequestOptions> = {
-  [K in Root<keyof Paths> as K extends `{${string}}` ? never : K]: ProxyClientRHSValue<Paths, K, RO>
+export type ProxyClient<Paths extends {}, RO extends RequestOptions, Trace extends [{}, string] = [Paths, '']> = {
+  [K in Root<keyof Paths> as K extends `{${string}}` ? never : K]: ProxyClientRHSValue<Paths, K, RO, Trace>
 } & {
   [K in Root<keyof Paths> as K extends `{${infer Name}}` ? Name : never]: (
     value: string,
-  ) => ProxyClientRHSValue<Paths, K, RO>
+  ) => ProxyClientRHSValue<Paths, K, RO, Trace>
 } & {
   $options: RO
+  /** compile-time only type info for the full path. Useful for cmd-clicking into the source types */
+  $types: Pick<Trace[0], Extract<Trace[1], keyof Trace[0]>>
 }
 
-type ProxyClientRHSValue<Paths extends {}, K extends string, RO extends RequestOptions> = (`/${K}` extends keyof Paths
+type ProxyClientRHSValue<
+  Paths extends {},
+  K extends string,
+  RO extends RequestOptions,
+  Trace extends [{}, string],
+> = (`/${K}` extends keyof Paths
   ? Paths[`/${K}`] extends infer D
-    ? DropNevers<{
+    ? Cleanup<{
         get: EndpointFnOf<D, 'get', RO>
         post: EndpointFnOf<D, 'post', RO>
         put: EndpointFnOf<D, 'put', RO>
@@ -142,7 +149,8 @@ type ProxyClientRHSValue<Paths extends {}, K extends string, RO extends RequestO
   : {}) &
   ProxyClient<
     {[L in keyof Paths as L extends `/${K}${infer Rest}` ? Rest : never]: Paths[L]}, //
-    RO
+    RO,
+    [Trace[0], `${Trace[1]}/${K}`]
   >
 
 type Droppable<T> = [T] extends [undefined] ? true : false
@@ -324,16 +332,16 @@ type EndpointFnParams<Def, M extends Method, RO extends RequestOptions> = Reques
     cookie?: Partial<CookieParameters<Def, RO>>
   }>
 
-type OptionalizeEmpties<T> = DropNevers<{
-  [K in keyof T]?: {} extends T[K] ? T[K] : never
-}> &
-  DropNevers<{
-    [K in keyof T]: {} extends T[K] ? never : T[K]
-  }>
+// type OptionalizeEmpties<T> = DropNevers<{
+//   [K in keyof T]?: {} extends T[K] ? T[K] : never
+// }> &
+//   DropNevers<{
+//     [K in keyof T]: {} extends T[K] ? never : T[K]
+//   }>
 
-// type OptionalizeEmpties<T> = Cleanup<{
-//   [K in keyof T]: [T[K]] extends [never] ? never : {} extends NonNullable<T[K]> ? T[K] | undefined : T[K]
-// }>
+type OptionalizeEmpties<T> = Cleanup<{
+  [K in keyof T]: [T[K]] extends [never] ? never : {} extends NonNullable<T[K]> ? T[K] | undefined : T[K]
+}>
 
 type EndpointFn<Def, M extends Method, RO extends RequestOptions> =
   EndpointFnParams<Def, M, RO> extends infer Params
