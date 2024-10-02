@@ -38,7 +38,7 @@ export const getEntrypoints = (pathnames: string[], requestedEntrypoints: string
       if (!bestEntrypoint || shortened.length < bestEntrypoint.length) {
         bestEntrypoint = shortened
       }
-      paths.push(path.dirname(pathname))
+      paths.push(shortened)
     }
 
     if (pathname.endsWith('.html')) {
@@ -46,7 +46,7 @@ export const getEntrypoints = (pathnames: string[], requestedEntrypoints: string
       if (!bestEntrypoint || shortened.length < bestEntrypoint.length) {
         bestEntrypoint = shortened
       }
-      paths.push(path.dirname(pathname))
+      paths.push(shortened)
     }
 
     paths.push(pathname)

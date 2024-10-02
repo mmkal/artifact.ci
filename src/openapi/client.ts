@@ -46,7 +46,7 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
 
     const res = await fetch(url, {method: methodName, headers, body})
     const acceptStatus = input.acceptStatus || options.acceptStatus || ['2XX']
-    const statusMatch = matchStatuses(acceptStatus)
+    const statusMatch = await matchStatuses(acceptStatus)
     const text = await res.clone().text()
     const partial = {
       response: res,
@@ -57,7 +57,7 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
       headers: res.headers,
     } satisfies Partial<ResponseHelpers<any, any, any>>
 
-    function matchStatuses(matches: StatusCodeMatchable[]) {
+    async function matchStatuses(matches: StatusCodeMatchable[]) {
       const actualStatusDigits = res.status.toString().split('')
       const match = matches.find(s => {
         const expectedDigits = s.toLowerCase().split('')
@@ -69,7 +69,7 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
         )
       })
       if (!match) {
-        const message = `status code ${res.status} does not match any of the allowed status codes: ${matches.join(', ')}`
+        const message = `status code ${res.status} does not match any of the allowed status codes: ${matches.join(', ')}. text: ${await res.clone().text()}`
         throw new Error(message, {cause: res})
       }
       return match

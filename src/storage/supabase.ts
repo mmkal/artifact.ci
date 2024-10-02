@@ -27,7 +27,7 @@ export type FileInfo = {
 }
 export const insertFiles = async (dbArtifact: {id: string}, fileInfo: FileInfo[]) => {
   const storage = createStorageClient()
-  const datePrefix = new Date().toISOString().split(/\D/).slice(0, 4).join('/')
+  const datePrefix = new Date().toISOString().split(/\D/).slice(0, 3).join('/')
   const files = await pMap(
     fileInfo,
     async ({entry, aliases, mimeType}) => {
