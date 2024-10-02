@@ -27,7 +27,7 @@ jobs:
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + 1' >> calc.ts
           echo 'export const sub = (a: number, b: number) => a - b' >> calc.ts
-          mkdir test
+          rm -rf test && mkdir test
           echo 'import {test, expect} from "vitest"' >> test/adding.test.ts
           echo 'import {add, addBad} from "../calc"' >> test/adding.test.ts
           echo 'test("add well", () => expect(add(1, 1)).toEqual(2))' >> test/adding.test.ts
@@ -52,7 +52,7 @@ jobs:
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + 1' >> calc.ts
           echo 'export const sub = (a: number, b: number) => a - b' >> calc.ts
-          mkdir test
+          rm -rf test && mkdir test
           echo 'import {test, expect} from "@playwright/test"' >> test/adding.test.ts
           echo 'import * as calc from "../calc"' >> test/adding.test.ts
           echo 'test("add well", () => expect(calc.add(1, 1)).toEqual(2))' >> test/adding.test.ts
@@ -112,7 +112,7 @@ jobs:
         run: |
           echo 'module.exports.add = (a, b) => a + b' >> calc.js
           echo 'module.exports.addBadly = (a, b) => a + b + 1' >> calc.js
-          mkdir test
+          rm -rf test && mkdir test
           echo 'const {add, addBadly} = require("../calc")' >> test/adding.test.js
           echo 'test("add well", () => expect(add(1, 1)).toEqual(2))' >> test/adding.test.js
           echo 'test("add badly", () => expect(addBaddly(1, 1)).toEqual(2))' >> test/adding.test.js
@@ -145,7 +145,7 @@ jobs:
           npm install ava tap-html
           echo 'exports.add = (a, b) => a + b' > calc.js
           echo 'exports.addBad = (a, b) => a + b + 1' >> calc.js
-          mkdir test
+          rm -rf test && mkdir test
           echo 'const {add, addBad} = require("../calc")' >> test/adding.test.js
           echo 'const test = require("ava")' >> test/adding.test.js
           echo 'test("add well", t => t.is(add(1, 1), 2))' >> test/adding.test.js
@@ -195,7 +195,7 @@ jobs:
           echo 'exports.add = (a, b) => a + b' >> calc.js
           echo 'exports.addBad = (a, b) => a + b + 1' >> calc.js
           echo 'exports.sub = (a, b) => a - b' >> calc.js
-          mkdir test
+          rm -rf test && mkdir test
           echo 'const assert = require("assert")' >> test/adding.test.js
           echo 'const {add, addBad} = require("../calc")' >> test/adding.test.js
           echo 'it("adds well", () => assert.strictEqual(add(1, 1), 2))' >> test/adding.test.js
