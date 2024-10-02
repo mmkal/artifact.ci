@@ -2,15 +2,13 @@ import AdmZip from 'adm-zip'
 import mime from 'mime'
 import {NextRequest, NextResponse} from 'next/server'
 import {App, Octokit} from 'octokit'
-import pMap from 'p-map'
 import {z} from 'zod'
 import {fromError} from 'zod-validation-error'
 import {AppWebhookEvent, WorkflowJobCompleted} from './types'
 import {getEntrypoints} from '~/app/artifact/upload/signed-url/route'
 import {client, sql} from '~/db'
 import {getLogger as getLoggerBase} from '~/logger'
-import {createProxyClient} from '~/openapi/client'
-import {paths} from '~/openapi/generated/supabase-storage'
+import {insertFiles} from '~/storage/supabase'
 
 const getLogger = (request: NextRequest) => {
   return getLoggerBase({debug: request.headers.get('artifactci-debug') === 'true'})
@@ -92,66 +90,24 @@ export async function POST(request: NextRequest) {
           select repo.repo_id, ${a.name} as name, ${event.workflow_job.head_sha} as sha, ${job.run_id} as workflow_run_id, ${job.run_attempt} as workflow_run_attempt
           from repo
           on conflict (repo_id, name, workflow_run_id, workflow_run_attempt) do update set updated_at = current_timestamp
-          returning id, updated_at = current_timestamp as updated
+          returning
+            id,
+            updated_at = current_timestamp as updated
         `)
 
         if (dbArtifact.updated) {
-          const Env = z.object({
-            SUPABASE_PROJECT_URL: z.string().url(),
-            SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+          const fileInfo = entries.map(entry => {
+            const jobPathname = `${owner}/${repo}/job/${job.id}/${job.run_attempt}/${a.name}/${entry.entryName}`
+            const shaPathname = `${owner}/${repo}/sha/${event.workflow_job.head_sha}/${a.name}/${entry.entryName}`
+            const branchPathname = `${owner}/${repo}/branch/${event.workflow_job.head_branch}/${a.name}/${entry.entryName}`
+            // todo: tags?
+            const {flatAliases: aliases} = getEntrypoints([jobPathname, shaPathname, branchPathname])
+            const mimeType = mime.getType(entry.entryName) || 'text/plain'
+
+            return {mimeType, aliases, jobPathname, entry}
           })
-          const supabaseEnv = Env.parse(process.env)
-          const storage = createProxyClient<paths>().configure({
-            baseUrl: `${supabaseEnv.SUPABASE_PROJECT_URL}/storage/v1`,
-            headers: {
-              apikey: supabaseEnv.SUPABASE_SERVICE_ROLE_KEY,
-              authorization: `Bearer ${supabaseEnv.SUPABASE_SERVICE_ROLE_KEY}`,
-            },
-          })
+          const {inserts} = await insertFiles(dbArtifact, fileInfo)
 
-          const files = await pMap(
-            entries,
-            async entry => {
-              const defaultPathname = getFilepath({
-                githubOwner: owner,
-                githubRepo: repo,
-                workflowRunId: job.id,
-                workflowRunAttempt: job.run_attempt,
-                artifactName: a.name,
-                entryPath: entry.entryName,
-              })
-              const {flatAliases: aliases} = getEntrypoints([defaultPathname])
-              const mimeType = mime.getType(entry.entryName) || 'text/plain'
-              console.log('uploading entry', entry.entryName, 'to', defaultPathname, 'as', mimeType)
-              const file = await storage.object
-                .bucketName('artifact_files')
-                .wildcard('github/' + defaultPathname)
-                .post({
-                  content: {[mimeType]: entry.getData()},
-                })
-
-              console.log('uploaded', defaultPathname, file.json.Id, file.json.Key)
-              return {file, defaultPathname, aliases}
-            },
-            {concurrency: 10},
-          )
-
-          const inserts = await client.any(sql<queries._void>`
-            insert into file_aliases (alias, object_id)
-            select alias, object_id
-            from jsonb_populate_recordset(
-              null::file_aliases,
-              ${JSON.stringify(
-                files.flatMap(f => {
-                  return f.aliases.flatMap(alias => ({
-                    alias,
-                    object_id: f.file.json.Id,
-                  }))
-                }),
-              )}
-            )
-            on conflict (alias, object_id) do nothing
-          `)
           console.log('inserted', inserts.length)
         }
 
@@ -168,17 +124,6 @@ export async function POST(request: NextRequest) {
 
   logger.warn('unknown event type', body)
   return NextResponse.json({ok: false, error: 'unexpected body', keys: Object.keys(event)}, {status: 400})
-}
-
-const getFilepath = (params: {
-  githubOwner: string
-  githubRepo: string
-  workflowRunId: number
-  workflowRunAttempt: number
-  artifactName: string
-  entryPath: string
-}) => {
-  return `${params.githubOwner}/${params.githubRepo}/${params.workflowRunId}/${params.workflowRunAttempt}/${params.artifactName}/${params.entryPath}`
 }
 
 const loadZip = async (octokit: Octokit, url: string) => {
@@ -206,7 +151,4 @@ export declare namespace queries {
     /** regtype: `boolean` */
     updated: boolean | null
   }
-
-  /** - query: `insert into file_aliases (alias, object_... [truncated] ...n conflict (alias, object_id) do nothing` */
-  export type _void = {}
 }

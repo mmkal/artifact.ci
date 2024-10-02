@@ -5,6 +5,7 @@ import type {NextRequest} from 'next/server'
 import {NextResponse} from 'next/server'
 import {getGithubAccessToken} from '../../../../auth'
 import {client, sql} from '~/db'
+import {loadFile} from '~/storage/supabase'
 
 export const ARTIFACT_BLOB_PREFIX = '/artifact/view/'
 
@@ -45,6 +46,22 @@ const tryGet = async (request: NextRequest) => {
   }
 
   const pathname = request.nextUrl.pathname.slice(ARTIFACT_BLOB_PREFIX.length)
+
+  if (pathname.startsWith('supabase/')) {
+    const file = await loadFile(pathname.replace('supabase/', ''))
+    if (!file) {
+      return NextResponse.json(
+        {message: `Upload for ${pathname} not found`, githubUser: githubUser.login},
+        {status: 404},
+      )
+    }
+    return new NextResponse(file.response.body, {
+      headers: {
+        'content-type': mimeTypeLookup(pathname) || 'text/plain',
+      },
+    })
+  }
+
   const [owner, repo] = pathname.split('/')
 
   const blobInfo = await client.maybeOne(sql<queries.BlobInfo>`

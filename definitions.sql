@@ -146,18 +146,9 @@ create table artifacts (
 	unique(repo_id, name, workflow_run_id, workflow_run_attempt)
 );
 
-create table artifact_files (
-	id prefixed_ksuid primary key default generate_prefixed_ksuid('artifact_file'),
-	artifact_id prefixed_ksuid not null references artifacts(id),
-	filepath text not null,
-	bucket text not null,
-	provider text not null, -- e.g. "supabase" or "s3"
-	created_at timestamp with time zone not null default current_timestamp,
-	updated_at timestamp with time zone not null default current_timestamp
-);
-
 create table file_aliases (
 	id prefixed_ksuid primary key default generate_prefixed_ksuid('file_alias'),
+	artifact_id prefixed_ksuid not null references artifacts(id),
 	alias text not null,
 	object_id text not null, -- references storage.objects(id) but pgkit doesn't know about the storage schema
 	created_at timestamp with time zone not null default current_timestamp,
@@ -178,3 +169,6 @@ create index idx_upload_requests_repo_id on upload_requests(repo_id);
 create index idx_upload_requests_ref_sha on upload_requests(ref, sha);
 create index idx_usage_credits_github_login on usage_credits(github_login);
 create index idx_usage_credits_sponsor_id on usage_credits(sponsor_id);
+create index idx_file_aliases_artifact_id on file_aliases(artifact_id);
+create index idx_artifacts_repo_id on artifacts(repo_id);
+create index idx_file_aliases_alias on file_aliases(alias);
