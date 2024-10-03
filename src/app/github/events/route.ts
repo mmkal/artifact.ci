@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
             return {mimeType, aliases, runPathname, entry}
           })
           const {inserts, files} = await insertFiles({...dbArtifact, repo: {owner, repo}}, fileInfo).catch(e => {
-            console.error(`${a.name}: error inserting files ${e}`)
+            console.error(`${a.name}: error inserting files ${e} ${fileInfo[0].entry.entryName}`)
             return {files: undefined, inserts: undefined}
           })
 
