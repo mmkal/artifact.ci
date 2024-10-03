@@ -67,6 +67,10 @@ export const insertFiles = async (artifact: ArtifactInfo, fileInfo: FileInfo[]) 
         .bucketName('artifact_files')
         .wildcard(objectPath)
         .post({content: {[mimeType]: entry.getData()}})
+        .catch(e => {
+          console.error(`${artifact.name}: error uploading ${objectPath} ${e}`)
+          return {json: {Id: objectPath, Key: objectPath}}
+        })
 
       return {file, aliases}
     },
