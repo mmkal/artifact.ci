@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
           const output = {
             title: `${artifacts.length} artifacts`,
             summary: 'your artifacts are ready',
-            text: summaries.join('\n\n'),
+            text: 'Sumaries:\n\n' + summaries.join('\n\n'),
           }
           await octokit.rest.checks.create({
             owner,
