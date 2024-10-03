@@ -139,21 +139,21 @@ export async function POST(request: NextRequest) {
           }),
         )
 
-        const summaries = artifacts.map(arti => {
+        const entrypointSummaries = artifacts.map(arti => {
           if (!arti.files) return []
-          const {entrypoints} = getEntrypoints(arti.files.flatMap(f => f.aliases))
+          const {entrypoints} = getEntrypoints(arti.files.flatMap(f => f.aliases[0]))
           const url = new URL(request.url).origin + ARTIFACT_BLOB_PREFIX + entrypoints[0]
-          return `- **${arti.name}**: [${entrypoints[0]}](${url})**`
+          return `- **${arti.name}**: [${entrypoints[0]}](${url})`
         })
 
-        if (summaries.length > 0) {
+        if (entrypointSummaries.length > 0) {
           const jobsCompleted = jobsForRun.jobs.filter(j => j.status === 'completed').length
           const jobInfo =
             jobsForRun.total_count === 1 ? '' : ` (${jobsCompleted} of ${jobsForRun.total_count} jobs completed)`
           const output = {
             title: `${artifacts.length} artifacts${jobInfo}`,
             summary: 'The following artifacts are ready to view' + jobInfo,
-            text: 'Sumaries:\n\n' + summaries.join('\n\n'),
+            text: 'Entrypoints:\n\n' + entrypointSummaries.join('\n'),
           }
           await octokit.rest.checks.create({
             owner,

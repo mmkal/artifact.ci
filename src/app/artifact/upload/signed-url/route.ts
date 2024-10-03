@@ -32,6 +32,8 @@ export const getEntrypoints = (pathnames: string[], requestedEntrypoints: string
   const aliases = pathnames.flatMap(pathname => {
     const paths: string[] = []
 
+    paths.push(pathname)
+
     if (pathname.endsWith('/index.html')) {
       const score = 2
       const shortened = path.dirname(pathname)
@@ -45,8 +47,6 @@ export const getEntrypoints = (pathnames: string[], requestedEntrypoints: string
       bestEntrypoints.push({path: pathname, score, shortened})
       paths.push(shortened)
     }
-
-    paths.push(pathname)
 
     return {original: pathname, paths}
   })
