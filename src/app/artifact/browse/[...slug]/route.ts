@@ -28,7 +28,7 @@ const tryGet = async (request: NextRequest) => {
   const [owner, repo, run, artifact, ...rest] = request.nextUrl.pathname.replace(pathnamePrefix, '').split('/')
   const filepath = rest.join('/').replace(/\/$/, '')
 
-  const octokit = new Octokit({auth: token, log: console})
+  const octokit = new Octokit({auth: token})
 
   const {data: me} = await octokit.rest.users
     .getAuthenticated()
