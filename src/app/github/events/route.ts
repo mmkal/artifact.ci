@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
 
         const summaries = artifacts.map(arti => {
           if (!arti.files) return []
-          const {entrypoints} = getEntrypoints(arti.files.map(f => f.aliases[0]))
+          const {entrypoints} = getEntrypoints(arti.files.flatMap(f => f.aliases))
           const bullets = entrypoints.map(e => {
             const url = new URL(request.url).origin + ARTIFACT_BLOB_PREFIX + e
             return `- [${e}](${url})`

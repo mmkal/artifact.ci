@@ -6,6 +6,7 @@ import {NextResponse} from 'next/server'
 import {getGithubAccessToken} from '~/auth'
 import {client, sql} from '~/db'
 import {loadFile} from '~/storage/supabase'
+import {logger} from '~/tag-logger'
 
 export const ARTIFACT_BLOB_PREFIX = '/artifact/view/'
 
@@ -13,10 +14,10 @@ export const ARTIFACT_BLOB_PREFIX = '/artifact/view/'
 export const GET = async (request: NextRequest) => {
   try {
     const res = await tryGet(request)
-    console.log('succeeding', res)
+    logger.debug('succeeding', res)
     return res
   } catch (err) {
-    console.error('erroring', err)
+    logger.error('erroring', err)
     return NextResponse.json({message: 'Internal server error', stack: (err as Error).stack}, {status: 500})
   }
 }

@@ -2,10 +2,8 @@ import {NextRequest, NextResponse} from 'next/server'
 import {client, sql} from '../../../db'
 
 /** Responds with public info about the signed-in user and logs the full auth object */
-export async function POST(_request: NextRequest) {
-  return NextResponse.json({
-    one: await client.one(sql<queries.One>`select 1 as one`),
-  })
+export async function GET(_request: NextRequest) {
+  return NextResponse.json(await client.one(sql<queries.One>`select 1 as one`))
 }
 
 export declare namespace queries {
