@@ -32,140 +32,147 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({error: fromError(parsed.error).message}, {status: 400})
   }
-  const event = parsed.data
+  return logger.run(`event=${parsed.data.eventType}`, async () => {
+    const event = parsed.data
 
-  const env = Env.parse(process.env)
-  const app = new App({
-    appId: env.GITHUB_APP_ID,
-    privateKey: env.GITHUB_APP_PRIVATE_KEY,
-  })
-
-  if (event.eventType === 'ignored_action') {
-    return NextResponse.json({
-      ok: true,
-      eventType: event.eventType,
-      action: event.action,
+    const env = Env.parse(process.env)
+    const app = new App({
+      appId: env.GITHUB_APP_ID,
+      privateKey: env.GITHUB_APP_PRIVATE_KEY,
     })
-  }
 
-  if (event.eventType === 'workflow_job_completed') {
-    return logger.run(`action=${event.action}`, async () => {
-      const previewOrigin = getPreviewOrigin(request, event)
-      if (previewOrigin) {
-        const url = new URL(request.url)
-        const previewUrl = url.toString().replace(url.origin, previewOrigin)
-        return NextResponse.rewrite(previewUrl)
-      }
-
-      const job = event.workflow_job
-      const [owner, repo] = event.repository.full_name.split('/')
-      const octokit = await app.getInstallationOctokit(event.installation.id)
-      const {data} = await octokit.rest.actions.listWorkflowRunArtifacts({
-        owner,
-        repo,
-        run_id: job.run_id,
+    if (event.eventType === 'ignored_action') {
+      return NextResponse.json({
+        ok: true,
+        eventType: event.eventType,
+        action: event.action,
       })
+    }
 
-      // reruns can mean there are duplicates. Object.fromEntries effectively does last-write-wins
-      // however if you have two artifacts with the same name, the first one will be dropped. so don't do that.
-      const dedupedArtifacts = Object.values(Object.fromEntries(data.artifacts.map(a => [a.name, a])))
-
-      // decision to be made - use sha or run_id as part of the url? sha is more accessible/meaningful, but run_id is more unique, though still not unique because of reruns.
-      // maybe it can be either? like default template exists but user can override somehow?
-      console.log('workflow run found', dedupedArtifacts.find(a => a.name === 'html')?.workflow_run)
-
-      const artifacts = await Promise.all(
-        dedupedArtifacts.map(async a => {
-          return logger.run(`artifact=${a.name}`, async () => {
-            const {origin} = new URL(request.url)
-            const viewUrl = `${origin + ARTIFACT_BLOB_PREFIX}${owner}/${repo}/${job.run_id}/${job.run_attempt}/${a.name}`
-            const {entries} = await loadZip(octokit, a.archive_download_url)
-            const dbArtifact = await client.one(sql<queries.Artifact>`
-              with repo as (
-                select id as repo_id from repos where name = ${repo} and owner = ${owner}
-              )
-              insert into artifacts (repo_id, name, sha, workflow_run_id, workflow_run_attempt)
-              select repo.repo_id, ${a.name} as name, ${event.workflow_job.head_sha} as sha, ${job.run_id} as workflow_run_id, ${job.run_attempt} as workflow_run_attempt
-              from repo
-              on conflict (repo_id, name, workflow_run_id, workflow_run_attempt) do update set updated_at = current_timestamp
-              returning
-                id,
-                name,
-                created_at,
-                updated_at = current_timestamp as updated
-            `)
-
-            const meta = {
-              name: a.name,
-              viewUrl,
-              archiveDownloadUrl: a.archive_download_url,
-              entries: entries.map(e => e.entryName),
-              files: null,
-              inserts: null,
-            }
-
-            if (dbArtifact.updated) {
-              const fileInfo = entries.map(entry => {
-                const runPathname = `${owner}/${repo}/run/${job.run_id}/${job.run_attempt}/${a.name}/${entry.entryName}`
-                const shaPathname = `${owner}/${repo}/sha/${event.workflow_job.head_sha}/${a.name}/${entry.entryName}`
-                const branchPathname = `${owner}/${repo}/branch/${event.workflow_job.head_branch}/${a.name}/${entry.entryName}`
-                // todo: tags?
-                const {flatAliases: aliases} = getEntrypoints([runPathname, shaPathname, branchPathname])
-                if (a.name === 'website' && runPathname.endsWith('.html')) {
-                  console.log(a.name, runPathname, {aliases})
-                }
-                const mimeType = mime.getType(entry.entryName) || 'text/plain'
-
-                return {mimeType, aliases, runPathname, entry}
-              })
-              const {inserts, files} = await insertFiles({...dbArtifact, repo: {owner, repo}}, fileInfo).catch(e => {
-                logger.error(`error inserting files ${e} ${fileInfo[0].entry.entryName}`)
-                return {files: undefined, inserts: undefined}
-              })
-
-              logger.info(`inserted ${inserts?.length} records for ${files?.length} files`)
-
-              return {...meta, files, inserts}
-            }
-
-            return meta
-          })
-        }),
-      )
-
-      const summaries = artifacts.map(arti => {
-        if (!arti.files) return []
-        const {entrypoints} = getEntrypoints(arti.files.map(f => f.aliases[0]))
-        const bullets = entrypoints.map(e => {
-          const url = new URL(request.url).origin + ARTIFACT_BLOB_PREFIX + e
-          return `- [${e}](${url})`
-        })
-
-        return `## ${arti.name}\n\n${bullets.join('\n')}`
-      })
-
-      if (summaries.length > 0) {
-        const output = {
-          title: `${artifacts.length} artifacts`,
-          summary: 'your artifacts are ready',
-          text: summaries.join('\n\n'),
+    if (event.eventType === 'workflow_job_completed') {
+      const doit = async () => {
+        const previewOrigin = getPreviewOrigin(request, event)
+        if (previewOrigin) {
+          const url = new URL(request.url)
+          const previewUrl = url.toString().replace(url.origin, previewOrigin)
+          return NextResponse.rewrite(previewUrl)
         }
-        await octokit.rest.checks.create({
+
+        const job = event.workflow_job
+        const [owner, repo] = event.repository.full_name.split('/')
+        const octokit = await app.getInstallationOctokit(event.installation.id)
+        const {data} = await octokit.rest.actions.listWorkflowRunArtifacts({
           owner,
           repo,
-          name: `artifact.ci`,
-          head_sha: event.workflow_job.head_sha,
-          status: 'completed',
-          conclusion: 'success',
-          output,
+          run_id: job.run_id,
         })
-      }
-      return NextResponse.json({ok: true, total: data.total_count, artifacts})
-    })
-  }
 
-  logger.warn('unknown event type', body)
-  return NextResponse.json({ok: false, error: 'unexpected body', keys: Object.keys(event)}, {status: 400})
+        // reruns can mean there are duplicates. Object.fromEntries effectively does last-write-wins
+        // however if you have two artifacts with the same name, the first one will be dropped. so don't do that.
+        const dedupedArtifacts = Object.values(Object.fromEntries(data.artifacts.map(a => [a.name, a])))
+
+        // decision to be made - use sha or run_id as part of the url? sha is more accessible/meaningful, but run_id is more unique, though still not unique because of reruns.
+        // maybe it can be either? like default template exists but user can override somehow?
+        console.log('workflow run found', dedupedArtifacts.find(a => a.name === 'html')?.workflow_run)
+
+        const artifacts = await Promise.all(
+          dedupedArtifacts.map(async a => {
+            return logger.run(`artifact=${a.name}`, async () => {
+              const {origin} = new URL(request.url)
+              const viewUrl = `${origin + ARTIFACT_BLOB_PREFIX}${owner}/${repo}/${job.run_id}/${job.run_attempt}/${a.name}`
+              const {entries} = await loadZip(octokit, a.archive_download_url)
+              const dbArtifact = await client.one(sql<queries.Artifact>`
+                with repo as (
+                  select id as repo_id from repos where name = ${repo} and owner = ${owner}
+                )
+                insert into artifacts (repo_id, name, sha, workflow_run_id, workflow_run_attempt)
+                select repo.repo_id, ${a.name} as name, ${event.workflow_job.head_sha} as sha, ${job.run_id} as workflow_run_id, ${job.run_attempt} as workflow_run_attempt
+                from repo
+                on conflict (repo_id, name, workflow_run_id, workflow_run_attempt) do update set updated_at = current_timestamp
+                returning
+                  id,
+                  name,
+                  created_at,
+                  updated_at > created_at as updated
+              `)
+
+              const meta = {
+                name: a.name,
+                viewUrl,
+                archiveDownloadUrl: a.archive_download_url,
+                entries: entries.map(e => e.entryName),
+                files: null,
+                inserts: null,
+              }
+
+              if (dbArtifact.updated) {
+                const fileInfo = entries.map(entry => {
+                  const runPathname = `${owner}/${repo}/run/${job.run_id}/${job.run_attempt}/${a.name}/${entry.entryName}`
+                  const shaPathname = `${owner}/${repo}/sha/${event.workflow_job.head_sha}/${a.name}/${entry.entryName}`
+                  const branchPathname = `${owner}/${repo}/branch/${event.workflow_job.head_branch}/${a.name}/${entry.entryName}`
+                  // todo: tags?
+                  const {flatAliases: aliases} = getEntrypoints([runPathname, shaPathname, branchPathname])
+                  if (a.name === 'website' && runPathname.endsWith('.html')) {
+                    console.log(a.name, runPathname, {aliases})
+                  }
+                  const mimeType = mime.getType(entry.entryName) || 'text/plain'
+
+                  return {mimeType, aliases, runPathname, entry}
+                })
+                const {inserts, files} = await insertFiles({...dbArtifact, repo: {owner, repo}}, fileInfo).catch(e => {
+                  logger.error(`error inserting files ${e} ${fileInfo[0].entry.entryName}`)
+                  return {files: undefined, inserts: undefined}
+                })
+
+                logger.info(`inserted ${inserts?.length} records for ${files?.length} files`)
+
+                return {...meta, files, inserts}
+              }
+
+              return meta
+            })
+          }),
+        )
+
+        const summaries = artifacts.map(arti => {
+          if (!arti.files) return []
+          const {entrypoints} = getEntrypoints(arti.files.map(f => f.aliases[0]))
+          const bullets = entrypoints.map(e => {
+            const url = new URL(request.url).origin + ARTIFACT_BLOB_PREFIX + e
+            return `- [${e}](${url})`
+          })
+
+          return `## ${arti.name}\n\n${bullets.join('\n')}`
+        })
+
+        if (summaries.length > 0) {
+          const output = {
+            title: `${artifacts.length} artifacts`,
+            summary: 'your artifacts are ready',
+            text: summaries.join('\n\n'),
+          }
+          await octokit.rest.checks.create({
+            owner,
+            repo,
+            name: `artifact.ci`,
+            head_sha: event.workflow_job.head_sha,
+            status: 'completed',
+            conclusion: 'success',
+            output,
+          })
+        }
+        return NextResponse.json({ok: true, total: data.total_count, artifacts})
+      }
+      return logger.run(`action=${event.action}`, async () => {
+        return logger.run(`job=${event.workflow_job.name}`, () => {
+          return doit()
+        })
+      })
+    }
+
+    logger.warn('unknown event type', body)
+    return NextResponse.json({ok: false, error: 'unexpected body', keys: Object.keys(event)}, {status: 400})
+  })
 }
 
 const loadZip = async (octokit: Octokit, url: string) => {
@@ -185,7 +192,7 @@ const Env = z.object({
 export declare namespace queries {
   // Generated by @pgkit/typegen
 
-  /** - query: `with repo as ( select id as repo_id from... [truncated] ...pdated_at = current_timestamp as updated` */
+  /** - query: `with repo as ( select id as repo_id from... [truncated] ...d_at, updated_at > created_at as updated` */
   export interface Artifact {
     /** column: `public.artifacts.id`, not null: `true`, regtype: `prefixed_ksuid` */
     id: import('~/db').Id<'artifacts'>

@@ -37,7 +37,7 @@ export class TagLogger {
     this._implementation.error(...this.prefix, ...args)
   }
 
-  debug(...args: unknown[]) {
+  debug(..._args: unknown[]) {
     // this._implementation.debug(...this.prefix, ...args)
   }
 }
