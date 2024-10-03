@@ -2,13 +2,12 @@ import {NextRequest, NextResponse} from 'next/server'
 import {App} from 'octokit'
 import {z} from 'zod'
 import {fromError} from 'zod-validation-error'
-import {getLogger} from '~/action'
+import {logger} from '~/tag-logger'
 import {BulkRequest} from '~/types'
 
 export const UploadRequest = z.object({})
 
 export async function POST(request: NextRequest) {
-  const logger = getLogger({debug: request.headers.get('artifactci-debug') === 'true'})
   const rawBody = (await request.json()) as {}
   const parsed = BulkRequest.safeParse(rawBody)
   if (!parsed.success) {
@@ -18,7 +17,7 @@ export async function POST(request: NextRequest) {
   }
   const body = parsed.data
   const {context} = body.clientPayload
-  const [owner, repo] = context.repository.split('/')
+  const [owner, _repo] = context.repository.split('/')
   logger.debug({body})
 
   const env = Env.parse(process.env)
@@ -35,7 +34,7 @@ export async function POST(request: NextRequest) {
   }
 
   const octokit = await app.getInstallationOctokit(installation.id)
-  const {data: repos} = await octokit.rest.apps.listReposAccessibleToInstallation()
+  const {data: _repos} = await octokit.rest.apps.listReposAccessibleToInstallation()
 
   // todo: get a token for the github app like this does: https://github.com/actions/create-github-app-token
   // docs which ref that: https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/making-authenticated-api-requests-with-a-github-app-in-a-github-actions-workflow

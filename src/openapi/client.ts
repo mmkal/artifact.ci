@@ -262,8 +262,8 @@ type Digit = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 type PositiveDigit = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 type StringDigit = `${Digit}`
 type _StatusCode = `${PositiveDigit}${StringDigit}${StringDigit}`
-type X = 'X'
-type StatusCodeMatchable = `${PositiveDigit | X}${StringDigit | X}${StringDigit | X}`
+type LetterX = 'X'
+type StatusCodeMatchable = `${PositiveDigit | LetterX}${StringDigit | LetterX}${StringDigit | LetterX}`
 
 type CheckMatchable<L extends string, R extends string> = L extends ''
   ? R extends ''
@@ -449,7 +449,7 @@ type NonUndefinedableKeys<T> = {
 /**
  * Makes a type more ergonomic in a couple of opinionated ways:
  * - Drops keys whose value type is `never`
- * - Makes optional keys whose value type includes `undefined`
+ * - Makes optional keys whose value type includes `undefined`
  *
  * @example
  * type Input = {a: 1; b: never; c: 3 | undefined}
