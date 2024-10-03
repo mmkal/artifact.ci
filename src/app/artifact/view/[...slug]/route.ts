@@ -3,7 +3,7 @@ import {Octokit} from '@octokit/rest'
 import {lookup as mimeTypeLookup} from 'mime-types'
 import type {NextRequest} from 'next/server'
 import {NextResponse} from 'next/server'
-import {getGithubAccessToken} from '../../../../auth'
+import {getGithubAccessToken} from '~/auth'
 import {client, sql} from '~/db'
 import {loadFile} from '~/storage/supabase'
 
@@ -55,11 +55,8 @@ const tryGet = async (request: NextRequest) => {
         {status: 404},
       )
     }
-    console.log({pathname, file})
     return new NextResponse(file.object.response.body, {
-      headers: {
-        'content-type': mimeTypeLookup(file.pathname) || 'text/plain',
-      },
+      headers: {'content-type': mimeTypeLookup(file.resolvedPathname) || 'text/plain'},
     })
   }
 

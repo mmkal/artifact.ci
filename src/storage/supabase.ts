@@ -120,7 +120,7 @@ export const loadFile = async (filepath: string) => {
   }
 
   const file = await storage.object.bucketName('artifact_files').wildcard(dbFile.storage_pathname).get()
-  return {pathname: dbFile.storage_pathname, object: file}
+  return {resolvedPathname: dbFile.storage_pathname, object: file}
 }
 
 export declare namespace queries {

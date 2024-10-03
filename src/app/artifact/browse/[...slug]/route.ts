@@ -6,14 +6,14 @@ import type {NextRequest} from 'next/server'
 import {NextResponse} from 'next/server'
 import * as path from 'node:path'
 import {getGithubAccessToken} from '../../../../auth'
+import {logger} from '~/tag-logger'
 
 export const GET = async (request: NextRequest) => {
   try {
     const res = await tryGet(request)
-    console.log('succeeding', res)
     return res
   } catch (err) {
-    console.error('erroring', err)
+    logger.error('erroring', err)
     return NextResponse.json({message: 'Internal server error', stack: (err as Error).stack}, {status: 500})
   }
 }
