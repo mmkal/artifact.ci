@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
           on conflict (repo_id, name, workflow_run_id, workflow_run_attempt) do update set updated_at = current_timestamp
           returning
             id,
+            name,
             created_at,
             updated_at = current_timestamp as updated
         `)
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
 
             return {mimeType, aliases, runPathname, entry}
           })
-          const {inserts, files} = await insertFiles(dbArtifact, fileInfo)
+          const {inserts, files} = await insertFiles({...dbArtifact, repo: {owner, repo}}, fileInfo)
 
           console.log(`${a.name}: inserted ${inserts.length} records for ${files.length} files`)
 
@@ -186,6 +187,9 @@ export declare namespace queries {
   export interface Artifact {
     /** column: `public.artifacts.id`, not null: `true`, regtype: `prefixed_ksuid` */
     id: import('~/db').Id<'artifacts'>
+
+    /** column: `public.artifacts.name`, not null: `true`, regtype: `text` */
+    name: string
 
     /** column: `public.artifacts.created_at`, not null: `true`, regtype: `timestamp with time zone` */
     created_at: Date

@@ -25,11 +25,22 @@ export type FileInfo = {
   aliases: string[]
   mimeType: string
 }
-export const insertFiles = async (dbArtifact: {id: string; created_at: Date}, fileInfo: FileInfo[]) => {
+export type ArtifactInfo = {
+  id: string
+  name: string
+  repo: {owner: string; repo: string}
+  created_at: Date
+}
+export const insertFiles = async (artifact: ArtifactInfo, fileInfo: FileInfo[]) => {
   const storage = createStorageClient()
-  const datePrefix = [
-    dbArtifact.created_at.toISOString().split(/\D/).slice(0, 3).join('/'), // date part in subfolders so when debugging can navigate to year/month/day
-    dbArtifact.created_at.toISOString().split('T')[1].replaceAll(':', '.'), // time part as a dot-separated string
+  const artifactPathPrefix = [
+    'artifacts',
+    artifact.repo.owner,
+    artifact.repo.repo,
+    artifact.created_at.toISOString().split(/\D/).slice(0, 3).join('/'), // date part in subfolders so when debugging can navigate to year/month/day
+    artifact.created_at.toISOString().split('T')[1].replaceAll(':', '.'), // time part as a dot-separated string
+    artifact.name,
+    artifact.id,
   ].join('/')
 
   fileInfo.forEach((f, i) => {
@@ -44,7 +55,7 @@ export const insertFiles = async (dbArtifact: {id: string; created_at: Date}, fi
     async ({entry, aliases, mimeType}) => {
       const file = await storage.object
         .bucketName('artifact_files')
-        .wildcard(`artifacts/${datePrefix}/${dbArtifact.id}/${entry.entryName}`)
+        .wildcard(`${artifactPathPrefix}/${entry.entryName}`)
         .post({content: {[mimeType]: entry.getData()}})
 
       return {file, aliases}
@@ -61,7 +72,7 @@ export const insertFiles = async (dbArtifact: {id: string; created_at: Date}, fi
         files.flatMap(f => {
           return f.aliases.flatMap(alias => ({
             alias,
-            artifact_id: dbArtifact.id,
+            artifact_id: artifact.id,
             object_id: f.file.json.Id,
           }))
         }),
