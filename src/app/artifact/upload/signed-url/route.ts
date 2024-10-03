@@ -27,39 +27,22 @@ function buildStoragePathname(ctx: GithubActionsContext, localPath: string) {
 }
 
 export const getEntrypoints = (pathnames: string[], requestedEntrypoints: string[] = []) => {
-  let bestEntrypoint = {
-    path: pathnames.at(0),
-    shortened: pathnames.at(0),
-    score: -1,
-  }
+  const bestEntrypoints = [{path: pathnames.at(0), shortened: pathnames.at(0), score: -1}]
 
   const aliases = pathnames.flatMap(pathname => {
-    bestEntrypoint = bestEntrypoint ?? pathname
     const paths: string[] = []
 
     if (pathname.endsWith('/index.html')) {
       const score = 2
       const shortened = path.dirname(pathname)
-      if (
-        !bestEntrypoint.path ||
-        score > bestEntrypoint.score ||
-        (score === bestEntrypoint.score && shortened.length < bestEntrypoint.path.length)
-      ) {
-        bestEntrypoint = {path: pathname, score, shortened}
-      }
+      bestEntrypoints.push({path: pathname, score, shortened})
       paths.push(shortened)
     }
 
     if (pathname.endsWith('.html')) {
       const score = 1
       const shortened = pathname.slice(0, -5)
-      if (
-        !bestEntrypoint.path ||
-        score > bestEntrypoint.score ||
-        (score === bestEntrypoint.score && shortened.length < bestEntrypoint.path.length)
-      ) {
-        bestEntrypoint = {path: pathname, score, shortened}
-      }
+      bestEntrypoints.push({path: pathname, score, shortened})
       paths.push(shortened)
     }
 
@@ -72,6 +55,10 @@ export const getEntrypoints = (pathnames: string[], requestedEntrypoints: string
   const set = new Set(flatAliases)
 
   const entrypoints = requestedEntrypoints.filter(pathname => set.has(pathname))
+  const bestEntrypoint = bestEntrypoints
+    // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
+    .sort((a, b) => a.path?.length! - b.path?.length!)
+    .sort((a, b) => b.score - a.score)[0]
   if (entrypoints.length === 0 && bestEntrypoint.path) {
     entrypoints.push(bestEntrypoint.path)
   }
