@@ -3,6 +3,7 @@ import {z} from 'zod'
 import {client, sql} from '~/db'
 import {createProxyClient} from '~/openapi/client'
 import {paths} from '~/openapi/generated/supabase-storage'
+import {logger} from '~/tag-logger'
 
 const Env = z.object({
   SUPABASE_PROJECT_URL: z.string().url(),
@@ -46,7 +47,7 @@ export const insertFiles = async (artifact: ArtifactInfo, fileInfo: FileInfo[]) 
   fileInfo.forEach((f, i) => {
     const firstIndex = fileInfo.findIndex(o => f.entry.entryName === o.entry.entryName)
     if (firstIndex !== i) {
-      console.error('Duplicate entry', f.entry.entryName, firstIndex, i, fileInfo)
+      logger.error('Duplicate entry', f.entry.entryName, firstIndex, i, fileInfo)
       throw new Error(`Duplicate entry: ${f.entry.entryName}`)
     }
   })
@@ -57,22 +58,24 @@ export const insertFiles = async (artifact: ArtifactInfo, fileInfo: FileInfo[]) 
   const files = await pMap(
     fileInfo,
     async ({entry, aliases, mimeType}) => {
-      const objectPath = `${artifactPathPrefix}/${entry.entryName}`
-      if (existingNames.has(objectPath)) {
-        console.warn(`${artifact.name}: duplicate file ${objectPath}`)
-        return {file: {json: {Id: objectPath, Key: objectPath}}, aliases}
-      }
+      return logger.run(`entry=${entry.entryName}`, async () => {
+        const objectPath = `${artifactPathPrefix}/${entry.entryName}`
+        if (existingNames.has(objectPath)) {
+          logger.warn(`skipping duplicate file`)
+          return {file: {json: {Id: objectPath, Key: objectPath}}, aliases}
+        }
 
-      const file = await storage.object
-        .bucketName('artifact_files')
-        .wildcard(objectPath)
-        .post({content: {[mimeType]: entry.getData()}})
-        .catch(e => {
-          console.error(`${artifact.name}: error uploading ${objectPath} ${e}`)
-          return {json: {Id: objectPath, Key: objectPath}}
-        })
+        const file = await storage.object
+          .bucketName('artifact_files')
+          .wildcard(objectPath)
+          .post({content: {[mimeType]: entry.getData()}})
+          .catch(e => {
+            logger.error(`error uploading ${e}`)
+            return {json: {Id: objectPath, Key: objectPath}}
+          })
 
-      return {file, aliases}
+        return {file, aliases}
+      })
     },
     {concurrency: 10},
   )
