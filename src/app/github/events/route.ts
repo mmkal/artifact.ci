@@ -66,6 +66,11 @@ export async function POST(request: NextRequest) {
           repo,
           run_id: job.run_id,
         })
+        const {data: jobsForRun} = await octokit.rest.actions.listJobsForWorkflowRun({
+          owner,
+          repo,
+          run_id: job.run_id,
+        })
 
         // reruns can mean there are duplicates. Object.fromEntries effectively does last-write-wins
         // however if you have two artifacts with the same name, the first one will be dropped. so don't do that.
@@ -137,18 +142,17 @@ export async function POST(request: NextRequest) {
         const summaries = artifacts.map(arti => {
           if (!arti.files) return []
           const {entrypoints} = getEntrypoints(arti.files.flatMap(f => f.aliases))
-          const bullets = entrypoints.map(e => {
-            const url = new URL(request.url).origin + ARTIFACT_BLOB_PREFIX + e
-            return `- [${e}](${url})`
-          })
-
-          return `## ${arti.name}\n\n${bullets.join('\n')}`
+          const url = new URL(request.url).origin + ARTIFACT_BLOB_PREFIX + entrypoints[0]
+          return `- **${arti.name}**: [${entrypoints[0]}](${url})**`
         })
 
         if (summaries.length > 0) {
+          const jobsCompleted = jobsForRun.jobs.filter(j => j.status === 'completed').length
+          const jobInfo =
+            jobsForRun.total_count === 1 ? '' : ` (${jobsCompleted} of ${jobsForRun.total_count} jobs completed)`
           const output = {
-            title: `${artifacts.length} artifacts`,
-            summary: 'your artifacts are ready',
+            title: `${artifacts.length} artifacts${jobInfo}`,
+            summary: 'The following artifacts are ready to view' + jobInfo,
             text: 'Sumaries:\n\n' + summaries.join('\n\n'),
           }
           await octokit.rest.checks.create({

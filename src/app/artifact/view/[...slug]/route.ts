@@ -38,8 +38,6 @@ const tryGet = async (request: NextRequest) => {
   const octokit = new Octokit({auth: token, log: console})
 
   const redactedToken = `${token.slice(0, 7)}...${token.slice(-5)}`
-  console.log('token', redactedToken)
-
   const {data: githubUser} = await octokit.rest.users.getAuthenticated().catch(nullify404)
 
   if (!githubUser) {
