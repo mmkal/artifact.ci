@@ -105,19 +105,25 @@ const tryGet = async (request: NextRequest) => {
     }
 
     if (artifactInfo.entries_count === 0) {
+      const requestUrl = request.nextUrl
+      if (requestUrl.searchParams.get('redirected') === 'true') {
+        return NextResponse.json(
+          {
+            message: `Artifact ${artifactName} (from path ${pathname}) has no entries, probably hasn't been extracted and stored yet`,
+            githubUser: githubUser.login,
+          },
+          {status: 404},
+        )
+      }
+
+      const callbackParams = new URLSearchParams(requestUrl.searchParams)
+      callbackParams.set('noRedirect', 'true')
       return NextResponse.redirect(
-        request.nextUrl.origin +
+        requestUrl.origin +
           `/artifact/upload?${new URLSearchParams({
-            callbackUrl: request.nextUrl.toString().replace(request.nextUrl.origin, ''),
+            callbackUrl: requestUrl.toString().replace(requestUrl.origin, ''),
             artifactId: artifactInfo.artifact_id,
           })}`,
-      )
-      return NextResponse.json(
-        {
-          message: `Artifact ${artifactName} (from path ${pathname}) has no entries, probably hasn't been extracted and stored yet`,
-          githubUser: githubUser.login,
-        },
-        {status: 404},
       )
     }
 
