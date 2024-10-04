@@ -3,6 +3,7 @@ import {Octokit} from '@octokit/rest'
 import {lookup as mimeTypeLookup} from 'mime-types'
 import type {NextRequest} from 'next/server'
 import {NextResponse} from 'next/server'
+import * as path from 'path'
 import {getGithubAccessToken} from '~/auth'
 import {client, sql} from '~/db'
 import {loadFile} from '~/storage/supabase'
@@ -35,7 +36,7 @@ const tryGet = async (request: NextRequest) => {
     return NextResponse.redirect(`${request.nextUrl.origin}/api/auth/signin?${searchParams}`)
   }
 
-  const octokit = new Octokit({auth: token, log: console})
+  const octokit = new Octokit({auth: token})
 
   const redactedToken = `${token.slice(0, 7)}...${token.slice(-5)}`
   const {data: githubUser} = await octokit.rest.users.getAuthenticated().catch(nullify404)
@@ -45,6 +46,7 @@ const tryGet = async (request: NextRequest) => {
   }
 
   const pathname = request.nextUrl.pathname.slice(ARTIFACT_BLOB_PREFIX.length)
+  const [owner, repo, aliasType, ..._rest] = pathname.split('/')
 
   if (pathname) {
     const file = await loadFile(pathname)
@@ -54,12 +56,44 @@ const tryGet = async (request: NextRequest) => {
         {status: 404},
       )
     }
-    return new NextResponse(file.object.response.body, {
-      headers: {'content-type': mimeTypeLookup(file.resolvedPathname) || 'text/plain'},
-    })
-  }
+    const contentType = mimeTypeLookup(file.resolvedPathname) || 'text/plain'
 
-  const [owner, repo] = pathname.split('/')
+    const headers: Record<string, string> = {
+      'content-type': contentType,
+    }
+
+    // Add relevant headers from the object response
+    const relevantHeaders = ['content-length', 'etag', 'last-modified']
+    for (const header of relevantHeaders) {
+      const value = file.object.response.headers.get(header)
+      if (value) headers[header] = value
+    }
+
+    const ext = path.extname(file.resolvedPathname)
+    if (
+      ext === '.html' ||
+      ext === '.htm' ||
+      ext === '.json' ||
+      ext === '.pdf' ||
+      ext === '.txt' ||
+      contentType.startsWith('text/') ||
+      contentType.startsWith('image/') ||
+      contentType.startsWith('video/') ||
+      contentType.startsWith('audio/')
+    ) {
+      headers['content-disposition'] = `inline; filename="${encodeURIComponent(path.basename(file.resolvedPathname))}"`
+    }
+
+    if (aliasType === 'branch') {
+      headers['cache-control'] = 'public, max-age=300, must-revalidate'
+    } else if (aliasType === 'run' || aliasType === 'sha') {
+      headers['cache-control'] = 'public, max-age=31536000, immutable'
+    } else {
+      headers['cache-control'] = file.object.response.headers.get('cache-control') || 'no-cache'
+    }
+
+    return new Response(file.object.response.body, {headers, status: file.object.response.status})
+  }
 
   const blobInfo = await client.maybeOne(sql<queries.BlobInfo>`
     select
