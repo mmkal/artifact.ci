@@ -103,6 +103,7 @@ const tryGet = async (request: NextRequest) => {
       return NextResponse.redirect(
         `/artifact/upload?${new URLSearchParams({
           callbackUrl: request.nextUrl.toString().replace(request.nextUrl.origin, ''),
+          artifactId: artifactInfo.artifact_id,
         })}`,
       )
       return NextResponse.json(

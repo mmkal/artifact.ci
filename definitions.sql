@@ -150,7 +150,8 @@ create table artifacts (
 	download_url text not null,
 	installation_id prefixed_ksuid not null references github_installations(id),
 	created_at timestamp with time zone not null default current_timestamp,
-	updated_at timestamp with time zone not null default current_timestamp
+	updated_at timestamp with time zone not null default current_timestamp,
+	unique(repo_id, name, github_id)
 );
 
 create table artifact_identifiers (

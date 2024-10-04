@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         const artifacts = await Promise.all(
           dedupedArtifacts.map(async a => {
             return logger.run(`artifact=${a.name}`, async () => {
-              const dbArtifact = await client.one(sql<queries.Artifact>`
+              const dbArtifactIdentifiers = await client.many(sql<queries.DbArtifactIdentifier>`
                 with create_installation as (
                   insert into github_installations (github_id)
                   select ${event.installation.id}
@@ -94,85 +94,114 @@ export async function POST(request: NextRequest) {
                 ),
                 repo as (
                   select id as repo_id from repos where name = ${repo} and owner = ${owner}
+                ),
+                artifact_insert as (
+                  insert into artifacts (
+                    repo_id,
+                    name,
+                    github_id,
+                    download_url,
+                    installation_id
+                  )
+                  select
+                    repo.repo_id,
+                    ${a.name} as name,
+                    ${a.id} as github_id,
+                    ${a.archive_download_url} as download_url,
+                    get_installation.installation_id
+                  from repo
+                  join get_installation on true
+                  on conflict (repo_id, name, github_id) do update set updated_at = current_timestamp
+                  returning
+                    id,
+                    name,
+                    repo_id,
+                    installation_id,
+                    created_at,
+                    updated_at > created_at as updated
+                ),
+                identifiers as (
+                  select type, value from jsonb_populate_recordset(
+                    null::artifact_identifiers,
+                    ${JSON.stringify([
+                      {type: 'run', value: `${job.run_id}.${job.run_attempt}`},
+                      {type: 'sha', value: event.workflow_job.head_sha},
+                      {type: 'branch', value: event.workflow_job.head_branch},
+                    ])}
+                  )
+                ),
+                identifier_insert as (
+                  insert into artifact_identifiers (artifact_id, type, value)
+                  select
+                    artifact_insert.id as artifact_id,
+                    identifiers.type,
+                    identifiers.value
+                  from artifact_insert
+                  join identifiers on true
+                  returning *
                 )
-                insert into artifacts (
-                  repo_id,
-                  installation_id,
-                  name,
-                  sha,
-                  workflow_run_id,
-                  workflow_run_attempt,
-                  github_id,
-                  download_url
-                )
-                select
-                  repo.repo_id,
-                  get_installation.installation_id,
-                  ${a.name} as name,
-                  ${event.workflow_job.head_sha} as sha,
-                  ${job.run_id} as workflow_run_id,
-                  ${job.run_attempt} as workflow_run_attempt,
-                  ${a.id} as github_id,
-                  ${a.archive_download_url} as download_url
-                from repo
-                join get_installation on true
-                on conflict (repo_id, name, workflow_run_id, workflow_run_attempt) do update set updated_at = current_timestamp
-                returning
-                  id,
-                  name,
-                  installation_id,
-                  created_at,
-                  updated_at > created_at as updated
+                select identifier_insert.*, artifact_insert.repo_id
+                from identifier_insert
+                join artifact_insert on true
               `)
 
-              const meta = {
+              return {
                 name: a.name,
-                archiveDownloadUrl: a.archive_download_url,
-                files: null,
-                inserts: null,
-                entries: null,
+                artifactId: dbArtifactIdentifiers[0].artifact_id,
+                identifiers: Object.fromEntries(dbArtifactIdentifiers.map(i => [i.type, i.value])),
               }
 
-              if (Math.random()) {
-                // we no longer want to extract and store the files here - many of them will probably never be looked at and it's too slow, esp for matrix jobs
-                return meta
-              }
+              // const meta = {
+              //   name: a.name,
+              //   archiveDownloadUrl: a.archive_download_url,
+              //   repoId: dbArtifact.repo_id,
+              //   artifactId: dbArtifact.artifact_id,
+              //   files: null,
+              //   inserts: null,
+              //   entries: null,
+              // }
 
-              if (dbArtifact.updated) {
-                const {entries} = await loadZip(octokit, a.archive_download_url)
-                const fileInfo = entries.map(entry => {
-                  const runPathname = `${owner}/${repo}/run/${job.run_id}.${job.run_attempt}/${a.name}/${entry.entryName}`
-                  const shaPathname = `${owner}/${repo}/sha/${event.workflow_job.head_sha}/${a.name}/${entry.entryName}`
-                  const branchPathname = `${owner}/${repo}/branch/${event.workflow_job.head_branch}/${a.name}/${entry.entryName}`
-                  // todo: tags?
-                  const {flatAliases: aliases} = getEntrypoints([runPathname, shaPathname, branchPathname])
-                  if (a.name === 'website' && runPathname.endsWith('.html')) {
-                    console.log(a.name, runPathname, {aliases})
-                  }
-                  const mimeType = mime.getType(entry.entryName) || 'text/plain'
+              // if (Math.random()) {
+              //   // we no longer want to extract and store the files here - many of them will probably never be looked at and it's too slow, esp for matrix jobs
+              //   return meta
+              // }
 
-                  return {mimeType, aliases, runPathname, entry}
-                })
-                const {inserts, files} = await insertFiles({...dbArtifact, repo: {owner, repo}}, fileInfo).catch(e => {
-                  logger.error(`error inserting files ${e} ${fileInfo[0].entry.entryName}`)
-                  return {files: undefined, inserts: undefined}
-                })
+              // if (dbArtifact.updated) {
+              //   const {entries} = await loadZip(octokit, a.archive_download_url)
+              //   const fileInfo = entries.map(entry => {
+              //     const runPathname = `${owner}/${repo}/run/${job.run_id}.${job.run_attempt}/${a.name}/${entry.entryName}`
+              //     const shaPathname = `${owner}/${repo}/sha/${event.workflow_job.head_sha}/${a.name}/${entry.entryName}`
+              //     const branchPathname = `${owner}/${repo}/branch/${event.workflow_job.head_branch}/${a.name}/${entry.entryName}`
+              //     // todo: tags?
+              //     const {flatAliases: aliases} = getEntrypoints([runPathname, shaPathname, branchPathname])
+              //     if (a.name === 'website' && runPathname.endsWith('.html')) {
+              //       console.log(a.name, runPathname, {aliases})
+              //     }
+              //     const mimeType = mime.getType(entry.entryName) || 'text/plain'
 
-                logger.info(`inserted ${inserts?.length} records for ${files?.length} files`)
+              //     return {mimeType, aliases, runPathname, entry}
+              //   })
+              //   const {inserts, files} = await insertFiles({...dbArtifact, repo: {owner, repo}}, fileInfo).catch(e => {
+              //     logger.error(`error inserting files ${e} ${fileInfo[0].entry.entryName}`)
+              //     return {files: undefined, inserts: undefined}
+              //   })
 
-                return {...meta, files, inserts, entries}
-              }
+              //   logger.info(`inserted ${inserts?.length} records for ${files?.length} files`)
 
-              return meta
+              //   return {...meta, files, inserts, entries}
+              // }
+
+              // return meta
             })
           }),
         )
 
         const entrypointSummaries = artifacts.map(arti => {
-          if (!arti.files) return []
-          const {entrypoints} = getEntrypoints(arti.files.flatMap(f => f.aliases[0]))
-          const url = new URL(request.url).origin + ARTIFACT_BLOB_PREFIX + entrypoints[0]
-          return `- **${arti.name}**: [${entrypoints[0]}](${url})`
+          const identifierLinks = Object.entries(arti.identifiers).map(([type, value]) => {
+            const url = new URL(request.url).origin + ARTIFACT_BLOB_PREFIX + `${type}/${value}`
+            return `[${type}](${url})`
+          })
+          return `- **${arti.name}**: ${identifierLinks.join(' / ')}`
         })
 
         if (entrypointSummaries.length > 0) {
@@ -225,18 +254,55 @@ const Env = z.object({
 export declare namespace queries {
   // Generated by @pgkit/typegen
 
-  /** - query: `with repo as ( select id as repo_id from... [truncated] ...d_at, updated_at > created_at as updated` */
-  export interface Artifact {
-    /** column: `public.artifacts.id`, not null: `true`, regtype: `prefixed_ksuid` */
-    id: import('~/db').Id<'artifacts'>
+  /** - query: `with create_installation as ( insert int... [truncated] ...fier_insert join artifact_insert on true` */
+  export interface DbArtifactIdentifier {
+    /**
+     * From CTE subquery "identifier_insert", column source: public.artifact_identifiers.id
+     *
+     * column: `✨.identifier_insert.id`, not null: `true`, regtype: `prefixed_ksuid`
+     */
+    id: import('~/db').Id<'identifier_insert'>
 
-    /** column: `public.artifacts.name`, not null: `true`, regtype: `text` */
-    name: string
+    /**
+     * From CTE subquery "identifier_insert", column source: public.artifact_identifiers.artifact_id
+     *
+     * column: `✨.identifier_insert.artifact_id`, not null: `true`, regtype: `prefixed_ksuid`
+     */
+    artifact_id: string
 
-    /** column: `public.artifacts.created_at`, not null: `true`, regtype: `timestamp with time zone` */
+    /**
+     * From CTE subquery "identifier_insert", column source: public.artifact_identifiers.type
+     *
+     * column: `✨.identifier_insert.type`, not null: `true`, regtype: `text`
+     */
+    type: string
+
+    /**
+     * From CTE subquery "identifier_insert", column source: public.artifact_identifiers.value
+     *
+     * column: `✨.identifier_insert.value`, not null: `true`, regtype: `text`
+     */
+    value: string
+
+    /**
+     * From CTE subquery "identifier_insert", column source: public.artifact_identifiers.created_at
+     *
+     * column: `✨.identifier_insert.created_at`, not null: `true`, regtype: `timestamp with time zone`
+     */
     created_at: Date
 
-    /** regtype: `boolean` */
-    updated: boolean | null
+    /**
+     * From CTE subquery "identifier_insert", column source: public.artifact_identifiers.updated_at
+     *
+     * column: `✨.identifier_insert.updated_at`, not null: `true`, regtype: `timestamp with time zone`
+     */
+    updated_at: Date
+
+    /**
+     * From CTE subquery "artifact_insert", column source: public.artifacts.repo_id
+     *
+     * column: `✨.artifact_insert.repo_id`, not null: `true`, regtype: `prefixed_ksuid`
+     */
+    repo_id: string
   }
 }
