@@ -84,7 +84,6 @@ export async function POST(request: NextRequest) {
           dedupedArtifacts.map(async a => {
             return logger.run(`artifact=${a.name}`, async () => {
               const {origin} = new URL(request.url)
-              const viewUrl = `${origin + ARTIFACT_BLOB_PREFIX}${owner}/${repo}/${job.run_id}/${job.run_attempt}/${a.name}`
               const {entries} = await loadZip(octokit, a.archive_download_url)
               const dbArtifact = await client.one(sql<queries.Artifact>`
                 with repo as (
@@ -103,7 +102,6 @@ export async function POST(request: NextRequest) {
 
               const meta = {
                 name: a.name,
-                viewUrl,
                 archiveDownloadUrl: a.archive_download_url,
                 entries: entries.map(e => e.entryName),
                 files: null,
@@ -112,7 +110,7 @@ export async function POST(request: NextRequest) {
 
               if (dbArtifact.updated) {
                 const fileInfo = entries.map(entry => {
-                  const runPathname = `${owner}/${repo}/run/${job.run_id}/${job.run_attempt}/${a.name}/${entry.entryName}`
+                  const runPathname = `${owner}/${repo}/run/${job.run_id}.${job.run_attempt}/${a.name}/${entry.entryName}`
                   const shaPathname = `${owner}/${repo}/sha/${event.workflow_job.head_sha}/${a.name}/${entry.entryName}`
                   const branchPathname = `${owner}/${repo}/branch/${event.workflow_job.head_branch}/${a.name}/${entry.entryName}`
                   // todo: tags?

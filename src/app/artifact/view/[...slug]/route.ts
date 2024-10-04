@@ -46,7 +46,7 @@ const tryGet = async (request: NextRequest) => {
   }
 
   const pathname = request.nextUrl.pathname.slice(ARTIFACT_BLOB_PREFIX.length)
-  const [owner, repo, aliasType, ..._rest] = pathname.split('/')
+  const [owner, repo, aliasType, identifier, artifactName, ...filepathParts] = pathname.split('/')
 
   if (pathname) {
     const file = await loadFile(pathname)
@@ -58,9 +58,13 @@ const tryGet = async (request: NextRequest) => {
     }
     const contentType = mimeTypeLookup(file.resolvedPathname) || 'text/plain'
 
-    const headers: Record<string, string> = {
-      'content-type': contentType,
-    }
+    const headers: Record<string, string> = {}
+
+    headers['content-type'] = contentType
+    headers['artifactci-path'] = filepathParts.join('/')
+    headers['artifactci-name'] = artifactName
+    headers['artifactci-identifier'] = identifier
+    headers['artifactci-alias-type'] = aliasType
 
     // Add relevant headers from the object response
     const relevantHeaders = ['content-length', 'etag', 'last-modified']
