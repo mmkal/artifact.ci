@@ -1,9 +1,8 @@
 'use client'
 
 import {motion, AnimatePresence} from 'framer-motion'
-import React from 'react'
-import {useState, useEffect, useTransition} from 'react'
-import {startArtifactProcessing} from './actions'
+import {useState} from 'react'
+import {trpc} from '~/client/trpc'
 
 const stages = [
   {id: 'idle', text: 'Awaiting sacred ritual'},
@@ -40,53 +39,32 @@ const BrickProgressBar = ({progress}: {progress: number}) => {
 export default function ArtifactLoader() {
   const [currentStage, setCurrentStage] = useState(0)
   const [progress, setProgress] = useState(0)
-  const [isPending, startTransition] = useTransition()
+  const [isProcessing, setIsProcessing] = useState(false)
 
-  useEffect(() => {
-    const eventSource: EventSource | null = null
-
-    const startProcessing = async () => {
-      const response = await startArtifactProcessing({}, new FormData())
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-
-      while (true) {
-        const {done, value} = await reader!.read()
-        if (done) break
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n\n')
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = JSON.parse(line.slice(6))
-            const stageIndex = stages.findIndex(stage => stage.id === data.stage)
-            setCurrentStage(stageIndex)
-            setProgress(data.progress)
-          }
+  trpc.startArtifactProcessing.useSubscription(
+    {artifactId: undefined}, // todo
+    {
+      enabled: isProcessing,
+      onData: data => {
+        const stageIndex = stages.findIndex(stage => stage.id === data.stage)
+        setCurrentStage(stageIndex)
+        setProgress(data.progress)
+        if (data.stage === 'upload' && data.progress === 100) {
+          setIsProcessing(false)
+          setCurrentStage(stages.length - 1)
         }
-      }
-
-      setCurrentStage(stages.length - 1)
-      setProgress(100)
-    }
-
-    const handleStart = () => {
-      startTransition(() => {
-        startProcessing()
-      })
-    }
-
-    return () => {
-      if (eventSource) {
-        eventSource.close()
-      }
-    }
-  }, [])
+      },
+      onError: err => {
+        console.error('Subscription error:', err)
+        setIsProcessing(false)
+      },
+    },
+  )
 
   const handleStart = () => {
-    startTransition(() => {
-      setCurrentStage(1)
-      setProgress(0)
-    })
+    setIsProcessing(true)
+    setCurrentStage(1)
+    setProgress(0)
   }
 
   return (
@@ -120,10 +98,10 @@ export default function ArtifactLoader() {
         <div className="flex justify-center">
           <button
             onClick={handleStart}
-            disabled={isPending || currentStage !== 0}
+            disabled={isProcessing}
             className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isPending ? 'Processing...' : 'Start Ritual'}
+            {isProcessing ? 'Processing...' : 'Start Ritual'}
           </button>
         </div>
       </div>
