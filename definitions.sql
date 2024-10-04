@@ -134,16 +134,44 @@ create table repo_access_permissions (
 	unique(repo_id, github_login)
 );
 
+create table github_installations (
+	id prefixed_ksuid primary key default generate_prefixed_ksuid('github_installation'),
+	github_id int8 not null,
+	created_at timestamp with time zone not null default current_timestamp,
+	updated_at timestamp with time zone not null default current_timestamp,
+	unique(github_id)
+);
+
 create table artifacts (
 	id prefixed_ksuid primary key default generate_prefixed_ksuid('artifact'),
 	repo_id prefixed_ksuid not null references repos(id),
 	name text not null,
-	sha text not null,
-	workflow_run_id int8 not null,
-	workflow_run_attempt int not null,
+	github_id int8 not null,
+	download_url text not null,
+	installation_id prefixed_ksuid not null references github_installations(id),
+	created_at timestamp with time zone not null default current_timestamp,
+	updated_at timestamp with time zone not null default current_timestamp
+);
+
+create table artifact_identifiers (
+	id prefixed_ksuid primary key default generate_prefixed_ksuid('artifact_identifier'),
+	artifact_id prefixed_ksuid not null references artifacts(id),
+	type text not null,
+	value text not null,
 	created_at timestamp with time zone not null default current_timestamp,
 	updated_at timestamp with time zone not null default current_timestamp,
-	unique(repo_id, name, workflow_run_id, workflow_run_attempt)
+	unique(artifact_id, type, value)
+);
+
+create table artifact_entries (
+	id prefixed_ksuid primary key default generate_prefixed_ksuid('artifact_entry'),
+	artifact_id prefixed_ksuid not null references artifacts(id),
+	entry_name text not null, -- the path to the file within the artifact
+	aliases text[] not null, -- aliases for the entry, e.g. ["path/to/file.html", "path/to/file"]
+	storage_object_id uuid not null, -- references storage.objects(id) but pgkit doesn't know about the storage schema
+	created_at timestamp with time zone not null default current_timestamp,
+	updated_at timestamp with time zone not null default current_timestamp,
+	unique(artifact_id, entry_name)
 );
 
 create table file_aliases (

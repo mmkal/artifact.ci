@@ -1,7 +1,7 @@
 import {z} from 'zod'
 
 export const WorkflowJobCompleted = z.object({
-  action: z.enum(['completed', 'in_progress', 'queued', 'waiting']),
+  action: z.enum(['queued', 'waiting', 'in_progress', 'completed']),
   installation: z.object({
     id: z.number(),
   }),
@@ -23,11 +23,15 @@ export const WorkflowJobCompleted = z.object({
 export type WorkflowJobCompleted = z.infer<typeof WorkflowJobCompleted>
 
 export const AppWebhookEvent = z.union([
-  WorkflowJobCompleted.transform(data => ({...data, eventType: 'workflow_job_completed' as const})), //
-  // WorkflowJobOther.transform(data => ({...data, eventType: 'workflow_job_other' as const})),
-  z
-    .object({action: z.string(), worfklow_job: z.undefined().optional()})
-    .transform(data => ({...data, eventType: 'ignored_action' as const})),
+  WorkflowJobCompleted.transform(data => ({
+    ...data,
+    // manually add an `eventType` because `action` is on all payloads, but we want a simple discrimator so we know this action is related to a workflow job
+    eventType: 'workflow_job_update' as const,
+  })),
+  z.object({action: z.string(), worfklow_job: z.undefined().optional()}).transform(data => ({
+    ...data,
+    eventType: 'ignored_action' as const,
+  })),
 ])
 export type AppWebhookEvent = z.infer<typeof AppWebhookEvent>
 

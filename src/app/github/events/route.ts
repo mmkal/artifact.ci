@@ -44,12 +44,12 @@ export async function POST(request: NextRequest) {
     if (event.eventType === 'ignored_action') {
       return NextResponse.json({
         ok: true,
-        eventType: event.eventType,
         action: event.action,
+        eventType: event.eventType,
       })
     }
 
-    if (event.eventType === 'workflow_job_completed') {
+    if (event.eventType === 'workflow_job_update') {
       const doit = async () => {
         const previewOrigin = getPreviewOrigin(request, event)
         if (previewOrigin) {
@@ -83,19 +83,44 @@ export async function POST(request: NextRequest) {
         const artifacts = await Promise.all(
           dedupedArtifacts.map(async a => {
             return logger.run(`artifact=${a.name}`, async () => {
-              const {origin} = new URL(request.url)
-              const {entries} = await loadZip(octokit, a.archive_download_url)
               const dbArtifact = await client.one(sql<queries.Artifact>`
-                with repo as (
+                with create_installation as (
+                  insert into github_installations (github_id)
+                  select ${event.installation.id}
+                  on conflict (github_id) do nothing
+                ),
+                get_installation as (
+                  select id as installation_id from github_installations where github_id = ${a.id}
+                ),
+                repo as (
                   select id as repo_id from repos where name = ${repo} and owner = ${owner}
                 )
-                insert into artifacts (repo_id, name, sha, workflow_run_id, workflow_run_attempt)
-                select repo.repo_id, ${a.name} as name, ${event.workflow_job.head_sha} as sha, ${job.run_id} as workflow_run_id, ${job.run_attempt} as workflow_run_attempt
+                insert into artifacts (
+                  repo_id,
+                  installation_id,
+                  name,
+                  sha,
+                  workflow_run_id,
+                  workflow_run_attempt,
+                  github_id,
+                  download_url
+                )
+                select
+                  repo.repo_id,
+                  get_installation.installation_id,
+                  ${a.name} as name,
+                  ${event.workflow_job.head_sha} as sha,
+                  ${job.run_id} as workflow_run_id,
+                  ${job.run_attempt} as workflow_run_attempt,
+                  ${a.id} as github_id,
+                  ${a.archive_download_url} as download_url
                 from repo
+                join get_installation on true
                 on conflict (repo_id, name, workflow_run_id, workflow_run_attempt) do update set updated_at = current_timestamp
                 returning
                   id,
                   name,
+                  installation_id,
                   created_at,
                   updated_at > created_at as updated
               `)
@@ -103,12 +128,18 @@ export async function POST(request: NextRequest) {
               const meta = {
                 name: a.name,
                 archiveDownloadUrl: a.archive_download_url,
-                entries: entries.map(e => e.entryName),
                 files: null,
                 inserts: null,
+                entries: null,
+              }
+
+              if (Math.random()) {
+                // we no longer want to extract and store the files here - many of them will probably never be looked at and it's too slow, esp for matrix jobs
+                return meta
               }
 
               if (dbArtifact.updated) {
+                const {entries} = await loadZip(octokit, a.archive_download_url)
                 const fileInfo = entries.map(entry => {
                   const runPathname = `${owner}/${repo}/run/${job.run_id}.${job.run_attempt}/${a.name}/${entry.entryName}`
                   const shaPathname = `${owner}/${repo}/sha/${event.workflow_job.head_sha}/${a.name}/${entry.entryName}`
@@ -129,7 +160,7 @@ export async function POST(request: NextRequest) {
 
                 logger.info(`inserted ${inserts?.length} records for ${files?.length} files`)
 
-                return {...meta, files, inserts}
+                return {...meta, files, inserts, entries}
               }
 
               return meta
