@@ -101,7 +101,9 @@ const tryGet = async (request: NextRequest) => {
 
     if (artifactInfo.entries_count === 0) {
       return NextResponse.redirect(
-        `/artifact/upload?${new URLSearchParams({callbackUrl: request.nextUrl.toString().replace(request.nextUrl.origin, '')})}`,
+        `/artifact/upload?${new URLSearchParams({
+          callbackUrl: request.nextUrl.toString().replace(request.nextUrl.origin, ''),
+        })}`,
       )
       return NextResponse.json(
         {
