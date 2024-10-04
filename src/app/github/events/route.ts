@@ -83,72 +83,121 @@ export async function POST(request: NextRequest) {
         const artifacts = await Promise.all(
           dedupedArtifacts.map(async a => {
             return logger.run(`artifact=${a.name}`, async () => {
-              const dbArtifactIdentifiers = await client.many(sql<queries.DbArtifactIdentifier>`
-                with create_installation as (
-                  insert into github_installations (github_id)
-                  select ${event.installation.id}
-                  on conflict (github_id) do nothing
-                ),
-                get_installation as (
-                  select id as installation_id from github_installations where github_id = ${a.id}
-                ),
-                repo as (
-                  select id as repo_id from repos where name = ${repo} and owner = ${owner}
-                ),
-                artifact_insert as (
-                  insert into artifacts (
-                    repo_id,
-                    name,
-                    github_id,
-                    download_url,
-                    installation_id
+              const txResult = await client.transaction(async tx => {
+                const installation = await tx.one(sql<queries.GithubInstallation>`
+                  with insertion as (
+                    insert into github_installations (github_id)
+                    select ${event.installation.id}
+                    on conflict (github_id) do nothing
                   )
+                  select * from github_installations where github_id = ${event.installation.id}
+                `)
+                const dbRepo = await tx.one(
+                  sql<queries.Repo>`select id from repos where name = ${repo} and owner = ${owner}`,
+                )
+                const dbArtifact = await tx.one(sql<queries.Artifact>`
+                  insert into artifacts (repo_id, name, github_id, download_url, installation_id)
                   select
-                    repo.repo_id,
+                    ${dbRepo.id} as repo_id,
                     ${a.name} as name,
                     ${a.id} as github_id,
                     ${a.archive_download_url} as download_url,
-                    get_installation.installation_id
-                  from repo
-                  join get_installation on true
-                  on conflict (repo_id, name, github_id) do update set updated_at = current_timestamp
-                  returning
-                    id,
-                    name,
-                    repo_id,
-                    installation_id,
-                    created_at,
-                    updated_at > created_at as updated
-                ),
-                identifiers as (
-                  select type, value from jsonb_populate_recordset(
-                    null::artifact_identifiers,
-                    ${JSON.stringify([
-                      {type: 'run', value: `${job.run_id}.${job.run_attempt}`},
-                      {type: 'sha', value: event.workflow_job.head_sha},
-                      {type: 'branch', value: event.workflow_job.head_branch},
-                    ])}
-                  )
-                ),
-                identifier_insert as (
-                  insert into artifact_identifiers (artifact_id, type, value)
-                  select
-                    artifact_insert.id as artifact_id,
-                    identifiers.type,
-                    identifiers.value
-                  from artifact_insert
-                  join identifiers on true
+                    ${installation.id} as installation_id
+                  on conflict (repo_id, name, github_id)
+                    do update set
+                      updated_at = current_timestamp
                   returning *
-                )
-                select identifier_insert.*, artifact_insert.repo_id
-                from identifier_insert
-                join artifact_insert on true
-              `)
+                `)
+
+                const dbIdentifiers = await tx.many(sql<queries.ArtifactIdentifier>`
+                  insert into artifact_identifiers (artifact_id, type, value)
+                  select artifact_id, type, value
+                  from jsonb_populate_recordset(
+                    null::artifact_identifiers,
+                    ${JSON.stringify(
+                      [
+                        {type: 'run', value: `${job.run_id}.${job.run_attempt}`},
+                        {type: 'sha', value: event.workflow_job.head_sha},
+                        {type: 'branch', value: event.workflow_job.head_branch},
+                      ].map(i => {
+                        return {artifact_id: dbArtifact.id, ...i}
+                      }),
+                    )}
+                  )
+                  on conflict (artifact_id, type, value)
+                  do update set updated_at = current_timestamp
+                  returning *
+                `)
+                return {dbArtifact, dbIdentifiers}
+              })
+              // const dbArtifactIdentifiers = await client.many(sql<queries.DbArtifactIdentifier>`
+              //   with create_installation as (
+              //     insert into github_installations (github_id)
+              //     select ${event.installation.id}
+              //     on conflict (github_id) do nothing
+              //   ),
+              //   get_installation as (
+              //     select id as installation_id from github_installations where github_id = ${a.id}
+              //   ),
+              //   repo as (
+              //     select id as repo_id from repos where name = ${repo} and owner = ${owner}
+              //   ),
+              //   artifact_insert as (
+              //     insert into artifacts (
+              //       repo_id,
+              //       name,
+              //       github_id,
+              //       download_url,
+              //       installation_id
+              //     )
+              //     select
+              //       repo.repo_id,
+              //       ${a.name} as name,
+              //       ${a.id} as github_id,
+              //       ${a.archive_download_url} as download_url,
+              //       get_installation.installation_id
+              //     from repo
+              //     join get_installation on true
+              //     on conflict (repo_id, name, github_id)
+              //       do update set
+              //         updated_at = current_timestamp
+              //     returning
+              //       id,
+              //       name,
+              //       repo_id,
+              //       installation_id,
+              //       created_at,
+              //       updated_at > created_at as updated
+              //   ),
+              //   identifiers as (
+              //     select type, value from jsonb_populate_recordset(
+              //       null::artifact_identifiers,
+              //       ${JSON.stringify([
+              //         {type: 'run', value: `${job.run_id}.${job.run_attempt}`},
+              //         {type: 'sha', value: event.workflow_job.head_sha},
+              //         {type: 'branch', value: event.workflow_job.head_branch},
+              //       ])}
+              //     )
+              //   ),
+              //   identifier_insert as (
+              //     insert into artifact_identifiers (artifact_id, type, value)
+              //     select
+              //       artifact_insert.id as artifact_id,
+              //       identifiers.type,
+              //       identifiers.value
+              //     from artifact_insert
+              //     join identifiers on true
+              //     returning *
+              //   )
+              //   select identifier_insert.*, artifact_insert.repo_id
+              //   from identifier_insert
+              //   join artifact_insert on true
+              // `)
 
               return {
                 name: a.name,
-                artifactId: dbArtifactIdentifiers[0].artifact_id,
-                identifiers: Object.fromEntries(dbArtifactIdentifiers.map(i => [i.type, i.value])),
+                artifactId: txResult.dbArtifact.id,
+                identifiers: txResult.dbIdentifiers,
               }
 
               // const meta = {
@@ -197,8 +246,9 @@ export async function POST(request: NextRequest) {
         )
 
         const entrypointSummaries = artifacts.map(arti => {
-          const identifierLinks = Object.entries(arti.identifiers).map(([type, value]) => {
-            const url = new URL(request.url).origin + ARTIFACT_BLOB_PREFIX + `${type}/${value}`
+          const identifierLinks = arti.identifiers.map(({type, value}) => {
+            const url =
+              new URL(request.url).origin + ARTIFACT_BLOB_PREFIX + `${owner}/${repo}/${type}/${value}/${arti.name}`
             return `[${type}](${url})`
           })
           return `- **${arti.name}**: ${identifierLinks.join(' / ')}`
@@ -237,72 +287,93 @@ export async function POST(request: NextRequest) {
   })
 }
 
-const loadZip = async (octokit: Octokit, url: string) => {
-  const zipRes = await octokit.request(`GET ${url}`, {
-    mediaType: {format: 'zip'},
-  })
-  const arrayBuffer = z.instanceof(ArrayBuffer).parse(zipRes.data)
-  const zip = new AdmZip(Buffer.from(arrayBuffer))
-  return {zip, entries: zip.getEntries()}
-}
-
-const Env = z.object({
+export const Env = z.object({
   GITHUB_APP_ID: z.string(),
   GITHUB_APP_PRIVATE_KEY: z.string(),
 })
 
+export const getOctokitApp = () => {
+  const env = Env.parse(process.env)
+  return new App({
+    appId: env.GITHUB_APP_ID,
+    privateKey: env.GITHUB_APP_PRIVATE_KEY,
+  })
+}
+
+export const getInstallationOctokit = async (installationId: number) => {
+  const app = getOctokitApp()
+  return app.getInstallationOctokit(installationId)
+}
+
 export declare namespace queries {
   // Generated by @pgkit/typegen
 
-  /** - query: `with create_installation as ( insert int... [truncated] ...fier_insert join artifact_insert on true` */
-  export interface DbArtifactIdentifier {
-    /**
-     * From CTE subquery "identifier_insert", column source: public.artifact_identifiers.id
-     *
-     * column: `✨.identifier_insert.id`, not null: `true`, regtype: `prefixed_ksuid`
-     */
-    id: import('~/db').Id<'identifier_insert'>
+  /** - query: `with insertion as ( insert into github_i... [truncated] ...ithub_installations where github_id = $2` */
+  export interface GithubInstallation {
+    /** column: `public.github_installations.id`, not null: `true`, regtype: `prefixed_ksuid` */
+    id: import('~/db').Id<'github_installations'>
 
-    /**
-     * From CTE subquery "identifier_insert", column source: public.artifact_identifiers.artifact_id
-     *
-     * column: `✨.identifier_insert.artifact_id`, not null: `true`, regtype: `prefixed_ksuid`
-     */
-    artifact_id: string
+    /** column: `public.github_installations.github_id`, not null: `true`, regtype: `bigint` */
+    github_id: number
 
-    /**
-     * From CTE subquery "identifier_insert", column source: public.artifact_identifiers.type
-     *
-     * column: `✨.identifier_insert.type`, not null: `true`, regtype: `text`
-     */
-    type: string
-
-    /**
-     * From CTE subquery "identifier_insert", column source: public.artifact_identifiers.value
-     *
-     * column: `✨.identifier_insert.value`, not null: `true`, regtype: `text`
-     */
-    value: string
-
-    /**
-     * From CTE subquery "identifier_insert", column source: public.artifact_identifiers.created_at
-     *
-     * column: `✨.identifier_insert.created_at`, not null: `true`, regtype: `timestamp with time zone`
-     */
+    /** column: `public.github_installations.created_at`, not null: `true`, regtype: `timestamp with time zone` */
     created_at: Date
 
-    /**
-     * From CTE subquery "identifier_insert", column source: public.artifact_identifiers.updated_at
-     *
-     * column: `✨.identifier_insert.updated_at`, not null: `true`, regtype: `timestamp with time zone`
-     */
+    /** column: `public.github_installations.updated_at`, not null: `true`, regtype: `timestamp with time zone` */
+    updated_at: Date
+  }
+
+  /** - query: `select id from repos where name = $1 and owner = $2` */
+  export interface Repo {
+    /** column: `public.repos.id`, not null: `true`, regtype: `prefixed_ksuid` */
+    id: import('~/db').Id<'repos'>
+  }
+
+  /** - query: `insert into artifacts (repo_id, name, gi... [truncated] ...dated_at = current_timestamp returning *` */
+  export interface Artifact {
+    /** column: `public.artifacts.id`, not null: `true`, regtype: `prefixed_ksuid` */
+    id: import('~/db').Id<'artifacts'>
+
+    /** column: `public.artifacts.repo_id`, not null: `true`, regtype: `prefixed_ksuid` */
+    repo_id: string
+
+    /** column: `public.artifacts.name`, not null: `true`, regtype: `text` */
+    name: string
+
+    /** column: `public.artifacts.created_at`, not null: `true`, regtype: `timestamp with time zone` */
+    created_at: Date
+
+    /** column: `public.artifacts.updated_at`, not null: `true`, regtype: `timestamp with time zone` */
     updated_at: Date
 
-    /**
-     * From CTE subquery "artifact_insert", column source: public.artifacts.repo_id
-     *
-     * column: `✨.artifact_insert.repo_id`, not null: `true`, regtype: `prefixed_ksuid`
-     */
-    repo_id: string
+    /** column: `public.artifacts.download_url`, not null: `true`, regtype: `text` */
+    download_url: string
+
+    /** column: `public.artifacts.github_id`, not null: `true`, regtype: `bigint` */
+    github_id: number
+
+    /** column: `public.artifacts.installation_id`, not null: `true`, regtype: `prefixed_ksuid` */
+    installation_id: string
+  }
+
+  /** - query: `insert into artifact_identifiers (artifa... [truncated] ...dated_at = current_timestamp returning *` */
+  export interface ArtifactIdentifier {
+    /** column: `public.artifact_identifiers.id`, not null: `true`, regtype: `prefixed_ksuid` */
+    id: import('~/db').Id<'artifact_identifiers'>
+
+    /** column: `public.artifact_identifiers.artifact_id`, not null: `true`, regtype: `prefixed_ksuid` */
+    artifact_id: string
+
+    /** column: `public.artifact_identifiers.type`, not null: `true`, regtype: `text` */
+    type: string
+
+    /** column: `public.artifact_identifiers.value`, not null: `true`, regtype: `text` */
+    value: string
+
+    /** column: `public.artifact_identifiers.created_at`, not null: `true`, regtype: `timestamp with time zone` */
+    created_at: Date
+
+    /** column: `public.artifact_identifiers.updated_at`, not null: `true`, regtype: `timestamp with time zone` */
+    updated_at: Date
   }
 }

@@ -2,16 +2,8 @@
 
 import {motion, AnimatePresence} from 'framer-motion'
 import {useSearchParams} from 'next/navigation'
-import {useState, useMemo} from 'react'
+import {useState} from 'react'
 import {trpc} from '~/client/trpc'
-
-const stages = [
-  {id: 'idle', text: 'Awaiting sacred ritual'},
-  {id: 'download', text: 'Downloading the sacred zip'},
-  {id: 'extract', text: 'Extracting ancient artifacts'},
-  {id: 'upload', text: 'Offering to the cloud gods'},
-  {id: 'ready', text: 'Ritual complete'},
-]
 
 const BrickProgressBar = ({progress}: {progress: {[key: string]: number}}) => {
   const totalProgress = Object.values(progress).reduce((sum, value) => sum + value, 0)
@@ -51,8 +43,11 @@ export default function ArtifactLoader() {
   trpc.startArtifactProcessing.useSubscription(
     {artifactId: artifactId as string},
     {
-      enabled: Boolean(artifactId && isReady),
+      enabled: Boolean(artifactId && isReady) && stage !== 'complete',
       onData: setSubscriptionData,
+      onError: error => {
+        console.error(error)
+      },
     },
   )
 

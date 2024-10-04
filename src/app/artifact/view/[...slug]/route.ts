@@ -94,17 +94,23 @@ const tryGet = async (request: NextRequest) => {
 
     if (!artifactInfo) {
       return NextResponse.json(
-        {message: `Artifact ${artifactName} (from path ${pathname}) not found`, githubUser: githubUser.login},
+        {
+          message: `Artifact ${artifactName} (from path ${pathname}) not found`,
+          details: {artifactName, aliasType, identifier, owner, repo},
+          githubUser: githubUser.login,
+        },
+
         {status: 404},
       )
     }
 
     if (artifactInfo.entries_count === 0) {
       return NextResponse.redirect(
-        `/artifact/upload?${new URLSearchParams({
-          callbackUrl: request.nextUrl.toString().replace(request.nextUrl.origin, ''),
-          artifactId: artifactInfo.artifact_id,
-        })}`,
+        request.nextUrl.origin +
+          `/artifact/upload?${new URLSearchParams({
+            callbackUrl: request.nextUrl.toString().replace(request.nextUrl.origin, ''),
+            artifactId: artifactInfo.artifact_id,
+          })}`,
       )
       return NextResponse.json(
         {
