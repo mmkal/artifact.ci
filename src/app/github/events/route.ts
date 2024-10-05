@@ -131,6 +131,7 @@ export async function POST(request: NextRequest) {
         const entrypointSummaries = artifacts.map(arti => {
           const identifierLinks = arti.identifiers.map(({type, value}) => {
             const url =
+              // use request.url origin for preview branches etc.
               new URL(request.url).origin + ARTIFACT_BLOB_PREFIX + `${owner}/${repo}/${type}/${value}/${arti.name}`
             return `[${type}](${url})`
           })
