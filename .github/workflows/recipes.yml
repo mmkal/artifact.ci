@@ -24,6 +24,8 @@ jobs:
         working-directory: ./vitest
         run: |
           git ls-files | xargs rm && echo '*' >> .gitignore
+          rm -rf node_modules
+          npm init -y
           npm install vitest @vitest/ui @types/node@^20.0.0 --save-dev
           cat package.json
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
