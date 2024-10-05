@@ -34,16 +34,17 @@ export const getEntrypoints = (pathnames: string[], requestedEntrypoints: string
 
     paths.push(pathname)
 
-    if (pathname.endsWith('/index.html')) {
+    const parsedPath = path.parse(pathname)
+    if (parsedPath.base === 'index.html') {
       const score = 2
-      const shortened = path.dirname(pathname)
+      const shortened = parsedPath.dir
       bestEntrypoints.push({path: pathname, score, shortened})
       paths.push(shortened)
     }
 
-    if (pathname.endsWith('.html')) {
+    if (parsedPath.ext === '.html') {
       const score = 1
-      const shortened = pathname.slice(0, -5)
+      const shortened = path.join(parsedPath.dir, parsedPath.name)
       bestEntrypoints.push({path: pathname, score, shortened})
       paths.push(shortened)
     }
