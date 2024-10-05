@@ -6,7 +6,7 @@ import {NextResponse} from 'next/server'
 import * as path from 'path'
 import {getGithubAccessToken} from '~/auth'
 import {client, sql} from '~/db'
-import {loadFile} from '~/storage/supabase'
+import {createStorageClient, loadFile} from '~/storage/supabase'
 import {logger} from '~/tag-logger'
 
 export const ARTIFACT_BLOB_PREFIX = '/artifact/view/'
@@ -127,14 +127,40 @@ const tryGet = async (request: NextRequest) => {
       )
     }
 
-    const file = await loadFile(pathname)
+    const storage = createStorageClient()
+    const dbFile = await client.maybeOne(sql<queries.DbFile>`
+      select o.name as storage_pathname
+      from artifact_entries ae
+      join storage.objects o on ae.storage_object_id = o.id
+      where ${filepathParts.join('/')} = any(ae.aliases)
+      and o.name is not null
+      order by ae.created_at desc
+      limit 1
+    `)
+
+    if (!dbFile || !dbFile.storage_pathname) {
+      return NextResponse.json(
+        {
+          dbFile,
+          message: `Upload for ${pathname} not found`,
+          githubUser: githubUser.login,
+          filepathParts,
+          artifactInfo,
+        },
+        {status: 404},
+      )
+    }
+
+    const file = await storage.object.bucketName('artifact_files').wildcard(dbFile.storage_pathname).get()
+
+    // const file = await loadFile(pathname)
     if (!file) {
       return NextResponse.json(
         {message: `Upload for ${pathname} not found`, githubUser: githubUser.login},
         {status: 404},
       )
     }
-    const contentType = mimeTypeLookup(file.resolvedPathname) || 'text/plain'
+    const contentType = mimeTypeLookup(dbFile.storage_pathname) || 'text/plain'
 
     const headers: Record<string, string> = {}
 
@@ -147,11 +173,11 @@ const tryGet = async (request: NextRequest) => {
     // Add relevant headers from the object response
     const relevantHeaders = ['content-length', 'etag', 'last-modified']
     for (const header of relevantHeaders) {
-      const value = file.object.response.headers.get(header)
+      const value = file.response.headers.get(header)
       if (value) headers[header] = value
     }
 
-    const ext = path.extname(file.resolvedPathname)
+    const ext = path.extname(dbFile.storage_pathname)
     if (
       ext === '.html' ||
       ext === '.htm' ||
@@ -163,7 +189,8 @@ const tryGet = async (request: NextRequest) => {
       contentType.startsWith('video/') ||
       contentType.startsWith('audio/')
     ) {
-      headers['content-disposition'] = `inline; filename="${encodeURIComponent(path.basename(file.resolvedPathname))}"`
+      headers['content-disposition'] =
+        `inline; filename="${encodeURIComponent(path.basename(dbFile.storage_pathname))}"`
     }
 
     if (aliasType === 'branch') {
@@ -171,10 +198,10 @@ const tryGet = async (request: NextRequest) => {
     } else if (aliasType === 'run' || aliasType === 'sha') {
       headers['cache-control'] = 'public, max-age=31536000, immutable'
     } else {
-      headers['cache-control'] = file.object.response.headers.get('cache-control') || 'no-cache'
+      headers['cache-control'] = file.response.headers.get('cache-control') || 'no-cache'
     }
 
-    return new Response(file.object.response.body, {headers, status: file.object.response.status})
+    return new Response(file.response.body, {headers, status: file.response.status})
   }
 
   const blobInfo = await client.maybeOne(sql<queries.BlobInfo>`
@@ -345,6 +372,12 @@ export declare namespace queries {
      * column: `✨.subquery_3_for_column_entries_count.entries_count`, not null: `true`, regtype: `bigint`
      */
     entries_count: number
+  }
+
+  /** - query: `select o.name as storage_pathname from a... [truncated] ...null order by ae.created_at desc limit 1` */
+  export interface DbFile {
+    /** column: `storage.objects.name`, regtype: `text` */
+    storage_pathname: string | null
   }
 
   /** - query: `insert into repo_access_permissions (rep... [truncated] ... expiry = excluded.expiry returning true` */
