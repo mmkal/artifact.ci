@@ -104,7 +104,7 @@ const tryGet = async (request: NextRequest) => {
       )
     }
 
-    if (artifactInfo.entries?.length === 0) {
+    if (!artifactInfo.entries?.length) {
       const requestUrl = request.nextUrl
       if (requestUrl.searchParams.get('redirected') === 'true') {
         return NextResponse.json(

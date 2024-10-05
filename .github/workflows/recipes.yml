@@ -74,6 +74,7 @@ jobs:
       - run: mkdir -p website
       - name: setup
         run: |
+          rm *.config.*
           npm create astro@latest -- demosite --template starlight --yes
           export BASE_PATH="/artifact/view/$GITHUB_REPOSITORY/run/$GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT/website"
           echo "BASE_PATH=$BASE_PATH"
