@@ -60,10 +60,13 @@ export const appRouter = router({
           const res = await storage.object.upload.sign
             .bucketName('artifact_files')
             .wildcard(artifactFullPath)
-            .post({
-              acceptStatus: ['200', '4XX'],
-            })
-          const token = res.statusMatch === '200' ? res.json.token : null
+            .post({acceptStatus: ['200', '4XX']})
+
+          let token: string | undefined
+          if (res.statusMatch === '200') token = res.json.token
+          else if (res.json.statusCode === '409') token = undefined
+          else throw new Error(`upload failed: ${JSON.stringify(res.json)}`)
+
           return {entry, artifactFullPath, token, contentType}
         },
         {concurrency: 10},
