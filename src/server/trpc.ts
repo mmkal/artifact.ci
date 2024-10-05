@@ -12,32 +12,38 @@ const t = initTRPC.create()
 export const router = t.router
 export const publicProcedure = t.procedure
 
-export const appRouter = router({
-  getDownloadUrl: publicProcedure
-    .input(
-      z.object({
-        artifactId: Id('artifact'), //
-      }),
-    )
-    .query(async ({input}) => {
-      return client.oneFirst(sql<queries.Artifact>`select download_url from artifacts where id = ${input.artifactId}`)
+export const artifactAccessProcedure = t.procedure
+  .input(
+    z.object({
+      artifactId: Id('artifact'),
     }),
-  createUploadTokens: publicProcedure
+  )
+  .use(async ({input, ctx, next}) => {
+    // todo: auth
+    const artifact = await client.one(sql<queries.Artifact>`
+      select a.*, gi.github_id as installation_github_id, r.owner as repo_owner, r.name as repo_name
+      from artifacts a
+      join github_installations gi on gi.id = a.installation_id
+      join repos r on r.id = a.repo_id
+      where a.id = ${input.artifactId}
+    `)
+    return next({ctx: {...ctx, artifact}})
+  })
+
+export const appRouter = router({
+  getDownloadUrl: artifactAccessProcedure.query(async ({input}) => {
+    return client.oneFirst(
+      sql<queries.GetDownloadUrl>`select download_url from artifacts where id = ${input.artifactId}`,
+    )
+  }),
+  createUploadTokens: artifactAccessProcedure
     .input(
       z.object({
-        artifactId: Id('artifact'),
         entries: z.array(z.string()),
       }),
     )
-    .mutation(async ({input}) => {
+    .mutation(async ({input, ctx: {artifact}}) => {
       const storage = createStorageClient()
-      const artifact = await client.one(sql<queries.Artifact_CreateUploadToken>`
-        select a.*, gi.github_id as installation_github_id, r.owner as repo_owner, r.name as repo_name
-        from artifacts a
-        join github_installations gi on gi.id = a.installation_id
-        join repos r on r.id = a.repo_id
-        where a.id = ${input.artifactId}
-      `)
       const artifactPathPrefix = [
         'github/artifacts',
         `${artifact.repo_owner}/${artifact.repo_name}`,
@@ -51,97 +57,69 @@ export const appRouter = router({
         async entry => {
           const contentType = mime.getType(entry) || 'text/plain'
           const artifactFullPath = artifactPathPrefix + '/' + entry
-          const {json} = await storage.object.upload.sign
+          const res = await storage.object.upload.sign
             .bucketName('artifact_files')
             .wildcard(artifactFullPath)
-            .post({})
-          return {
-            entry,
-            url: json.url,
-            artifactFullPath,
-            token: json.token!.slice(),
-            contentType,
-          }
+            .post({
+              acceptStatus: ['200', '4XX'],
+            })
+          const token = res.statusMatch === '200' ? res.json.token : null
+          return {entry, artifactFullPath, token, contentType}
         },
         {concurrency: 10},
       )
 
       return {tokens, supabaseUrl: storage.$options.baseUrl}
     }),
-  recordUploads: publicProcedure
+  recordUploads: artifactAccessProcedure
     .input(
       z.object({
-        artifactId: Id('artifact'), //
         uploads: z.array(
-          z.object({
-            entry: z.string(),
-            uploadKey: z.string(),
-          }),
+          z.object({entry: z.string(), artifactFullPath: z.string()}), //
         ),
       }),
     )
     .mutation(async ({input}) => {
-      // with entries as (
-      //   select artifact_id, entry_name, aliases, storage_object_id
-      //   from jsonb_populate_recordset(
-      //     null::artifact_entries,
-      //     ${JSON.stringify(
-      //       input.uploads.map(u => ({
-      //         entry_name: u.entry,
-      //         aliases: getEntrypoints([u.entry]).flatAliases,
-      //         storage_object_id: u.key,
-      //       })),
-      //     )}
-      //   )
-      // ),
-      // ids as (
-      //   select
-      //     (select id from storage.objects where name = entries)
-      //   from entries
-      // )
-      return client
-        .any(
-          sql<{
-            entry_name: string
-            aliases: string[]
-            storage_object_id: string
-          }>`
-            --typegen-ignore
-            insert into artifact_entries (
-              artifact_id,
-              entry_name,
-              aliases,
-              storage_object_id
-            )
-            select
-              ${input.artifactId} as artifact_id,
-              entries.entry_name,
-              entries.aliases,
-              (
-                select id
-                from storage.objects
-                where name = entries.storage_key
-              ) as storage_object_id
-            from jsonb_to_recordset(
-              ${JSON.stringify(
-                input.uploads.map(u => ({
-                  entry_name: u.entry,
-                  aliases: getEntrypoints([u.entry]).flatAliases,
-                  storage_key: u.uploadKey,
-                })),
-              )}
-            ) as entries(
-              entry_name text,
-              aliases text[],
-              storage_key text
-            )
-            returning entry_name, aliases, storage_object_id
-          `,
-        )
-        .catch(e => {
-          console.error({e})
-          throw e
-        })
+      return client.any(
+        sql<{
+          entry_name: string
+          aliases: string[]
+          storage_object_id: string
+        }>`
+          --typegen-ignore
+          insert into artifact_entries (
+            artifact_id,
+            entry_name,
+            aliases,
+            storage_object_id
+          )
+          select
+            ${input.artifactId} as artifact_id,
+            entries.entry_name,
+            entries.aliases,
+            (
+              select id
+              from storage.objects
+              where name = entries.storage_key
+            ) as storage_object_id
+          from jsonb_to_recordset(
+            ${JSON.stringify(
+              input.uploads.map(u => ({
+                entry_name: u.entry,
+                aliases: getEntrypoints([u.entry]).flatAliases,
+                storage_key: u.artifactFullPath,
+              })),
+            )}
+          ) as entries(
+            entry_name text,
+            aliases text[],
+            storage_key text
+          )
+          on conflict (artifact_id, entry_name) do update set
+            entry_name = excluded.entry_name
+          returning entry_name, aliases, storage_object_id
+        `,
+      )
     }),
   startArtifactProcessing: publicProcedure
     .input(
@@ -163,14 +141,8 @@ export type AppRouter = typeof appRouter
 export declare namespace queries {
   // Generated by @pgkit/typegen
 
-  /** - query: `select download_url from artifacts where id = $1` */
-  export interface Artifact {
-    /** column: `public.artifacts.download_url`, not null: `true`, regtype: `text` */
-    download_url: string
-  }
-
   /** - query: `select a.*, gi.github_id as installation... [truncated] ...os r on r.id = a.repo_id where a.id = $1` */
-  export interface Artifact_CreateUploadToken {
+  export interface Artifact {
     /** column: `public.artifacts.id`, not null: `true`, regtype: `prefixed_ksuid` */
     id: import('~/db').Id<'artifacts'>
 
@@ -203,5 +175,11 @@ export declare namespace queries {
 
     /** column: `public.repos.name`, not null: `true`, regtype: `text` */
     repo_name: string
+  }
+
+  /** - query: `select download_url from artifacts where id = $1` */
+  export interface GetDownloadUrl {
+    /** column: `public.artifacts.download_url`, not null: `true`, regtype: `text` */
+    download_url: string
   }
 }

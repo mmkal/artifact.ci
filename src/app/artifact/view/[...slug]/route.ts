@@ -80,7 +80,7 @@ const tryGet = async (request: NextRequest) => {
       i.github_id as installation_github_id,
         a.id as artifact_id,
         a.download_url,
-        (select count(*) from artifact_entries ae where ae.artifact_id = a.id) entries_count
+        (select array_agg(entry_name) from artifact_entries ae where ae.artifact_id = a.id) entries
       from artifacts a
       join artifact_identifiers aid on aid.artifact_id = a.id
       join github_installations i on i.id = a.installation_id
@@ -104,7 +104,7 @@ const tryGet = async (request: NextRequest) => {
       )
     }
 
-    if (artifactInfo.entries_count === 0) {
+    if (artifactInfo.entries?.length === 0) {
       const requestUrl = request.nextUrl
       if (requestUrl.searchParams.get('redirected') === 'true') {
         return NextResponse.json(
@@ -132,7 +132,7 @@ const tryGet = async (request: NextRequest) => {
       select o.name as storage_pathname
       from artifact_entries ae
       join storage.objects o on ae.storage_object_id = o.id
-      where ${filepathParts.join('/')} = any(ae.aliases)
+      where ${filepathParts.join('/') || 'index'} = any(ae.aliases)
       and o.name is not null
       order by ae.created_at desc
       limit 1
@@ -156,7 +156,10 @@ const tryGet = async (request: NextRequest) => {
     // const file = await loadFile(pathname)
     if (!file) {
       return NextResponse.json(
-        {message: `Upload for ${pathname} not found`, githubUser: githubUser.login},
+        {
+          message: `Upload for ${pathname} not found`,
+          githubUser: githubUser.login,
+        },
         {status: 404},
       )
     }
@@ -367,11 +370,11 @@ export declare namespace queries {
     download_url: string
 
     /**
-     * From CTE subquery "subquery_3_for_column_entries_count"
+     * From CTE subquery "subquery_3_for_column_entries"
      *
-     * column: `✨.subquery_3_for_column_entries_count.entries_count`, not null: `true`, regtype: `bigint`
+     * column: `✨.subquery_3_for_column_entries.entries`, regtype: `text[]`
      */
-    entries_count: number
+    entries: string[] | null
   }
 
   /** - query: `select o.name as storage_pathname from a... [truncated] ...null order by ae.created_at desc limit 1` */

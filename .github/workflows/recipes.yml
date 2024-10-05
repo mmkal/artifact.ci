@@ -6,7 +6,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: echo "<marquee>Hello, cruel world</marquee>" > index.html
+      - name: create html
+        run: |
+          echo '<marquee style="width: 100vw; height: 100vh; background: black; color: white">Hello, cruel world</marquee>' > index.html
       - uses: actions/upload-artifact@v4
         with:
           name: html

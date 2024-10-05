@@ -8,7 +8,7 @@ import {clientUpload} from './client-upload'
 import {AugmentedSession} from '~/auth'
 import {trpc} from '~/client/trpc'
 
-type SubscriptionData = Parameters<Parameters<typeof trpc.startArtifactProcessing.useSubscription>[1]['onData']>[0]
+type SubscriptionData = {stage: string; message: string}
 
 function useSearchParams() {
   try {
@@ -103,18 +103,30 @@ export function ArtifactLoader2() {
   const searchParams = useSearchParams()
   const artifactId = searchParams?.get('artifactId') || undefined
   const session = useSession() as Omit<ReturnType<typeof useSession>, 'data'> & {data: AugmentedSession | null}
+  const [updates, setUpdates] = useState([] as SubscriptionData[])
+  const stage = updates.at(0)?.stage
   const mutation = useMutation({
     mutationFn: (x: {artifactId: string; githubToken: string}) => {
-      return clientUpload(x.artifactId, x.githubToken)
+      return clientUpload({
+        ...x,
+        onProgress: (newStage, message) =>
+          setUpdates(prev => {
+            if (newStage === prev.at(-1)?.stage) {
+              return [...prev.slice(0, -1), {stage: newStage, message}]
+            }
+            return [...prev, {stage: newStage, message}]
+          }),
+      })
+    },
+    onError: error => {
+      setUpdates(prev => [...prev, {stage: 'error', message: error.message}])
     },
   })
-  const [updates, setUpdates] = useState<SubscriptionData[]>([])
   const isProcessing = mutation.isPending
-  const stage = mutation.status === 'success' ? 'complete' : mutation.status
 
   const gogo = useCallback(() => {
     const callbackUrl = searchParams?.get('callbackUrl')
-    if (callbackUrl?.startsWith('/') && confirm('redirect?')) {
+    if (callbackUrl?.startsWith('/')) {
       const newUrl = new URL(callbackUrl, window.location.origin)
       newUrl.searchParams.set('redirected', 'true')
       window.location.href = newUrl.toString()
