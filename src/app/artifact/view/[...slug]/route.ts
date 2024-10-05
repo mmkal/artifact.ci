@@ -6,7 +6,7 @@ import {NextResponse} from 'next/server'
 import * as path from 'path'
 import {getGithubAccessToken} from '~/auth'
 import {client, sql} from '~/db'
-import {createStorageClient, loadFile} from '~/storage/supabase'
+import {createStorageClient} from '~/storage/supabase'
 import {logger} from '~/tag-logger'
 
 export const ARTIFACT_BLOB_PREFIX = '/artifact/view/'
@@ -49,7 +49,7 @@ const tryGet = async (request: NextRequest) => {
   const [owner, repo, aliasType, identifier, artifactName, ...filepathParts] = pathname.split('/')
 
   if (Math.random()) {
-    const blobInfo = await client.maybeOne(sql<queries.BlobInfo>`
+    const _blobInfo = await client.maybeOne(sql<queries.BlobInfo>`
       select
         blob_url,
         mime_type,

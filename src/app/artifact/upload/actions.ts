@@ -1,7 +1,5 @@
 import AdmZip from 'adm-zip'
 import mime from 'mime'
-import {Octokit} from 'octokit'
-import pMap, {pMapIterable} from 'p-suite/p-map'
 import * as path from 'path'
 import {z} from 'zod'
 import {getEntrypoints} from './signed-url/route'
