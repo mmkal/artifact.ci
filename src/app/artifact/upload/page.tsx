@@ -3,10 +3,9 @@
 import {useMutation} from '@tanstack/react-query'
 import {useSearchParams as useSearchParamsBase} from 'next/navigation'
 import {useSession} from 'next-auth/react'
-import {useCallback, useEffect, useState} from 'react'
+import {useCallback, useState} from 'react'
 import {clientUpload} from './client-upload'
 import {AugmentedSession} from '~/auth'
-import {trpc} from '~/client/trpc'
 
 type SubscriptionData = {stage: string; message: string}
 
@@ -111,10 +110,9 @@ export function ArtifactLoader2() {
         ...x,
         onProgress: (newStage, message) =>
           setUpdates(prev => {
-            if (newStage === prev.at(-1)?.stage) {
-              return [...prev.slice(0, -1), {stage: newStage, message}]
-            }
-            return [...prev, {stage: newStage, message}]
+            const next = [...prev]
+            if (newStage === next.at(-1)?.stage) next.pop()
+            return [...next, {stage: newStage, message}]
           }),
       })
     },
@@ -125,6 +123,9 @@ export function ArtifactLoader2() {
 
   const gogo = useCallback(() => {
     const callbackUrl = searchParams?.get('callbackUrl')
+    if (!callbackUrl?.startsWith('/')) {
+      return
+    }
     if (callbackUrl?.startsWith('/')) {
       const newUrl = new URL(callbackUrl, window.location.origin)
       newUrl.searchParams.set('redirected', 'true')
@@ -138,16 +139,16 @@ export function ArtifactLoader2() {
         <h1 className="text-4xl font-mono font-bold text-center mb-8 text-amber-900">🗿 artifact.ci</h1>
         <div className="bg-amber-200 rounded-lg border-2 border-amber-700 p-6 mb-8 font-mono text-amber-800 shadow-lg">
           <div className="mb-4">
-            <span className="text-amber-700">$</span> ./invoke_aztec_ritual.sh
+            <span className="text-amber-700">$</span> preparing artifact {searchParams?.get('artifactName') || ''}
           </div>
           <div className="h-64 overflow-y-auto bg-amber-100 p-2 rounded">
             <div className="font-mono text-amber-800 whitespace-pre-wrap">
               {updates.map((line, index) => (
-                <div key={index}>{`> ${line.message}`}</div>
+                <div className={line.stage === 'error' ? 'text-red-700' : ''} key={index}>{`> ${line.message}`}</div>
               ))}
             </div>
             {!isProcessing && stage !== 'complete' && updates.length === 0 && (
-              <div className="text-amber-700">Awaiting ritual initiation...</div>
+              <div className="text-amber-700">Waiting to prepare artifact...</div>
             )}
           </div>
         </div>
@@ -163,16 +164,8 @@ export function ArtifactLoader2() {
             disabled={isProcessing}
             className="bg-amber-500 hover:bg-amber-600 text-white font-mono font-bold py-2 px-4 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isProcessing ? 'RITUAL IN PROGRESS...' : 'INVOKE THE RITUAL'}
+            {isProcessing ? 'Preparing...' : 'Prepare'}
           </button>
-          {mutation.status === 'success' && (
-            <button
-              onClick={() => gogo()}
-              className="bg-amber-500 hover:bg-amber-600 text-white font-mono font-bold py-2 px-4 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Go there
-            </button>
-          )}
         </div>
       </div>
     </div>

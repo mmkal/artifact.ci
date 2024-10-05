@@ -116,13 +116,12 @@ const tryGet = async (request: NextRequest) => {
         )
       }
 
-      const callbackParams = new URLSearchParams(requestUrl.searchParams)
-      callbackParams.set('noRedirect', 'true')
       return NextResponse.redirect(
         requestUrl.origin +
           `/artifact/upload?${new URLSearchParams({
-            callbackUrl: requestUrl.toString().replace(requestUrl.origin, ''),
             artifactId: artifactInfo.artifact_id,
+            artifactName,
+            callbackUrl: requestUrl.toString().replace(requestUrl.origin, ''),
           })}`,
       )
     }
@@ -174,7 +173,7 @@ const tryGet = async (request: NextRequest) => {
     headers['artifactci-alias-type'] = aliasType
 
     // Add relevant headers from the object response
-    const relevantHeaders = ['content-length', 'etag', 'last-modified']
+    const relevantHeaders = ['content-length', 'last-modified']
     for (const header of relevantHeaders) {
       const value = file.response.headers.get(header)
       if (value) headers[header] = value
@@ -196,13 +195,13 @@ const tryGet = async (request: NextRequest) => {
         `inline; filename="${encodeURIComponent(path.basename(dbFile.storage_pathname))}"`
     }
 
-    if (aliasType === 'branch') {
-      headers['cache-control'] = 'public, max-age=300, must-revalidate'
-    } else if (aliasType === 'run' || aliasType === 'sha') {
-      headers['cache-control'] = 'public, max-age=31536000, immutable'
-    } else {
-      headers['cache-control'] = file.response.headers.get('cache-control') || 'no-cache'
-    }
+    // if (aliasType === 'branch') {
+    //   headers['cache-control'] = 'public, max-age=300, must-revalidate'
+    // } else if (aliasType === 'run' || aliasType === 'sha') {
+    //   headers['cache-control'] = 'public, max-age=31536000, immutable'
+    // } else {
+    //   headers['cache-control'] = file.response.headers.get('cache-control') || 'no-cache'
+    // }
 
     return new Response(file.response.body, {headers, status: file.response.status})
   }
