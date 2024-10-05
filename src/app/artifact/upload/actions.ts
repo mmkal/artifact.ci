@@ -1,7 +1,7 @@
 import AdmZip from 'adm-zip'
 import mime from 'mime'
 import {Octokit} from 'octokit'
-import pMap from 'p-suite/p-map'
+import pMap, {pMapIterable} from 'p-suite/p-map'
 import * as path from 'path'
 import {z} from 'zod'
 import {getEntrypoints} from './signed-url/route'
@@ -58,22 +58,31 @@ export async function* storeArtifact(input: {artifactId: string}) {
     artifact.id,
   ].join('/')
   const storage = createStorageClient()
-  const uploads = await pMap(
-    entries,
-    async entry => {
-      const mimeType = mime.getType(entry.name) || 'text/plain'
-      const objectPath = `${artifactPathPrefix}/${artifact.name}/${entry.name}`
-      const obj = await storage.object
-        .bucketName('github/artifacts')
-        .wildcard(objectPath)
-        .post({
-          content: {[mimeType]: entry.getData()},
-        })
+  const uploads = []
+  const uploadEntry = async (entry: AdmZip.IZipEntry) => {
+    console.log('uploadEntry')
+    const mimeType = mime.getType(entry.name) || 'text/plain'
+    const objectPath = `${artifactPathPrefix}/${artifact.name}/${entry.name}`
+    const obj = await storage.object
+      .bucketName('github/artifacts')
+      .wildcard(objectPath)
+      .post({
+        content: {[mimeType]: entry.getData()},
+      })
 
-      return {entry, obj, path: objectPath, mimeType}
-    },
-    {concurrency: 10},
-  )
+    return {entry, obj, path: objectPath, mimeType}
+  }
+
+  for await (const entry of entries) {
+    const upload = await uploadEntry(entry)
+    console.log('upload', upload)
+    uploads.push(upload)
+    yield {
+      stage: 'uploaded_file' as const,
+      message: `Uploaded ${upload.entry.entryName}`,
+      progress: 10 + 90 / (entries.length + 2),
+    }
+  }
 
   yield {
     stage: 'uploaded' as const,

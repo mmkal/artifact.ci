@@ -21,7 +21,7 @@ export class TagLogger {
     return [this.tags.map(c => `[${c}]`).join('')]
   }
 
-  async run<T>(tag: string, fn: () => Promise<T>) {
+  run<T>(tag: string, fn: () => T): T {
     return this._storage.run({...this.context, tags: this.context.tags.concat(tag)}, fn)
   }
 

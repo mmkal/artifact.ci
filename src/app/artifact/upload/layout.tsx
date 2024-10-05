@@ -1,6 +1,7 @@
 'use client'
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
 import {httpBatchLink, unstable_httpSubscriptionLink, loggerLink, splitLink} from '@trpc/client'
+import {SessionProvider} from 'next-auth/react'
 import React from 'react'
 import {ReactNode} from 'react'
 import {useState} from 'react'
@@ -26,8 +27,10 @@ export default function Layout({children}: {children: ReactNode}) {
   )
 
   return (
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </trpc.Provider>
+    <SessionProvider>
+      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      </trpc.Provider>
+    </SessionProvider>
   )
 }
