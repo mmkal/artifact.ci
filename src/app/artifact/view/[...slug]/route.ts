@@ -129,9 +129,11 @@ const tryGet = async (request: NextRequest) => {
     const storage = createStorageClient()
     const dbFile = await client.maybeOne(sql<queries.DbFile>`
       select o.name as storage_pathname
-      from artifact_entries ae
+      from artifacts a
+      join artifact_entries ae on ae.artifact_id = a.id
       join storage.objects o on ae.storage_object_id = o.id
-      where ${filepathParts.join('/') || 'index'} = any(ae.aliases)
+      where a.id = ${artifactInfo.artifact_id}
+      and ${filepathParts.join('/') || 'index'} = any(ae.aliases)
       and o.name is not null
       order by ae.created_at desc
       limit 1
