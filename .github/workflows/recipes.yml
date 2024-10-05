@@ -23,7 +23,7 @@ jobs:
       - name: setup
         working-directory: ./vitest
         run: |
-          rm ../package.json ../pnpm-lock.yaml
+          git ls-files | xargs rm && echo '*' >> .gitignore
           npm install vitest @vitest/ui @types/node --save-dev
           cat package.json
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
@@ -49,7 +49,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: setup
         run: |
-          rm -rf playwright.config.ts
+          git ls-files | xargs rm && echo '*' >> .gitignore
           npm install @playwright/test --save-dev
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + 1' >> calc.ts
@@ -74,7 +74,7 @@ jobs:
       - run: mkdir -p website
       - name: setup
         run: |
-          rm *.config.*
+          git ls-files | xargs rm && echo '*' >> .gitignore
           npm create astro@latest -- demosite --template starlight --yes
           export BASE_PATH="/artifact/view/$GITHUB_REPOSITORY/run/$GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT/website"
           echo "BASE_PATH=$BASE_PATH"
@@ -94,10 +94,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: setup
         run: |
+          git ls-files | xargs rm && echo '*' >> .gitignore
           npm install eslint eslint-plugin-mmkal @eslint/config-inspector --save-dev
           echo "module.exports = require('eslint-plugin-mmkal').recommendedFlatConfigs" >> eslint.config.js
-      - name: inspect eslint config
-        run: npx @eslint/config-inspector build --base /artifact/view/$GITHUB_REPOSITORY/run/$GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT/eslint
+      - name: build eslint inspection report
+        run: |
+          BASE_PATH="/artifact/view/$GITHUB_REPOSITORY/run/$GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT/eslint"
+          npx @eslint/config-inspector build --base $BASE_PATH
       - uses: actions/upload-artifact@v4
         with:
           name: eslint
@@ -113,9 +116,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: setup
         run: |
+          git ls-files | xargs rm && echo '*' >> .gitignore
           echo 'module.exports.add = (a, b) => a + b' >> calc.js
           echo 'module.exports.addBadly = (a, b) => a + b + 1' >> calc.js
-          rm -rf test && mkdir test
+          mkdir -p test
           echo 'const {add, addBadly} = require("../calc")' >> test/adding.test.js
           echo 'test("add well", () => expect(add(1, 1)).toEqual(2))' >> test/adding.test.js
           echo 'test("add badly", () => expect(addBaddly(1, 1)).toEqual(2))' >> test/adding.test.js
@@ -143,12 +147,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: setup
         run: |
-          rm package.json pnpm-lock.yaml
+          git ls-files | xargs rm && echo '*' >> .gitignore
           npm init -y
           npm install ava tap-html
           echo 'exports.add = (a, b) => a + b' > calc.js
           echo 'exports.addBad = (a, b) => a + b + 1' >> calc.js
-          rm -rf test && mkdir test
+          mkdir -p test
           echo 'const {add, addBad} = require("../calc")' >> test/adding.test.js
           echo 'const test = require("ava")' >> test/adding.test.js
           echo 'test("add well", t => t.is(add(1, 1), 2))' >> test/adding.test.js
@@ -167,6 +171,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: setup
         run: |
+          git ls-files | xargs rm && echo '*' >> .gitignore
           echo '
           def add(a, b):
             return a + b
@@ -194,11 +199,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: setup
         run: |
+          git ls-files | xargs rm && echo '*' >> .gitignore
           npm install mocha --save-dev
           echo 'exports.add = (a, b) => a + b' >> calc.js
           echo 'exports.addBad = (a, b) => a + b + 1' >> calc.js
           echo 'exports.sub = (a, b) => a - b' >> calc.js
-          rm -rf test && mkdir test
+          mkdir -p test
           echo 'const assert = require("assert")' >> test/adding.test.js
           echo 'const {add, addBad} = require("../calc")' >> test/adding.test.js
           echo 'it("adds well", () => assert.strictEqual(add(1, 1), 2))' >> test/adding.test.js
@@ -217,10 +223,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: setup
-        env:
-          json: '${{ toJson(github) }}'
         run: |
-          echo $json
+          git ls-files | xargs rm && echo '*' >> .gitignore
           npm install pdfkit
           echo '
             const fs = require("fs")
@@ -275,6 +279,7 @@ jobs:
       - name: setup
         # https://go.dev/doc/tutorial/add-a-test
         run: |
+          git ls-files | xargs rm && echo '*' >> .gitignore
           go mod init example.com/calc
           go get github.com/vakenbolt/go-test-report
           go install github.com/vakenbolt/go-test-report
