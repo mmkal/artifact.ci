@@ -25,11 +25,11 @@ export interface AugmentedSession {
   token_note: string | null
 }
 
-// todo: github app auth
 export const {handlers, signIn, signOut, auth} = NextAuth({
   providers: [Github],
   callbacks: {
     async jwt({token, account}) {
+      console.dir({msg: 'jwt callback', token, account}, {depth: null})
       if (token.account_access_token) {
         token.note = `jwt callback: account_access_token already set`
       } else if (account) {
@@ -41,6 +41,7 @@ export const {handlers, signIn, signOut, auth} = NextAuth({
       return token
     },
     async session({session, token}) {
+      console.dir({msg: 'session callback', session, token}, {depth: null})
       return Object.assign(session, {
         jwt_access_token: (token.account_access_token as string) || null,
         token_note: token.note as string | null,
