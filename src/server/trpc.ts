@@ -72,9 +72,14 @@ export const appRouter = router({
       artifact_id: ctx.artifact.github_id,
       archive_format: 'zip',
     })
+    const location = archiveResponse.headers.Location || archiveResponse.headers.location
     // https://docs.github.com/en/rest/actions/artifacts?apiVersion=2022-11-28#download-an-artifact - "Look for `Location:` in the response header to find the URL for the download. The URL expires after 1 minute."
-    if (!archiveResponse.headers.location) throw new Error('Failed to download artifact')
-    return archiveResponse.headers.location
+    if (!location) {
+      throw new Error('Failed to download artifact', {
+        cause: new Error(`no Location header in response: ${JSON.stringify(archiveResponse.headers)}`),
+      })
+    }
+    return location
   }),
   createUploadTokens: artifactAccessProcedure
     .input(
