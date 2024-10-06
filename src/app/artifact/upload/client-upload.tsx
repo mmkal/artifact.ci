@@ -6,11 +6,10 @@ import {paths} from '~/openapi/generated/supabase-storage'
 
 export async function clientUpload({
   artifactId,
-  githubToken,
   onProgress = () => {},
 }: {
   artifactId: string
-  githubToken: string
+  githubToken: string | null | undefined // todo: remove this
   onProgress?: (stage: string, message: string) => void
 }) {
   onProgress('start', 'Getting artifact information')
@@ -18,7 +17,8 @@ export async function clientUpload({
   onProgress('downloading', 'Downloading archive')
 
   const response = await fetch(downloadUrl, {
-    headers: {authorization: `Bearer ${githubToken}`},
+    // todo: remove this? hopefully the download url is a signed url? i don't think so though
+    // headers: {authorization: `Bearer ${githubToken}`},
   })
   onProgress('extracting', 'Extracting archive')
   const {entries} = await unzip(await response.arrayBuffer())

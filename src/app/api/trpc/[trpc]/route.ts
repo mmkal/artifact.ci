@@ -1,6 +1,6 @@
 import {fetchRequestHandler} from '@trpc/server/adapters/fetch'
 import {appRouter, TrpcContext} from '../../../../server/trpc'
-import {AugmentedSession, auth} from '~/auth'
+import {auth} from '~/auth'
 import {logger} from '~/tag-logger'
 
 const handler = auth(request => {
@@ -10,9 +10,7 @@ const handler = auth(request => {
       req: request,
       endpoint: '/api/trpc',
       createContext: async (): Promise<TrpcContext> => {
-        return {
-          auth: request.auth as AugmentedSession | null,
-        }
+        return {auth: request.auth}
       },
       onError({error, path}) {
         logger.tag(`path=${path}`).error(error)

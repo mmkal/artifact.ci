@@ -5,7 +5,6 @@ import {useSearchParams as useSearchParamsBase} from 'next/navigation'
 import {useSession} from 'next-auth/react'
 import {useCallback, useState} from 'react'
 import {clientUpload} from './client-upload'
-import {AugmentedSession} from '~/auth'
 
 type SubscriptionData = {stage: string; message: string}
 
@@ -101,13 +100,14 @@ function useSearchParams() {
 export function ArtifactLoader2() {
   const searchParams = useSearchParams()
   const artifactId = searchParams?.get('artifactId') || undefined
-  const session = useSession() as Omit<ReturnType<typeof useSession>, 'data'> & {data: AugmentedSession | null}
   const [updates, setUpdates] = useState([] as SubscriptionData[])
   const stage = updates.at(0)?.stage
+  const session = useSession()
   const mutation = useMutation({
-    mutationFn: (x: {artifactId: string; githubToken: string}) => {
+    mutationFn: (input: {artifactId: string}) => {
       return clientUpload({
-        ...x,
+        ...input,
+        githubToken: session.data?.user.access_token,
         onProgress: (newStage, message) =>
           setUpdates(prev => {
             const next = [...prev]
@@ -155,10 +155,8 @@ export function ArtifactLoader2() {
         <div className="flex justify-center">
           <button
             onClick={() => {
-              if (!session?.data?.jwt_access_token) throw new Error('no access token: ' + JSON.stringify([session]))
               mutation.mutate({
                 artifactId: artifactId!.slice(),
-                githubToken: session.data.jwt_access_token,
               })
             }}
             disabled={isProcessing}

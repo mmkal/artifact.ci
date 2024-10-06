@@ -1,10 +1,11 @@
 /* eslint-disable no-console -- let me do basic console logging */
-import {Octokit} from '@octokit/rest'
 import {lookup as mimeTypeLookup} from 'mime-types'
-import type {NextRequest} from 'next/server'
 import {NextResponse} from 'next/server'
+import {NextAuthRequest} from 'node_modules/next-auth/lib'
 import * as path from 'path'
-import {getGithubAccessToken} from '~/auth'
+import {z} from 'zod'
+import {getInstallationOctokit} from '~/app/github/events/route'
+import {auth} from '~/auth'
 import {client, sql} from '~/db'
 import {createStorageClient} from '~/storage/supabase'
 import {logger} from '~/tag-logger'
@@ -12,7 +13,7 @@ import {logger} from '~/tag-logger'
 export const ARTIFACT_BLOB_PREFIX = '/artifact/view/'
 
 // sample: http://localhost:3000/artifact/view/mmkal/artifact.ci/11020882214/mocha/output.html
-export const GET = async (request: NextRequest) => {
+export const GET = auth(async request => {
   try {
     const res = await tryGet(request)
     logger.debug('succeeding', res)
@@ -21,63 +22,54 @@ export const GET = async (request: NextRequest) => {
     logger.error('erroring', err)
     return NextResponse.json({message: 'Internal server error', stack: (err as Error).stack}, {status: 500})
   }
-}
+})
 
-const tryGet = async (request: NextRequest) => {
+const tryGet = async (request: NextAuthRequest) => {
   const callbackUrlPathname = request.nextUrl.toString().replace(request.nextUrl.origin, '')
-  const token = await getGithubAccessToken(request)
+  const githubLogin = request.auth?.user.github_login
 
-  if (!token && request.nextUrl.searchParams.get('disable_redirect') === 'true') {
-    return NextResponse.json({message: 'Unauthorized - no token'}, {status: 401})
+  if (!githubLogin && request.nextUrl.searchParams.get('disable_redirect') === 'true') {
+    return NextResponse.json({message: 'Unauthorized - no github login'}, {status: 401})
   }
 
-  if (!token) {
+  if (!githubLogin) {
     const searchParams = new URLSearchParams({callbackUrl: callbackUrlPathname})
     return NextResponse.redirect(`${request.nextUrl.origin}/api/auth/signin?${searchParams}`)
-  }
-
-  const octokit = new Octokit({auth: token})
-
-  const redactedToken = `${token.slice(0, 7)}...${token.slice(-5)}`
-  const {data: githubUser} = await octokit.rest.users.getAuthenticated().catch(nullify404)
-
-  if (!githubUser) {
-    return NextResponse.json({message: 'Not authenticated with GitHub', token: redactedToken}, {status: 401})
   }
 
   const pathname = request.nextUrl.pathname.slice(ARTIFACT_BLOB_PREFIX.length)
   const [owner, repo, aliasType, identifier, artifactName, ...filepathParts] = pathname.split('/')
 
   if (Math.random()) {
-    const _blobInfo = await client.maybeOne(sql<queries.BlobInfo>`
-      select
-        blob_url,
-        mime_type,
-        r.owner as repo_owner,
-        r.name as repo_name,
-        u.expires_at,
-        true in (
-          select true from usage_credits
-          where github_login = ${githubUser.login}
-          and expiry > current_timestamp
-        ) as has_credit,
-        r.owner = ${githubUser.login} or ${githubUser.login} in (
-          select rap.github_login
-          from repo_access_permissions rap
-          where rap.repo_id = ur.repo_id
-          and rap.expiry > current_timestamp
-        ) as already_has_access
-      from uploads u
-      join upload_requests ur on ur.id = u.upload_request_id
-      join repos r on r.id = ur.repo_id
-      where r.owner = ${owner}
-      and r.name = ${repo}
-      and u.pathname = ${pathname}
-    `)
+    // const _blobInfo = await client.maybeOne(sql<queries.BlobInfo>`
+    //   select
+    //     blob_url,
+    //     mime_type,
+    //     r.owner as repo_owner,
+    //     r.name as repo_name,
+    //     u.expires_at,
+    //     true in (
+    //       select true from usage_credits
+    //       where github_login = ${githubUser.login}
+    //       and expiry > current_timestamp
+    //     ) as has_credit,
+    //     r.owner = ${githubUser.login} or ${githubUser.login} in (
+    //       select rap.github_login
+    //       from repo_access_permissions rap
+    //       where rap.repo_id = ur.repo_id
+    //       and rap.expiry > current_timestamp
+    //     ) as already_has_access
+    //   from uploads u
+    //   join upload_requests ur on ur.id = u.upload_request_id
+    //   join repos r on r.id = ur.repo_id
+    //   where r.owner = ${owner}
+    //   and r.name = ${repo}
+    //   and u.pathname = ${pathname}
+    // `)
 
     const artifactInfo = await client.maybeOne(sql<queries.ArtifactInfo>`
       select
-      i.github_id as installation_github_id,
+        i.github_id as installation_github_id,
         a.id as artifact_id,
         a.download_url,
         (select array_agg(entry_name) from artifact_entries ae where ae.artifact_id = a.id) entries
@@ -97,10 +89,29 @@ const tryGet = async (request: NextRequest) => {
         {
           message: `Artifact ${artifactName} (from path ${pathname}) not found`,
           details: {artifactName, aliasType, identifier, owner, repo},
-          githubUser: githubUser.login,
+          githubUser: githubLogin,
         },
 
         {status: 404},
+      )
+    }
+
+    const octokit = await getInstallationOctokit(artifactInfo.installation_github_id)
+    const {data: collaboration} = await octokit.rest.repos.getCollaboratorPermissionLevel({
+      owner,
+      repo,
+      username: githubLogin,
+    })
+    const {permission} = z.object({permission: z.enum(['none', 'read', 'write', 'admin'])}).parse(collaboration)
+
+    if (permission === 'none') {
+      return NextResponse.json(
+        {
+          message: `Not authorized to access artifact ${artifactName} (from path ${pathname})`,
+          githubUser: githubLogin,
+          permission,
+        },
+        {status: 403},
       )
     }
 
@@ -110,7 +121,7 @@ const tryGet = async (request: NextRequest) => {
         return NextResponse.json(
           {
             message: `Artifact ${artifactName} (from path ${pathname}) has no entries, probably hasn't been extracted and stored yet`,
-            githubUser: githubUser.login,
+            githubUser: githubLogin,
           },
           {status: 404},
         )
@@ -144,7 +155,7 @@ const tryGet = async (request: NextRequest) => {
         {
           dbFile,
           message: `Upload for ${pathname} not found`,
-          githubUser: githubUser.login,
+          githubUser: githubLogin,
           filepathParts,
           artifactInfo,
         },
@@ -159,7 +170,7 @@ const tryGet = async (request: NextRequest) => {
       return NextResponse.json(
         {
           message: `Upload for ${pathname} not found`,
-          githubUser: githubUser.login,
+          githubUser: githubLogin,
         },
         {status: 404},
       )
@@ -207,119 +218,6 @@ const tryGet = async (request: NextRequest) => {
 
     return new Response(file.response.body, {headers, status: file.response.status})
   }
-
-  const blobInfo = await client.maybeOne(sql<queries.BlobInfo>`
-    select
-      blob_url,
-      mime_type,
-      r.owner as repo_owner,
-      r.name as repo_name,
-      u.expires_at,
-      true in (
-        select true from usage_credits
-        where github_login = ${githubUser.login}
-        and expiry > current_timestamp
-      ) as has_credit,
-      r.owner = ${githubUser.login} or ${githubUser.login} in (
-        select rap.github_login
-        from repo_access_permissions rap
-        where rap.repo_id = ur.repo_id
-        and rap.expiry > current_timestamp
-      ) as already_has_access
-    from uploads u
-    join upload_requests ur on ur.id = u.upload_request_id
-    join repos r on r.id = ur.repo_id
-    where r.owner = ${owner}
-    and r.name = ${repo}
-    and u.pathname = ${pathname}
-  `)
-
-  if (!blobInfo) {
-    return NextResponse.json(
-      {message: `Upload for ${pathname} not found`, githubUser: githubUser.login, owner, repo},
-      {status: 404},
-    )
-  }
-
-  if (!blobInfo.has_credit) {
-    return NextResponse.json(
-      {
-        message: `Unauthorized - username ${githubUser.login} has no credit`,
-        signoutUrl: `${request.nextUrl.origin}/api/auth/signout?${new URLSearchParams({
-          callbackUrl: callbackUrlPathname,
-        })}`,
-      },
-      {status: 401},
-    )
-  }
-
-  let hasAccess = blobInfo.already_has_access
-  if (!hasAccess) {
-    const {data: branches} = await octokit.rest.repos.listBranches({owner, repo, per_page: 1}).catch(nullify404)
-    console.log(`Should ${githubUser.login} get access to ${owner}/${repo}? Answer: ${!!branches}`)
-    if (branches) {
-      await client.query(sql<queries.RepoAccessPermission>`
-        insert into repo_access_permissions (repo_id, github_login, expiry)
-        select r.id, ${githubUser.login}, current_timestamp + interval '24 hours'
-        from repos r
-        where r.owner = ${owner}
-        and r.name = ${repo}
-        on conflict (repo_id, github_login)
-        do update set expiry = excluded.expiry
-        returning true
-      `)
-      hasAccess = true
-    }
-  }
-
-  if (!blobInfo.expires_at?.toISOString) {
-    console.warn(`expires_at is not a valid date?`, blobInfo)
-    blobInfo.expires_at = new Date(blobInfo.expires_at)
-  }
-  if (blobInfo.expires_at < new Date()) {
-    return NextResponse.json(
-      {message: `Artifact ${pathname} expired at ${blobInfo.expires_at.toISOString()}`},
-      {status: 410},
-    )
-  }
-
-  const storageOrigin = process.env.STORAGE_ORIGIN
-  if (!storageOrigin) {
-    throw new Error('STORAGE_ORIGIN environment variable is not set')
-  }
-
-  const targetUrl = blobInfo.blob_url
-  const storageResponse = await fetch(targetUrl)
-
-  if (storageResponse.headers.get('x-matched-path') === '/docs/storage/vercel-blob/blocked-store') {
-    const message = `Failed to fetch blob at ${targetUrl.toString()}.`
-    return NextResponse.json(
-      {message, reason: `The upstream storage service has reached its limit.`}, //
-      {status: 503},
-    )
-  }
-
-  if (!storageResponse.ok) {
-    return NextResponse.json(
-      {message: 'Failed to fetch blob at ' + targetUrl.toString()},
-      {status: storageResponse.status},
-    )
-  }
-
-  const mimeType = mimeTypeLookup(targetUrl) || 'text/plain'
-
-  const headers = new Headers({} || storageResponse.headers)
-  headers.set('Content-Type', mimeType)
-  headers.delete('Content-Disposition') // rely on default browser behavior
-  headers.delete('Content-Security-Policy') // be careful!
-  headers.set('Cache-Control', 'public, max-age=31536000, immutable')
-  headers.set('x-storage-location', targetUrl)
-
-  return new NextResponse(storageResponse.body, {
-    status: storageResponse.status,
-    statusText: storageResponse.statusText,
-    headers,
-  })
 }
 
 /** Takes an error and returns {data: null} if it's a 404 or rethrows otherwise. */
