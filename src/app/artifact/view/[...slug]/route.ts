@@ -3,6 +3,7 @@ import {lookup as mimeTypeLookup} from 'mime-types'
 import {NextResponse} from 'next/server'
 import {NextAuthRequest} from 'node_modules/next-auth/lib'
 import * as path from 'path'
+import {ArtifactUploadPageSearchParams} from '../../upload/page'
 import {auth, getCollaborationLevel, getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
 import {createStorageClient} from '~/storage/supabase'
@@ -110,23 +111,18 @@ const tryGet = async (request: NextAuthRequest) => {
   if (!artifactInfo.entries?.length) {
     const requestUrl = request.nextUrl
     if (requestUrl.searchParams.get('redirected') === 'true') {
-      return NextResponse.json(
-        {
-          message: `Artifact ${artifactName} (from path ${pathname}) has no entries, probably hasn't been extracted and stored yet`,
-          githubUser: githubLogin,
-        },
-        {status: 404},
-      )
+      const message = `Artifact ${artifactName} (from path ${pathname}) has no entries, probably hasn't been extracted and stored yet`
+      return NextResponse.json({message, githubUser: githubLogin}, {status: 404})
     }
 
-    return NextResponse.redirect(
-      requestUrl.origin +
-        `/artifact/upload?${new URLSearchParams({
-          artifactId: artifactInfo.artifact_id,
-          artifactName,
-          callbackUrl: requestUrl.toString().replace(requestUrl.origin, ''),
-        })}`,
-    )
+    const params = {
+      artifactId: artifactInfo.artifact_id,
+      artifactName,
+      aliasType,
+      identifier,
+      entry: filepathParts.join('/'),
+    } satisfies ArtifactUploadPageSearchParams
+    return NextResponse.redirect(requestUrl.origin + `/artifact/upload?${new URLSearchParams(params)}`)
   }
 
   const storage = createStorageClient()

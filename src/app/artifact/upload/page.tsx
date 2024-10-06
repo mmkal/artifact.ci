@@ -2,7 +2,7 @@
 
 import {useMutation} from '@tanstack/react-query'
 import {useSearchParams as useSearchParamsBase} from 'next/navigation'
-import {useCallback, useEffect, useState} from 'react'
+import {useCallback, useEffect, useMemo, useState} from 'react'
 import {clientUpload} from './client-upload'
 
 type SubscriptionData = {stage: string; message: string}
@@ -16,9 +16,21 @@ function useSearchParams() {
   }
 }
 
+export type ArtifactUploadPageSearchParams = {
+  artifactId: string
+  artifactName: string
+  aliasType: string
+  identifier: string
+  entry: string
+}
+
 export function ArtifactLoader2() {
-  const searchParams = useSearchParams()
-  const artifactId = searchParams?.get('artifactId') || undefined
+  const rawSearchParams = useSearchParams()
+  const searchParams = useMemo(
+    () => (rawSearchParams ? (Object.fromEntries(rawSearchParams.entries()) as ArtifactUploadPageSearchParams) : null),
+    [rawSearchParams],
+  )
+  const artifactId = searchParams?.artifactId || undefined
   const [updates, setUpdates] = useState([] as SubscriptionData[])
   const stage = updates.at(0)?.stage
   const mutation = useMutation({
@@ -33,31 +45,25 @@ export function ArtifactLoader2() {
           }),
       })
     },
-    onSuccess: () => {
+    onSuccess: ({artifact, entrypoints}) => {
       setUpdates(prev => [...prev, {stage: 'success', message: 'Taking you to your artifact...'}])
-      gogo()
+      if (!searchParams) throw new Error('searchParams not found')
+      const entry = searchParams.entry || entrypoints.flatAliases[0]
+      const callbackUrl = `/artifact/view/${artifact.owner}/${artifact.repo}/${searchParams.aliasType}/${searchParams.identifier}/${artifact.name}/${entry}`
+      const newUrl = new URL(callbackUrl, window.location.origin)
+      newUrl.searchParams.set('redirected', 'true')
+      window.location.href = newUrl.toString()
     },
-    onError: error => setUpdates(prev => [...prev, {stage: 'error', message: error.stack || error.message}]),
+    onError: error => setUpdates(prev => [...prev, {stage: 'error', message: error.message}]),
   })
   useEffect(() => {
     if (mutation.status === 'idle' && artifactId) {
-      setTimeout(() => mutation.mutate({artifactId}), 200)
+      const timeout = setTimeout(() => mutation.mutate({artifactId}), 200)
+      return () => clearTimeout(timeout)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mutation.status, artifactId, mutation.mutate])
   const isProcessing = mutation.isPending
-
-  const gogo = useCallback(() => {
-    const callbackUrl = searchParams?.get('callbackUrl')
-    if (!callbackUrl?.startsWith('/')) {
-      return
-    }
-    if (callbackUrl?.startsWith('/')) {
-      const newUrl = new URL(callbackUrl, window.location.origin)
-      newUrl.searchParams.set('redirected', 'true')
-      window.location.href = newUrl.toString()
-    }
-  }, [searchParams])
 
   return (
     <div className="min-h-screen bg-amber-100 flex items-center justify-center p-4">
@@ -65,7 +71,7 @@ export function ArtifactLoader2() {
         <h1 className="text-4xl font-mono font-bold text-center mb-8 text-amber-900">🗿 artifact.ci</h1>
         <div className="bg-amber-200 rounded-lg border-2 border-amber-700 p-6 mb-8 font-mono text-amber-800 shadow-lg">
           <div className="mb-4">
-            <span className="text-amber-700">$</span> preparing artifact {searchParams?.get('artifactName') || ''}
+            <span className="text-amber-700">$</span> preparing artifact {searchParams?.artifactName || ''}
           </div>
           <div className="h-64 overflow-y-auto bg-amber-100 p-2 rounded">
             <div className="font-mono text-amber-800 whitespace-pre-wrap">

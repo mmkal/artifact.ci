@@ -111,8 +111,8 @@ export const appRouter = router({
         ),
       }),
     )
-    .mutation(async ({input}) => {
-      return client.any(
+    .mutation(async ({input, ctx}) => {
+      const records = await client.any(
         sql<{
           entry_name: string
           aliases: string[]
@@ -152,6 +152,11 @@ export const appRouter = router({
           returning entry_name, aliases, storage_object_id
         `,
       )
+      return {
+        artifact: ctx.artifact,
+        records,
+        entrypoints: getEntrypoints(input.uploads.map(u => u.entry)),
+      }
     }),
 })
 
