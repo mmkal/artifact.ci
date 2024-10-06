@@ -20,11 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: setup
-        working-directory: ./vitest
         run: |
           git ls-files | xargs rm && echo '*' >> .gitignore
           rm -rf node_modules
-          rm -rf postcss.config.js
           npm init -y
           npm install vitest @vitest/ui @types/node@^20.0.0 --save-dev
           cat package.json
@@ -37,7 +35,6 @@ jobs:
           echo 'test("add well", () => expect(add(1, 1)).toEqual(2))' >> test/adding.test.ts
           echo 'test("add badly", () => expect(addBad(1, 1)).toEqual(2))' >> test/adding.test.ts
       - name: run tests
-        working-directory: ./vitest
         run: npx vitest --reporter html || echo failed
       - uses: actions/upload-artifact@v4
         with:
