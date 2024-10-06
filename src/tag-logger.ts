@@ -25,6 +25,15 @@ export class TagLogger {
     return this._storage.run({...this.context, tags: this.context.tags.concat(tag)}, fn)
   }
 
+  tag(tag: string) {
+    return {
+      info: (...args: unknown[]) => this.run(tag, () => this.info(...args)),
+      warn: (...args: unknown[]) => this.run(tag, () => this.warn(...args)),
+      error: (...args: unknown[]) => this.run(tag, () => this.error(...args)),
+      debug: (...args: unknown[]) => this.run(tag, () => this.debug(...args)),
+    }
+  }
+
   info(...args: unknown[]) {
     this._implementation.info(...this.prefix, ...args)
   }

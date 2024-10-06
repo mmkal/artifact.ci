@@ -4,20 +4,20 @@ import {AugmentedSession, auth} from '~/auth'
 import {logger} from '~/tag-logger'
 
 const handler = auth(request => {
-  return fetchRequestHandler({
-    router: appRouter,
-    req: request,
-    endpoint: '/api/trpc',
-    createContext: async (): Promise<TrpcContext> => {
-      return {
-        auth: request.auth as AugmentedSession | null,
-      }
-    },
-    onError({error, path}) {
-      logger.run(`path=${path}`, () => {
-        logger.error(error)
-      })
-    },
+  return logger.run(`trpc`, () => {
+    return fetchRequestHandler({
+      router: appRouter,
+      req: request,
+      endpoint: '/api/trpc',
+      createContext: async (): Promise<TrpcContext> => {
+        return {
+          auth: request.auth as AugmentedSession | null,
+        }
+      },
+      onError({error, path}) {
+        logger.tag(`path=${path}`).error(error)
+      },
+    })
   })
 })
 
