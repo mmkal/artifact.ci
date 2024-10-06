@@ -1,13 +1,12 @@
 import {initTRPC, TRPCError} from '@trpc/server'
 import mime from 'mime'
-import {} from 'next-auth/next'
 import {Octokit} from 'octokit'
 import pMap from 'p-map'
 import {z} from 'zod'
 import {client, Id, sql} from '../db'
 import {storeArtifact} from '~/app/artifact/upload/actions'
 import {getEntrypoints} from '~/app/artifact/upload/signed-url/route'
-import {AugmentedSession, auth} from '~/auth'
+import {AugmentedSession} from '~/auth'
 import {createStorageClient} from '~/storage/supabase'
 
 export interface TrpcContext {
