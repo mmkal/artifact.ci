@@ -71,46 +71,13 @@ export const appRouter = router({
       repo: ctx.artifact.repo_name,
       artifact_id: ctx.artifact.github_id,
       archive_format: 'zip',
-      request: {redirect: 'manual'},
+      request: {redirect: 'manual'}, // without this it will follow the redirect and actually download the file, but we want to just give a signed url to the client
     })
-    // const archiveResponse = await ctx.octokit.request(
-    //   'GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}/{archive_format}',
-    //   {
-    //     owner: ctx.artifact.repo_owner,
-    //     repo: ctx.artifact.repo_name,
-    //     artifact_id: ctx.artifact.github_id,
-    //     archive_format: 'zip',
-    //     request: {redirect: 'manual'},
-    //   },
-    // )
-    // const ex = {
-    //   'accept-ranges': 'bytes',
-    //   'access-control-allow-origin': '*',
-    //   'access-control-expose-headers':
-    //     'x-ms-request-id,Server,x-ms-version,Content-Type,Last-Modified,ETag,x-ms-creation-time,x-ms-lease-status,x-ms-lease-state,x-ms-blob-type,Content-Disposition,x-ms-server-encrypted,Accept-Ranges,Content-Length,Date,Transfer-Encoding',
-    //   'content-disposition': 'attachment; filename="website.zip"',
-    //   'content-length': '285362',
-    //   'content-type': 'zip',
-    //   date: 'Sun, 06 Oct 2024 04:07:16 GMT',
-    //   etag: '"0x8DCE5779A16FDF3"',
-    //   'last-modified': 'Sat, 05 Oct 2024 19:55:02 GMT',
-    //   server: 'Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0',
-    //   'x-ms-blob-type': 'BlockBlob',
-    //   'x-ms-creation-time': 'Sat, 05 Oct 2024 19:55:02 GMT',
-    //   'x-ms-lease-state': 'available',
-    //   'x-ms-lease-status': 'unlocked',
-    //   'x-ms-request-id': '46839db2-401e-009a-19a5-174478000000',
-    //   'x-ms-server-encrypted': 'true',
-    //   'x-ms-version': '2024-08-04',
-    // }
-    const location = archiveResponse.headers.Location || archiveResponse.headers.location
     // https://docs.github.com/en/rest/actions/artifacts?apiVersion=2022-11-28#download-an-artifact - "Look for `Location:` in the response header to find the URL for the download. The URL expires after 1 minute."
-    if (!location) {
-      throw new Error('Failed to download artifact', {
-        cause: new Error(`no Location header in response: ${JSON.stringify(archiveResponse.headers)}`),
-      })
+    if (!archiveResponse.headers.location) {
+      throw new Error('Failed to download artifact', {})
     }
-    return location
+    return archiveResponse.headers.location
   }),
   createUploadTokens: artifactAccessProcedure
     .input(
