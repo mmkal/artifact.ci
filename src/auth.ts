@@ -29,7 +29,6 @@ export const {handlers, signIn, signOut, auth} = NextAuth({
   providers: [Github],
   callbacks: {
     async jwt({token, account}) {
-      console.dir({msg: 'jwt callback', token, account}, {depth: null})
       if (token.account_access_token) {
         token.note = `jwt callback: account_access_token already set`
       } else if (account) {
@@ -41,10 +40,18 @@ export const {handlers, signIn, signOut, auth} = NextAuth({
       return token
     },
     async session({session, token}) {
-      console.dir({msg: 'session callback', session, token}, {depth: null})
+      // typically session.user looks like {name: 'A B', email: undefined, image: 'https://.../something.jpg'}
+      // typically token looks like {name: 'A B', picture: 'https://.../something.jpg', email: 'a@b.com', ...}
+      const castToken = token as {
+        sub: string // a uuid
+        account_access_token: string | null | undefined
+        note: string
+        name: string
+        picture: string
+      }
       return Object.assign(session, {
-        jwt_access_token: (token.account_access_token as string) || null,
-        token_note: token.note as string | null,
+        jwt_access_token: castToken.account_access_token || null,
+        token_note: castToken.note as string | null,
       } satisfies AugmentedSession)
     },
   },
