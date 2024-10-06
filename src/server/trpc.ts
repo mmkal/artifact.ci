@@ -1,16 +1,36 @@
-import {initTRPC} from '@trpc/server'
+import {initTRPC, TRPCError} from '@trpc/server'
 import mime from 'mime'
+import {} from 'next-auth/next'
+import {Octokit} from 'octokit'
 import pMap from 'p-map'
 import {z} from 'zod'
 import {client, Id, sql} from '../db'
 import {storeArtifact} from '~/app/artifact/upload/actions'
 import {getEntrypoints} from '~/app/artifact/upload/signed-url/route'
+import {AugmentedSession, auth} from '~/auth'
 import {createStorageClient} from '~/storage/supabase'
 
-const t = initTRPC.create()
+export interface TrpcContext {
+  auth: AugmentedSession | null
+}
+
+const t = initTRPC.context<TrpcContext>().create()
 
 export const router = t.router
 export const publicProcedure = t.procedure
+
+// todo: do a better authz check
+// things to do first:
+// - include the github login in the session so we don't need to make an extra request
+// - shortcut if the user = repo owner
+// - otherwise check if they have a repo_access_permission entry
+// - otherwise use github api to check if user has access to repo
+// - create a repo_access_permission entry if they have a usage credit
+// - maybe separately, check that the user has a credit for this service (as opposed to allowed to see the repo artifacts)
+// - might someday want to *allow* users to see repo artifacts even if they don't have a usage credit, for example if the repo is public or if the repo owner allows it
+// export const authorizeRepoAccess = async (session: AugmentedSession | null, repo: {owner: string; repo: string}) => {
+//   if (!session) return {authorized: false , error: 'not_authenticated'} as const
+// }
 
 export const artifactAccessProcedure = t.procedure
   .input(
@@ -19,7 +39,7 @@ export const artifactAccessProcedure = t.procedure
     }),
   )
   .use(async ({input, ctx, next}) => {
-    // todo: auth
+    const userOctokit = new Octokit({auth: ctx.auth?.jwt_access_token})
     const artifact = await client.one(sql<queries.Artifact>`
       select a.*, gi.github_id as installation_github_id, r.owner as repo_owner, r.name as repo_name
       from artifacts a
@@ -27,6 +47,22 @@ export const artifactAccessProcedure = t.procedure
       join repos r on r.id = a.repo_id
       where a.id = ${input.artifactId}
     `)
+    try {
+      await userOctokit.rest.actions.listWorkflowRunsForRepo({
+        owner: artifact.repo_owner,
+        repo: artifact.repo_name,
+        per_page: 1,
+      })
+    } catch (error) {
+      const {data: authedUser} = ctx.auth?.jwt_access_token
+        ? await userOctokit.rest.users.getAuthenticated()
+        : {data: null}
+      throw new TRPCError({
+        code: 'UNAUTHORIZED',
+        message: `User ${authedUser?.login} is not authorized to access the requested artifact`,
+        cause: error,
+      })
+    }
     return next({ctx: {...ctx, artifact}})
   })
 
