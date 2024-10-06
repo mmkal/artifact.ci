@@ -3,7 +3,6 @@ import {lookup as mimeTypeLookup} from 'mime-types'
 import {NextResponse} from 'next/server'
 import {NextAuthRequest} from 'node_modules/next-auth/lib'
 import * as path from 'path'
-import {z} from 'zod'
 import {auth, getCollaborationLevel, getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
 import {createStorageClient} from '~/storage/supabase'
@@ -160,14 +159,9 @@ const tryGet = async (request: NextAuthRequest) => {
 
   // const file = await loadFile(pathname)
   if (!file) {
-    return NextResponse.json(
-      {
-        message: `Upload for ${pathname} not found`,
-        githubUser: githubLogin,
-      },
-      {status: 404},
-    )
+    return NextResponse.json({message: `Upload for ${pathname} not found`, githubUser: githubLogin}, {status: 404})
   }
+
   const contentType = mimeTypeLookup(dbFile.storage_pathname) || 'text/plain'
 
   const headers: Record<string, string> = {}
@@ -179,7 +173,7 @@ const tryGet = async (request: NextAuthRequest) => {
   headers['artifactci-alias-type'] = aliasType
 
   // Add relevant headers from the object response
-  const relevantHeaders = ['content-length', 'last-modified']
+  const relevantHeaders = ['content-length', 'etag', 'last-modified']
   for (const header of relevantHeaders) {
     const value = file.response.headers.get(header)
     if (value) headers[header] = value
@@ -200,13 +194,13 @@ const tryGet = async (request: NextAuthRequest) => {
     headers['content-disposition'] = `inline; filename="${encodeURIComponent(path.basename(dbFile.storage_pathname))}"`
   }
 
-  // if (aliasType === 'branch') {
-  //   headers['cache-control'] = 'public, max-age=300, must-revalidate'
-  // } else if (aliasType === 'run' || aliasType === 'sha') {
-  //   headers['cache-control'] = 'public, max-age=31536000, immutable'
-  // } else {
-  //   headers['cache-control'] = file.response.headers.get('cache-control') || 'no-cache'
-  // }
+  if (aliasType === 'branch') {
+    headers['cache-control'] = 'public, max-age=300, must-revalidate'
+  } else if (aliasType === 'run' || aliasType === 'sha') {
+    headers['cache-control'] = 'public, max-age=31536000, immutable'
+  } else {
+    headers['cache-control'] = file.response.headers.get('cache-control') || 'no-cache'
+  }
 
   return new Response(file.response.body, {headers, status: file.response.status})
 }

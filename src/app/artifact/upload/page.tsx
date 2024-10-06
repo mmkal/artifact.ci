@@ -41,7 +41,7 @@ export function ArtifactLoader2() {
   })
   useEffect(() => {
     if (mutation.status === 'idle' && artifactId) {
-      setTimeout(() => mutation.mutate({artifactId}), 1000)
+      setTimeout(() => mutation.mutate({artifactId}), 200)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mutation.status, artifactId, mutation.mutate])
