@@ -65,7 +65,7 @@ export const artifactAccessProcedure = t.procedure
   })
 
 export const appRouter = router({
-  getDownloadUrl: artifactAccessProcedure.query(async ({ctx}) => {
+  getDownloadUrl: artifactAccessProcedure.output(z.string()).query(async ({ctx}) => {
     const archiveResponse = await ctx.octokit.rest.actions.downloadArtifact({
       owner: ctx.artifact.repo_owner,
       repo: ctx.artifact.repo_name,
@@ -74,17 +74,10 @@ export const appRouter = router({
       request: {redirect: 'manual'}, // without this it will follow the redirect and actually download the file, but we want to just give a signed url to the client
     })
     // https://docs.github.com/en/rest/actions/artifacts?apiVersion=2022-11-28#download-an-artifact - "Look for `Location:` in the response header to find the URL for the download. The URL expires after 1 minute."
-    if (!archiveResponse.headers.location) {
-      throw new Error('Failed to download artifact', {})
-    }
-    return archiveResponse.headers.location
+    return archiveResponse.headers.location!
   }),
   createUploadTokens: artifactAccessProcedure
-    .input(
-      z.object({
-        entries: z.array(z.string()),
-      }),
-    )
+    .input(z.object({entries: z.array(z.string())}))
     .mutation(async ({input, ctx: {artifact}}) => {
       const storage = createStorageClient()
       const artifactPathPrefix = [
