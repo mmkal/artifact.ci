@@ -1,50 +1,59 @@
 import {NextRequest} from 'next/server'
-import NextAuth from 'next-auth'
+import NextAuth, {type DefaultSession} from 'next-auth'
 import DefaultGithub from 'next-auth/providers/github'
+import {App, Octokit} from 'octokit'
+import {z} from 'zod'
 
-const Github: typeof DefaultGithub = options => {
-  const base = DefaultGithub({
-    ...options,
-    clientId: process.env.GITHUB_APP_CLIENT_ID,
-    clientSecret: process.env.GITHUB_APP_CLIENT_SECRET,
-  })
-  return {
-    ...base,
-    authorization: {
-      ...(base.authorization as {}),
-      params: {
-        ...(base.authorization as {params: {scope: string}})?.params,
-        scope: 'repo read:user user:email', // seems scope is hardcoded in next-auth to read:user user:email
-      },
-    },
+declare module 'next-auth' {
+  /** Augmented - see https://authjs.dev/getting-started/typescript */
+  interface Session {
+    user: {
+      github_login: string | null
+    } & DefaultSession['user']
   }
 }
 
-export interface AugmentedSession {
-  jwt_access_token: string | null
-  token_note: string | null
+export const GithubAppClientEnv = z.object({
+  GITHUB_APP_CLIENT_ID: z.string().min(1),
+  GITHUB_APP_CLIENT_SECRET: z.string().min(1),
+})
+
+export const GithubAppEnv = z.object({
+  GITHUB_APP_ID: z.string().min(1),
+  GITHUB_APP_PRIVATE_KEY: z.string().min(1),
+})
+
+const Github: typeof DefaultGithub = options => {
+  const env = GithubAppClientEnv.parse(process.env)
+  return DefaultGithub({
+    ...options,
+    clientId: env.GITHUB_APP_CLIENT_ID,
+    clientSecret: env.GITHUB_APP_CLIENT_SECRET,
+  })
 }
 
-// todo: github app auth
 export const {handlers, signIn, signOut, auth} = NextAuth({
   providers: [Github],
   callbacks: {
     async jwt({token, account}) {
-      if (token.account_access_token) {
-        token.note = `jwt callback: account_access_token already set`
+      if (token.github_login) {
+        token.github_login_note = `jwt callback: github_login already set`
       } else if (account) {
-        token.account_access_token = account.access_token
-        token.note = `jwt callback: added account_access_token`
+        const octokit = new Octokit({auth: account.access_token})
+        const {data: user} = await octokit.rest.users.getAuthenticated()
+        token.github_login = user.login
+        token.github_login_note = `jwt callback: added github_login`
       } else {
-        token.note = `jwt callback: didn't add account_access_token`
+        token.github_login_note = `jwt callback: no account`
       }
+
       return token
     },
     async session({session, token}) {
-      return Object.assign(session, {
-        jwt_access_token: (token.account_access_token as string) || null,
-        token_note: token.note as string | null,
-      } satisfies AugmentedSession)
+      // typically session.user looks like {name: 'A B', email: undefined, image: 'https://.../something.jpg'}
+      // typically token looks like {name: 'A B', picture: 'https://.../something.jpg', email: 'a@b.com', ...}
+      session.user.github_login = token.github_login as string | null
+      return session
     },
   },
 })
@@ -54,5 +63,33 @@ export const getGithubAccessToken = async (request: NextRequest) => {
   if (cookieToken) return cookieToken
 
   const session = await auth()
-  return (session as {} as AugmentedSession)?.jwt_access_token
+  return session?.user.access_token
+}
+
+export const getOctokitApp = () => {
+  const env = GithubAppEnv.parse(process.env)
+  return new App({
+    appId: env.GITHUB_APP_ID,
+    privateKey: env.GITHUB_APP_PRIVATE_KEY,
+  })
+}
+
+export const getInstallationOctokit = async (installationId: number) => {
+  const app = getOctokitApp()
+  return app.getInstallationOctokit(installationId)
+}
+
+export const getCollaborationLevel = async (
+  octokit: Octokit,
+  repo: {owner: string; repo: string},
+  username: string,
+) => {
+  if (username === repo.owner) return 'admin'
+  const {data: collaboration} = await octokit.rest.repos.getCollaboratorPermissionLevel({
+    owner: repo.owner,
+    repo: repo.repo,
+    username,
+  })
+  const {permission} = z.object({permission: z.enum(['none', 'read', 'write', 'admin'])}).parse(collaboration)
+  return permission
 }

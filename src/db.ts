@@ -2,7 +2,13 @@ import {createClient} from 'pgkit/client'
 import {z} from 'zod'
 import config from '../pgkit.config'
 
-export const client = createClient(config.client.connectionString)
+export const client = createClient(config.client.connectionString, {
+  pgpOptions: {
+    initialize: {
+      noWarnings: new Date(process.env.SILENCE_PG_PROMISE_WARNINGS_UNTIL || 0) > new Date(),
+    },
+  },
+})
 
 export {sql} from 'pgkit/client'
 

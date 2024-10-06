@@ -6,14 +6,14 @@ import type {NextRequest} from 'next/server'
 import {NextResponse} from 'next/server'
 import * as path from 'node:path'
 import {getGithubAccessToken} from '../../../../auth'
+import {logger} from '~/tag-logger'
 
 export const GET = async (request: NextRequest) => {
   try {
     const res = await tryGet(request)
-    console.log('succeeding', res)
     return res
   } catch (err) {
-    console.error('erroring', err)
+    logger.error('erroring', err)
     return NextResponse.json({message: 'Internal server error', stack: (err as Error).stack}, {status: 500})
   }
 }
@@ -28,7 +28,7 @@ const tryGet = async (request: NextRequest) => {
   const [owner, repo, run, artifact, ...rest] = request.nextUrl.pathname.replace(pathnamePrefix, '').split('/')
   const filepath = rest.join('/').replace(/\/$/, '')
 
-  const octokit = new Octokit({auth: token, log: console})
+  const octokit = new Octokit({auth: token})
 
   const {data: me} = await octokit.rest.users
     .getAuthenticated()
@@ -120,7 +120,6 @@ const tryGet = async (request: NextRequest) => {
         blob: blob.size,
         status: zipRes.status,
         match,
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call -- meh, @typescript-eslint/no-unsafe-call -- meh
         headers: Object.fromEntries(zipRes.headers.entries()),
         location: zipRes.headers.get('location'),
         token,

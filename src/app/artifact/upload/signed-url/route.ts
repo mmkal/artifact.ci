@@ -4,7 +4,7 @@ import {NextResponse} from 'next/server'
 import * as path from 'path'
 import {ARTIFACT_BLOB_PREFIX} from '../../view/[...slug]/route'
 import {client, Id, sql} from '~/db'
-import {getJobsWithStatuses} from '~/github/job-statuses'
+import {getJobsWithStatuses} from '~/gh/job-statuses'
 import {
   BulkRequest,
   BulkResponse,
@@ -26,40 +26,45 @@ function buildStoragePathname(ctx: GithubActionsContext, localPath: string) {
   return path.join(ctx.repository, ctx.runId.toString(), ctx.runAttempt.toString(), ctx.job, localPath)
 }
 
-const getEntrypoints = (pathnames: string[], requestedEntrypoints: string[] = []) => {
-  let bestEntrypoint: string | undefined = pathnames[0]
+export const getEntrypoints = (pathnames: string[], requestedEntrypoints: string[] = []) => {
+  const bestEntrypoints = [{path: pathnames.at(0), shortened: pathnames.at(0), score: -1}]
 
-  const aliases = pathnames.map(pathname => {
-    bestEntrypoint = bestEntrypoint ?? pathname
-    const paths: string[] = [pathname]
+  const aliases = pathnames.flatMap(pathname => {
+    const paths: string[] = []
 
-    if (pathname.endsWith('.html')) {
-      const shortened = pathname.slice(0, -5)
-      if (!bestEntrypoint || shortened.length < bestEntrypoint.length) {
-        bestEntrypoint = shortened
-      }
-      paths.push(path.dirname(pathname))
+    paths.push(pathname)
+
+    const parsedPath = path.parse(pathname)
+    if (parsedPath.base === 'index.html') {
+      const score = 2
+      const shortened = parsedPath.dir
+      bestEntrypoints.push({path: pathname, score, shortened})
+      paths.push(shortened)
     }
 
-    if (pathname.endsWith('/index.html')) {
-      const shortened = path.dirname(pathname)
-      if (!bestEntrypoint || shortened.length < bestEntrypoint.length) {
-        bestEntrypoint = shortened
-      }
-      paths.push(path.dirname(pathname))
+    if (parsedPath.ext === '.html') {
+      const score = 1
+      const shortened = path.join(parsedPath.dir, parsedPath.name)
+      bestEntrypoints.push({path: pathname, score, shortened})
+      paths.push(shortened)
     }
 
     return {original: pathname, paths}
   })
 
-  const set = new Set(aliases.flatMap(a => a.paths))
+  const flatAliases = aliases.flatMap(a => a.paths)
+  const set = new Set(flatAliases)
 
   const entrypoints = requestedEntrypoints.filter(pathname => set.has(pathname))
-  if (entrypoints.length === 0 && bestEntrypoint) {
-    entrypoints.push(bestEntrypoint)
+  const bestEntrypoint = bestEntrypoints
+    // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
+    .sort((a, b) => a.path?.length! - b.path?.length!)
+    .sort((a, b) => b.score - a.score)[0]
+  if (entrypoints.length === 0 && bestEntrypoint.path) {
+    entrypoints.push(bestEntrypoint.path)
   }
 
-  return {aliases, entrypoints}
+  return {aliases, entrypoints, flatAliases}
 }
 
 const allowedContentTypes = new Set([
@@ -296,7 +301,7 @@ const handleUploadSingle = async <Type extends HandleUploadBody['type']>(
           ),
         )
       }
-      const {aliases} = getEntrypoints([blob.pathname])
+      const {flatAliases: aliases} = getEntrypoints([blob.pathname])
 
       const mimeType = getMimeType(blob.pathname)
       const uploads = await client.many(

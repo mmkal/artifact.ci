@@ -6,7 +6,7 @@ export default {
     connectionString: process.env.PGKIT_CONNECTION_STRING || 'postgresql://postgres:postgres@localhost:5500/postgres',
   },
   typegen: ({defaults}) => ({
-    psqlCommand: 'docker-compose exec -T db psql',
+    // psqlCommand: 'docker-compose exec -T db psql',
     checkClean: [],
     pgTypeToTypeScript: type => {
       if (type === 'prefixed_ksuid') return 'string'

@@ -134,10 +134,63 @@ create table repo_access_permissions (
 	unique(repo_id, github_login)
 );
 
+create table github_installations (
+	id prefixed_ksuid primary key default generate_prefixed_ksuid('github_installation'),
+	github_id int8 not null,
+	created_at timestamp with time zone not null default current_timestamp,
+	updated_at timestamp with time zone not null default current_timestamp,
+	unique(github_id)
+);
+
+create table artifacts (
+	id prefixed_ksuid primary key default generate_prefixed_ksuid('artifact'),
+	repo_id prefixed_ksuid not null references repos(id),
+	name text not null,
+	github_id int8 not null,
+	download_url text not null,
+	installation_id prefixed_ksuid not null references github_installations(id),
+	created_at timestamp with time zone not null default current_timestamp,
+	updated_at timestamp with time zone not null default current_timestamp,
+	unique(repo_id, name, github_id)
+);
+
+create table artifact_identifiers (
+	id prefixed_ksuid primary key default generate_prefixed_ksuid('artifact_identifier'),
+	artifact_id prefixed_ksuid not null references artifacts(id),
+	type text not null,
+	value text not null,
+	created_at timestamp with time zone not null default current_timestamp,
+	updated_at timestamp with time zone not null default current_timestamp,
+	unique(artifact_id, type, value)
+);
+
+create table artifact_entries (
+	id prefixed_ksuid primary key default generate_prefixed_ksuid('artifact_entry'),
+	artifact_id prefixed_ksuid not null references artifacts(id),
+	entry_name text not null, -- the path to the file within the artifact
+	aliases text[] not null, -- aliases for the entry, e.g. ["path/to/file.html", "path/to/file"]
+	storage_object_id uuid not null, -- references storage.objects(id) but pgkit doesn't know about the storage schema
+	created_at timestamp with time zone not null default current_timestamp,
+	updated_at timestamp with time zone not null default current_timestamp,
+	unique(artifact_id, entry_name)
+);
+
+create table file_aliases (
+	id prefixed_ksuid primary key default generate_prefixed_ksuid('file_alias'),
+	artifact_id prefixed_ksuid not null references artifacts(id),
+	alias text not null,
+	object_id text not null, -- references storage.objects(id) but pgkit doesn't know about the storage schema
+	created_at timestamp with time zone not null default current_timestamp,
+	updated_at timestamp with time zone not null default current_timestamp,
+	unique(alias, object_id)
+);
+
 alter table repos enable row level security;
 alter table uploads enable row level security;
 alter table sponsors enable row level security;
 alter table usage_credits enable row level security;
+alter table repo_access_permissions enable row level security;
+alter table upload_requests enable row level security;
 
 -- Create indexes
 create index idx_uploads_upload_request_id on uploads(upload_request_id);
@@ -145,3 +198,6 @@ create index idx_upload_requests_repo_id on upload_requests(repo_id);
 create index idx_upload_requests_ref_sha on upload_requests(ref, sha);
 create index idx_usage_credits_github_login on usage_credits(github_login);
 create index idx_usage_credits_sponsor_id on usage_credits(sponsor_id);
+create index idx_file_aliases_artifact_id on file_aliases(artifact_id);
+create index idx_artifacts_repo_id on artifacts(repo_id);
+create index idx_file_aliases_alias on file_aliases(alias);

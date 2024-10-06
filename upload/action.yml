@@ -32,83 +32,13 @@ inputs:
     description: |
       If true, hidden files will be included in the artifact. If false, hidden files will be excluded from the artifact.
     default: "false"
-  artifactci_origin:
-    description: The origin of the server to upload the artifact to
+  artifactci-origin:
+    description: The origin of the server to upload the artifact to. Defaults to https://www.artifact.ci
     required: false
-    default: https://www.artifact.ci
-  artifactci_debug:
-    description: |
-      If true, debug information will be printed to the console. If false, debug information will not be printed to the console. If not set, debug information will be printed if the commit message includes "artifactci_debug=<job-id>"
-    default: "false"
-  artifactci_github_token:
+  artifactci-github-token:
     description: The GitHub token to use for the upload. If not set, the backend will look for the job via GitHub.com - so this is required for private repositories.
     required: false
 runs:
-  using: composite
-  steps:
-    - shell: bash
-      run: echo "::group::Upload artifact"
-    - name: upload
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ inputs.name }}
-        path: ${{ inputs.path }}
-        if-no-files-found: ${{ inputs.if-no-files-found }}
-        retention-days: ${{ inputs.retention-days }}
-        compression-level: ${{ inputs.compression-level }}
-        overwrite: ${{ inputs.overwrite }}
-        include-hidden-files: ${{ inputs.include-hidden-files }}
-    - name: Checkout artifact.ci
-      uses: actions/checkout@v4
-      with:
-        repository: mmkal/artifact.ci
-        path: tmp/artifact.ci
-    - name: install
-      shell: bash
-      run: corepack enable && pnpm install --silent
-      working-directory: tmp/artifact.ci
-    - name: patch @vercel/blob for debugging
-      shell: bash
-      working-directory: tmp/artifact.ci
-      run: |
-        node -v
-        # sed -i 's/const res = await _undici.fetch.call/console.log("client.cjs fetching", {url, options, event});const res = await _undici.fetch.call/g' node_modules/@vercel/blob/dist/client.cjs
-        # vercel_chunk_name=$(ls node_modules/@vercel/blob/dist | grep chunk | grep .cjs | grep -v .map)
-        # vercel_chunk_cjs="node_modules/@vercel/blob/dist/$vercel_chunk_name"
-        # echo "vercel_chunk_cjs: >>>$vercel_chunk_cjs<<<"
-        # sed -i 's/const apiResponse/const logFetch = (...args) => {console.log("apiResponse fetching", ...args, {a: args[1]?.headers?.authorization?.split(" ")}); return _undici.fetch(...args)}; const apiResponse/g' $vercel_chunk_cjs
-        # sed -i 's/_undici.fetch.call/logFetch.call/g' $vercel_chunk_cjs
-        # sed -i 's/res.ok/(res.ok || console.log(await res.clone().text(), res.url, res.status))/g' node_modules/@vercel/blob/dist/client.cjs
-        # sed -i 's/return clientToken/console.log({clientToken}); return clientToken/g' node_modules/@vercel/blob/dist/client.cjs
-    - name: upload blob
-      uses: actions/github-script@v6
-      env:
-        GITHUB_TOKEN: ${{ inputs.artifactci_github_token }}
-      with:
-        script: |-
-          const inputs = ${{ toJson(inputs) }}
+  using: node20
+  main: action.min.js # relative to this action.yml file, not repo root
 
-          const cwd = process.cwd()
-          process.chdir('tmp/artifact.ci')
-
-                const dependencies = {
-                  fsPromises: require('fs/promises'),
-                  vercelBlobClient: require('@vercel/blob/client'),
-                  glob, // ambient variable available from actions/github-script
-                }
-              
-          process.chdir(cwd)
-
-
-                const __name = (fn, value) => {
-                  // for some reason tsx .toString() relies on this
-                  Object.defineProperty(fn, 'name', {value})
-                  return fn
-                }
-              
-          async function upload({context,inputs,dependencies}){const artifactCiDebugKeyword=context.repository==="mmkal/artifact.ci"?"debug":"artifactci_debug";inputs.artifactci_debug??="${{ github.event.head_commit.message }}".includes(`${artifactCiDebugKeyword}=${context.job}`);if(inputs.artifactci_debug==="false"){inputs.artifactci_debug=false}const logger={info:__name((...args)=>console.info(...args),"info"),warn:__name((...args)=>console.warn(...args),"warn"),error:__name((...args)=>console.error(...args),"error"),debug:__name((...args)=>{if(inputs.artifactci_debug&&inputs.artifactci_debug!=="false")console.info(...args)},"debug")};logger.info("context:::::",context);logger.info("toJson(github)",`\${{ toJson(github) }}`);const{glob,fsPromises:fs,vercelBlobClient}=dependencies;const githubToken=inputs.artifactci_github_token||null;Object.assign(global,{window:{location:new URL(inputs.artifactci_origin)}});const stat=await fs.stat(inputs.path).catch(e=>{if(e.code==="ENOENT")return null;throw e});const globPattern=stat?.isDirectory()?`${inputs.path}/**/*`:inputs.path;const globber=await glob.create(globPattern,{matchDirectories:false});const files=await globber.glob();const filesWithPathnames=files.map(f=>{return{localPath:f.replace(process.cwd()+"/",""),multipart:false}});const pathnameToFile=new Map(filesWithPathnames.map(f=>[f.localPath,f]));const bulkRequest={type:"bulk",callbackUrl:`${inputs.artifactci_origin}/artifact/upload/signed-url`,clientPayload:{githubToken,context:{...context,runAttempt:Number(process.env.GITHUB_RUN_ATTEMPT),repository:process.env.GITHUB_REPOSITORY,githubOrigin:process.env.GITHUB_SERVER_URL,githubRetentionDays:Number(inputs["retention-days"]||process.env.GITHUB_RETENTION_DAYS),...{payload:null,payloadKeys:Object.keys(context.payload)}}},files:filesWithPathnames};if(filesWithPathnames.length===0&&inputs["if-no-files-found"]==="error"){throw new Error("No files to upload")}else if(filesWithPathnames.length===0&&inputs["if-no-files-found"]==="warn"){logger.warn("No files to upload")}logger.info(`Requesting tokens for ${filesWithPathnames.length} files`);logger.debug(filesWithPathnames);const chunk=__name((list,size)=>{const chunks=[];for(let i=0;i<list.length;i+=size){chunks.push(list.slice(i,i+size))}return chunks},"chunk");const MAX_FILES=500;const CHUNK_SIZE=MAX_FILES;if(bulkRequest.files.length>MAX_FILES){throw new Error(`Too many files: ${bulkRequest.files.length}`)}const chunked=chunk(bulkRequest.files,CHUNK_SIZE).map(chunkOfFiles=>{return{...bulkRequest,files:chunkOfFiles}});for(const[i,bulkRequest2]of chunked.entries()){logger.debug(`Uploading chunk ${i+1} of ${chunked.length}`);const res=await fetch(`${inputs.artifactci_origin}/artifact/upload/signed-url`,{method:"POST",body:JSON.stringify(bulkRequest2),headers:{"content-type":"application/json","user-agent":"artifact.ci/action"}});logger.debug("response::::",res.status,Object.fromEntries(res.headers));logger.debug({res});const responseText=__name(()=>res.clone().text().catch(String),"responseText");try{if(!res.ok)throw new Error(`failed to upload: ${res.status} ${await responseText()}`);const data=await res.json();if(!data?.results?.length)throw new Error("no results: "+await responseText());const entrypoints=new Set(data.entrypoints);for(const result of data.results){logger.debug("Uploading: "+result.localPath);const file=pathnameToFile.get(result.localPath);if(file?.localPath!==result.localPath){throw new Error(`local path mismatch: ${file?.localPath} !== ${result.localPath}`)}await vercelBlobClient.put(result.pathname,await fs.readFile(file.localPath),{access:"public",token:result.clientToken,multipart:file.multipart,contentType:result.contentType});const log=entrypoints.has(result.pathname)||entrypoints.size===0?logger.info:logger.debug;log(`Uploaded: ${result.viewUrl}`)}logger.info(`Upload complete (${i+1} of ${chunked.length})`)}catch(e){logger.error("response::::",res.status,responseText);logger.error("error::::",e);throw e}}}
-
-          await upload({context, inputs, dependencies})
-    - name: cleanup
-      shell: bash
-      run: rm -rf tmp/artifact.ci

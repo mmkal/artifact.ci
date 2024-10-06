@@ -2,7 +2,20 @@ name: Recipes
 on: [push, pull_request]
 
 jobs:
+  html:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: create html
+        run: |
+          echo '<marquee style="width: 100vw; height: 100vh; background: black; color: white">Hello, cruel world</marquee>' > index.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: html
+          path: index.html
   vitest:
+    needs: html
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -10,13 +23,15 @@ jobs:
       - name: setup
         working-directory: ./vitest
         run: |
-          rm ../package.json ../pnpm-lock.yaml
-          npm install vitest @vitest/ui @types/node --save-dev
+          git ls-files | xargs rm && echo '*' >> .gitignore
+          rm -rf node_modules
+          npm init -y
+          npm install vitest @vitest/ui @types/node@^20.0.0 --save-dev
           cat package.json
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + 1' >> calc.ts
           echo 'export const sub = (a: number, b: number) => a - b' >> calc.ts
-          mkdir test
+          rm -rf test && mkdir test
           echo 'import {test, expect} from "vitest"' >> test/adding.test.ts
           echo 'import {add, addBad} from "../calc"' >> test/adding.test.ts
           echo 'test("add well", () => expect(add(1, 1)).toEqual(2))' >> test/adding.test.ts
@@ -24,61 +39,71 @@ jobs:
       - name: run tests
         working-directory: ./vitest
         run: npx vitest --reporter html || echo failed
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: vitest
           path: vitest/html
   playwright:
+    needs: html
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: setup
         run: |
-          rm -rf playwright.config.ts
+          git ls-files | xargs rm && echo '*' >> .gitignore
           npm install @playwright/test --save-dev
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + 1' >> calc.ts
           echo 'export const sub = (a: number, b: number) => a - b' >> calc.ts
-          mkdir test
+          rm -rf test && mkdir test
           echo 'import {test, expect} from "@playwright/test"' >> test/adding.test.ts
           echo 'import * as calc from "../calc"' >> test/adding.test.ts
           echo 'test("add well", () => expect(calc.add(1, 1)).toEqual(2))' >> test/adding.test.ts
           echo 'test("add badly", () => expect(calc.addBad(1, 1)).toEqual(2))' >> test/adding.test.ts
       - name: run tests
         run: npx playwright test adding.test.ts --reporter html || echo failed
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: playwright
           path: playwright-report
   website:
+    needs: html
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: mkdir -p website
       - name: setup
         run: |
+          git ls-files | xargs rm && echo '*' >> .gitignore
           npm create astro@latest -- demosite --template starlight --yes
-          export BASE_PATH="/artifact/view/$GITHUB_REPOSITORY/$GITHUB_RUN_ID/$GITHUB_RUN_ATTEMPT/website/demosite/dist"
+          export BASE_PATH="/artifact/view/$GITHUB_REPOSITORY/run/$GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT/website"
           echo "BASE_PATH=$BASE_PATH"
           sed -i "s|integrations|base: '$BASE_PATH', integrations|g" demosite/astro.config.mjs
           sed -i "s|link: /guides|link: $BASE_PATH/guides|g" demosite/src/content/docs/index.mdx
       - run: npm run build
         working-directory: demosite
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: website
           path: demosite/dist
   eslint:
+    needs: html
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: setup
         run: |
+          git ls-files | xargs rm && echo '*' >> .gitignore
           npm install eslint eslint-plugin-mmkal @eslint/config-inspector --save-dev
           echo "module.exports = require('eslint-plugin-mmkal').recommendedFlatConfigs" >> eslint.config.js
-      - name: inspect eslint config
-        run: npx @eslint/config-inspector build --base /artifact/view/$GITHUB_REPOSITORY/$GITHUB_RUN_ID/$GITHUB_RUN_ATTEMPT/eslint/.eslint-config-inspector
-      - uses: ./upload
+      - name: build eslint inspection report
+        run: |
+          BASE_PATH="/artifact/view/$GITHUB_REPOSITORY/run/$GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT/eslint"
+          npx @eslint/config-inspector build --base $BASE_PATH
+      - uses: actions/upload-artifact@v4
         with:
           name: eslint
           path: .eslint-config-inspector
@@ -86,14 +111,17 @@ jobs:
           if-no-files-found: error
 
   jest:
+    needs: html
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: setup
         run: |
+          git ls-files | xargs rm && echo '*' >> .gitignore
           echo 'module.exports.add = (a, b) => a + b' >> calc.js
           echo 'module.exports.addBadly = (a, b) => a + b + 1' >> calc.js
-          mkdir test
+          mkdir -p test
           echo 'const {add, addBadly} = require("../calc")' >> test/adding.test.js
           echo 'test("add well", () => expect(add(1, 1)).toEqual(2))' >> test/adding.test.js
           echo 'test("add badly", () => expect(addBaddly(1, 1)).toEqual(2))' >> test/adding.test.js
@@ -109,38 +137,43 @@ jobs:
           npm install jest jest-html-reporters --save-dev
       - name: run tests
         run: npx jest --coverage || echo failed
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: jest
           path: report
   ava:
+    needs: html
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: setup
         run: |
-          rm package.json pnpm-lock.yaml
+          git ls-files | xargs rm && echo '*' >> .gitignore
           npm init -y
           npm install ava tap-html
           echo 'exports.add = (a, b) => a + b' > calc.js
           echo 'exports.addBad = (a, b) => a + b + 1' >> calc.js
-          mkdir test
+          mkdir -p test
           echo 'const {add, addBad} = require("../calc")' >> test/adding.test.js
           echo 'const test = require("ava")' >> test/adding.test.js
           echo 'test("add well", t => t.is(add(1, 1), 2))' >> test/adding.test.js
           echo 'test("add badly", t => t.is(addBad(1, 1), 2))' >> test/adding.test.js
       - name: run tests
         run: npx ava --tap | npx tap-html --out output.html || echo failed
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: ava
           path: output.html
   pytest:
+    needs: html
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: setup
         run: |
+          git ls-files | xargs rm && echo '*' >> .gitignore
           echo '
           def add(a, b):
             return a + b
@@ -156,41 +189,44 @@ jobs:
           pip install pytest-html
       - name: run tests
         run: pytest test.py --html report/index.html || echo failed
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: pytest
           path: report
   mocha:
+    needs: html
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: setup
         run: |
+          git ls-files | xargs rm && echo '*' >> .gitignore
           npm install mocha --save-dev
           echo 'exports.add = (a, b) => a + b' >> calc.js
           echo 'exports.addBad = (a, b) => a + b + 1' >> calc.js
           echo 'exports.sub = (a, b) => a - b' >> calc.js
-          mkdir test
+          mkdir -p test
           echo 'const assert = require("assert")' >> test/adding.test.js
           echo 'const {add, addBad} = require("../calc")' >> test/adding.test.js
           echo 'it("adds well", () => assert.strictEqual(add(1, 1), 2))' >> test/adding.test.js
           echo 'it("adds badly", () => assert.strictEqual(addBad(1, 1), 2))' >> test/adding.test.js
       - run: npx mocha --reporter doc > output.html || echo failed
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
             name: mocha
             path: output.html
   pdf:
+    needs: html
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     name: Pee Dee Eff
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: setup
-        env:
-          json: '${{ toJson(github) }}'
         run: |
-          echo $json
+          git ls-files | xargs rm && echo '*' >> .gitignore
           npm install pdfkit
           echo '
             const fs = require("fs")
@@ -232,17 +268,20 @@ jobs:
           ' > create-pdf.js
       - name: create pdf
         run: node create-pdf.js
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: pdf
           path: output.pdf
   go:
+    needs: html
+    if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: setup
         # https://go.dev/doc/tutorial/add-a-test
         run: |
+          git ls-files | xargs rm && echo '*' >> .gitignore
           go mod init example.com/calc
           go get github.com/vakenbolt/go-test-report
           go install github.com/vakenbolt/go-test-report
@@ -279,7 +318,7 @@ jobs:
       - run: ls ~/go/bin
       - name: run tests
         run: go test -json | ~/go/bin/go-test-report || echo failed
-      - uses: ./upload
+      - uses: actions/upload-artifact@v4
         with:
           name: go
           path: test_report.html
