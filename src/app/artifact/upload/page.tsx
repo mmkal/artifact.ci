@@ -2,7 +2,7 @@
 
 import {useMutation} from '@tanstack/react-query'
 import {useSearchParams as useSearchParamsBase} from 'next/navigation'
-import {useCallback, useEffect, useMemo, useState} from 'react'
+import React from 'react'
 import {clientUpload} from './client-upload'
 
 type SubscriptionData = {stage: string; message: string}
@@ -26,12 +26,12 @@ export type ArtifactUploadPageSearchParams = {
 
 export function ArtifactLoader2() {
   const rawSearchParams = useSearchParams()
-  const searchParams = useMemo(
+  const searchParams = React.useMemo(
     () => (rawSearchParams ? (Object.fromEntries(rawSearchParams.entries()) as ArtifactUploadPageSearchParams) : null),
     [rawSearchParams],
   )
   const artifactId = searchParams?.artifactId || undefined
-  const [updates, setUpdates] = useState([] as SubscriptionData[])
+  const [updates, setUpdates] = React.useState([] as SubscriptionData[])
   const stage = updates.at(0)?.stage
   const mutation = useMutation({
     mutationFn: (input: {artifactId: string}) => {
@@ -48,15 +48,12 @@ export function ArtifactLoader2() {
     onSuccess: ({artifact, entrypoints}) => {
       setUpdates(prev => [...prev, {stage: 'success', message: 'Taking you to your artifact...'}])
       if (!searchParams) throw new Error('searchParams not found')
-      const entry = searchParams.entry || entrypoints.flatAliases[0]
-      const callbackUrl = `/artifact/view/${artifact.owner}/${artifact.repo}/${searchParams.aliasType}/${searchParams.identifier}/${artifact.name}/${entry}`
-      const newUrl = new URL(callbackUrl, window.location.origin)
-      newUrl.searchParams.set('redirected', 'true')
-      window.location.href = newUrl.toString()
+      const entry = searchParams.entry || entrypoints.entrypoints[0]
+      window.location.href = `/artifact/view/${artifact.owner}/${artifact.repo}/${searchParams.aliasType}/${searchParams.identifier}/${artifact.name}/${entry}`
     },
     onError: error => setUpdates(prev => [...prev, {stage: 'error', message: error.message}]),
   })
-  useEffect(() => {
+  React.useEffect(() => {
     if (mutation.status === 'idle' && artifactId) {
       const timeout = setTimeout(() => mutation.mutate({artifactId}), 200)
       return () => clearTimeout(timeout)
