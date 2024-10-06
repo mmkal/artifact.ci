@@ -9,27 +9,27 @@ declare module 'next-auth' {
   interface Session {
     user: {
       github_login: string | null
-      access_token: string | null
     } & DefaultSession['user']
   }
 }
 
+export const GithubAppClientEnv = z.object({
+  GITHUB_APP_CLIENT_ID: z.string().min(1),
+  GITHUB_APP_CLIENT_SECRET: z.string().min(1),
+})
+
+export const GithubAppEnv = z.object({
+  GITHUB_APP_ID: z.string().min(1),
+  GITHUB_APP_PRIVATE_KEY: z.string().min(1),
+})
+
 const Github: typeof DefaultGithub = options => {
-  const base = DefaultGithub({
+  const env = GithubAppClientEnv.parse(process.env)
+  return DefaultGithub({
     ...options,
-    clientId: process.env.GITHUB_APP_CLIENT_ID,
-    clientSecret: process.env.GITHUB_APP_CLIENT_SECRET,
+    clientId: env.GITHUB_APP_CLIENT_ID,
+    clientSecret: env.GITHUB_APP_CLIENT_SECRET,
   })
-  return {
-    ...base,
-    authorization: {
-      ...(base.authorization as {}),
-      params: {
-        ...(base.authorization as {params: {scope: string}})?.params,
-        scope: 'repo read:user user:email', // seems scope is hardcoded in next-auth to read:user user:email
-      },
-    },
-  }
 }
 
 export const {handlers, signIn, signOut, auth} = NextAuth({
@@ -47,23 +47,12 @@ export const {handlers, signIn, signOut, auth} = NextAuth({
         token.github_login_note = `jwt callback: no account`
       }
 
-      // todo: hopefully, this can be removed. the only reason it might be needed is to allow downloading artifacts on the client, but maybe that's a bad idea anyway.
-      if (token.account_access_token) {
-        token.note = `jwt callback: account_access_token already set`
-      } else if (account) {
-        token.account_access_token = account.access_token
-        token.note = `jwt callback: added account_access_token`
-      } else {
-        token.note = `jwt callback: didn't add account_access_token`
-      }
-
       return token
     },
     async session({session, token}) {
       // typically session.user looks like {name: 'A B', email: undefined, image: 'https://.../something.jpg'}
       // typically token looks like {name: 'A B', picture: 'https://.../something.jpg', email: 'a@b.com', ...}
       session.user.github_login = token.github_login as string | null
-      session.user.access_token = token.account_access_token as string | null
       return session
     },
   },
@@ -76,11 +65,6 @@ export const getGithubAccessToken = async (request: NextRequest) => {
   const session = await auth()
   return session?.user.access_token
 }
-
-export const GithubAppEnv = z.object({
-  GITHUB_APP_ID: z.string(),
-  GITHUB_APP_PRIVATE_KEY: z.string(),
-})
 
 export const getOctokitApp = () => {
   const env = GithubAppEnv.parse(process.env)
