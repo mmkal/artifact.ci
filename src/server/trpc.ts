@@ -1,16 +1,16 @@
 import {initTRPC, TRPCError} from '@trpc/server'
 import mime from 'mime'
-import {Octokit} from 'octokit'
+import {Session} from 'next-auth'
 import pMap from 'p-map'
 import {z} from 'zod'
 import {client, Id, sql} from '../db'
 import {storeArtifact} from '~/app/artifact/upload/actions'
 import {getEntrypoints} from '~/app/artifact/upload/signed-url/route'
-import {AugmentedSession} from '~/auth'
+import {getCollaborationLevel, getInstallationOctokit} from '~/auth'
 import {createStorageClient} from '~/storage/supabase'
 
 export interface TrpcContext {
-  auth: AugmentedSession | null
+  session: Session | null
 }
 
 const t = initTRPC.context<TrpcContext>().create()
@@ -38,7 +38,10 @@ export const artifactAccessProcedure = t.procedure
     }),
   )
   .use(async ({input, ctx, next}) => {
-    const userOctokit = new Octokit({auth: ctx.auth?.jwt_access_token})
+    if (!ctx.session?.user.github_login) {
+      throw new TRPCError({code: 'UNAUTHORIZED', message: 'not authenticated'})
+    }
+    const githubLogin = ctx.session.user.github_login
     const artifact = await client.one(sql<queries.Artifact>`
       select a.*, gi.github_id as installation_github_id, r.owner as repo_owner, r.name as repo_name
       from artifacts a
@@ -46,30 +49,32 @@ export const artifactAccessProcedure = t.procedure
       join repos r on r.id = a.repo_id
       where a.id = ${input.artifactId}
     `)
-    try {
-      await userOctokit.rest.actions.listWorkflowRunsForRepo({
-        owner: artifact.repo_owner,
-        repo: artifact.repo_name,
-        per_page: 1,
-      })
-    } catch (error) {
-      const {data: authedUser} = ctx.auth?.jwt_access_token
-        ? await userOctokit.rest.users.getAuthenticated()
-        : {data: null}
+    const octokit = await getInstallationOctokit(artifact.installation_github_id)
+
+    const repo = {owner: artifact.repo_owner, repo: artifact.repo_name}
+    const permission = await getCollaborationLevel(octokit, repo, githubLogin)
+    if (permission === 'none') {
       throw new TRPCError({
         code: 'UNAUTHORIZED',
-        message: `User ${authedUser?.login} is not authorized to access the requested artifact`,
-        cause: error,
+        message: `user ${githubLogin} is not authorized to access artifact ${input.artifactId}`,
+        cause: new Error(`user ${githubLogin} has permission ${permission} for repo ${repo.owner}/${repo.repo}`),
       })
     }
-    return next({ctx: {...ctx, artifact}})
+
+    return next({ctx: {...ctx, artifact, octokit}})
   })
 
 export const appRouter = router({
-  getDownloadUrl: artifactAccessProcedure.query(async ({input}) => {
-    return client.oneFirst(
-      sql<queries.GetDownloadUrl>`select download_url from artifacts where id = ${input.artifactId}`,
-    )
+  getDownloadUrl: artifactAccessProcedure.query(async ({ctx}) => {
+    const archiveResponse = await ctx.octokit.rest.actions.downloadArtifact({
+      owner: ctx.artifact.repo_owner,
+      repo: ctx.artifact.repo_name,
+      artifact_id: ctx.artifact.github_id,
+      archive_format: 'zip',
+    })
+    // https://docs.github.com/en/rest/actions/artifacts?apiVersion=2022-11-28#download-an-artifact - "Look for `Location:` in the response header to find the URL for the download. The URL expires after 1 minute."
+    if (!archiveResponse.headers.location) throw new Error('Failed to download artifact')
+    return archiveResponse.headers.location
   }),
   createUploadTokens: artifactAccessProcedure
     .input(
@@ -213,11 +218,5 @@ export declare namespace queries {
 
     /** column: `public.repos.name`, not null: `true`, regtype: `text` */
     repo_name: string
-  }
-
-  /** - query: `select download_url from artifacts where id = $1` */
-  export interface GetDownloadUrl {
-    /** column: `public.artifacts.download_url`, not null: `true`, regtype: `text` */
-    download_url: string
   }
 }

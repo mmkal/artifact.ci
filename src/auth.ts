@@ -1,7 +1,8 @@
 import {NextRequest} from 'next/server'
 import NextAuth, {type DefaultSession} from 'next-auth'
 import DefaultGithub from 'next-auth/providers/github'
-import {Octokit} from 'octokit'
+import {App, Octokit} from 'octokit'
+import {z} from 'zod'
 
 declare module 'next-auth' {
   /** Augmented - see https://authjs.dev/getting-started/typescript */
@@ -74,4 +75,36 @@ export const getGithubAccessToken = async (request: NextRequest) => {
 
   const session = await auth()
   return session?.user.access_token
+}
+
+export const GithubAppEnv = z.object({
+  GITHUB_APP_ID: z.string(),
+  GITHUB_APP_PRIVATE_KEY: z.string(),
+})
+
+export const getOctokitApp = () => {
+  const env = GithubAppEnv.parse(process.env)
+  return new App({
+    appId: env.GITHUB_APP_ID,
+    privateKey: env.GITHUB_APP_PRIVATE_KEY,
+  })
+}
+
+export const getInstallationOctokit = async (installationId: number) => {
+  const app = getOctokitApp()
+  return app.getInstallationOctokit(installationId)
+}
+
+export const getCollaborationLevel = async (
+  octokit: Octokit,
+  repo: {owner: string; repo: string},
+  username: string,
+) => {
+  const {data: collaboration} = await octokit.rest.repos.getCollaboratorPermissionLevel({
+    owner: repo.owner,
+    repo: repo.repo,
+    username,
+  })
+  const {permission} = z.object({permission: z.enum(['none', 'read', 'write', 'admin'])}).parse(collaboration)
+  return permission
 }

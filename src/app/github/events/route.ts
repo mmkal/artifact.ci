@@ -1,9 +1,8 @@
 import {NextRequest, NextResponse} from 'next/server'
-import {App} from 'octokit'
-import {z} from 'zod'
 import {fromError} from 'zod-validation-error'
 import {AppWebhookEvent, WorkflowJobCompleted} from './types'
 import {ARTIFACT_BLOB_PREFIX} from '~/app/artifact/view/[...slug]/route'
+import {getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
 import {logger} from '~/tag-logger'
 
@@ -31,12 +30,6 @@ export async function POST(request: NextRequest) {
   return logger.run(`event=${parsed.data.eventType}`, async () => {
     const event = parsed.data
 
-    const env = Env.parse(process.env)
-    const app = new App({
-      appId: env.GITHUB_APP_ID,
-      privateKey: env.GITHUB_APP_PRIVATE_KEY,
-    })
-
     if (event.eventType === 'ignored_action') {
       return NextResponse.json({
         ok: true,
@@ -56,7 +49,7 @@ export async function POST(request: NextRequest) {
 
         const job = event.workflow_job
         const [owner, repo] = event.repository.full_name.split('/')
-        const octokit = await app.getInstallationOctokit(event.installation.id)
+        const octokit = await getInstallationOctokit(event.installation.id)
         const {data} = await octokit.rest.actions.listWorkflowRunArtifacts({
           owner,
           repo,
@@ -169,24 +162,6 @@ export async function POST(request: NextRequest) {
     logger.warn('unknown event type', body)
     return NextResponse.json({ok: false, error: 'unexpected body', keys: Object.keys(event)}, {status: 400})
   })
-}
-
-export const Env = z.object({
-  GITHUB_APP_ID: z.string(),
-  GITHUB_APP_PRIVATE_KEY: z.string(),
-})
-
-export const getOctokitApp = () => {
-  const env = Env.parse(process.env)
-  return new App({
-    appId: env.GITHUB_APP_ID,
-    privateKey: env.GITHUB_APP_PRIVATE_KEY,
-  })
-}
-
-export const getInstallationOctokit = async (installationId: number) => {
-  const app = getOctokitApp()
-  return app.getInstallationOctokit(installationId)
 }
 
 export declare namespace queries {

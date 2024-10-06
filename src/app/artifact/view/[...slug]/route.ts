@@ -4,8 +4,7 @@ import {NextResponse} from 'next/server'
 import {NextAuthRequest} from 'node_modules/next-auth/lib'
 import * as path from 'path'
 import {z} from 'zod'
-import {getInstallationOctokit} from '~/app/github/events/route'
-import {auth} from '~/auth'
+import {auth, getCollaborationLevel, getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
 import {createStorageClient} from '~/storage/supabase'
 import {logger} from '~/tag-logger'
@@ -97,12 +96,7 @@ const tryGet = async (request: NextAuthRequest) => {
     }
 
     const octokit = await getInstallationOctokit(artifactInfo.installation_github_id)
-    const {data: collaboration} = await octokit.rest.repos.getCollaboratorPermissionLevel({
-      owner,
-      repo,
-      username: githubLogin,
-    })
-    const {permission} = z.object({permission: z.enum(['none', 'read', 'write', 'admin'])}).parse(collaboration)
+    const permission = await getCollaborationLevel(octokit, {owner, repo}, githubLogin)
 
     if (permission === 'none') {
       return NextResponse.json(
