@@ -117,7 +117,7 @@ export function ArtifactLoader2() {
       })
     },
     onSuccess: () => gogo(),
-    onError: error => setUpdates(prev => [...prev, {stage: 'error', message: error.message}]),
+    onError: error => setUpdates(prev => [...prev, {stage: 'error', message: error.stack || error.message}]),
   })
   const isProcessing = mutation.isPending
 
