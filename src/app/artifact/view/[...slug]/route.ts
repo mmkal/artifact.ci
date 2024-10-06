@@ -1,5 +1,6 @@
 /* eslint-disable no-console -- let me do basic console logging */
 import {lookup as mimeTypeLookup} from 'mime-types'
+import {cookies} from 'next/headers'
 import {NextResponse} from 'next/server'
 import {NextAuthRequest} from 'node_modules/next-auth/lib'
 import * as path from 'path'
@@ -110,7 +111,10 @@ const tryGet = async (request: NextAuthRequest) => {
 
   if (!artifactInfo.entries?.length) {
     const requestUrl = request.nextUrl
-    if (requestUrl.searchParams.get('redirected') === 'true') {
+    const cookieName = 'redirected'
+    const cookieStore = cookies()
+
+    if (cookieStore.get(cookieName)) {
       const message = `Artifact ${artifactName} (from path ${pathname}) has no entries, probably hasn't been extracted and stored yet`
       return NextResponse.json({message, githubUser: githubLogin}, {status: 404})
     }
@@ -122,7 +126,11 @@ const tryGet = async (request: NextAuthRequest) => {
       identifier,
       entry: filepathParts.join('/'),
     } satisfies ArtifactUploadPageSearchParams
-    return NextResponse.redirect(requestUrl.origin + `/artifact/upload?${new URLSearchParams(params)}`)
+
+    const response = NextResponse.redirect(requestUrl.origin + `/artifact/upload?${new URLSearchParams(params)}`)
+    response.cookies.set({name: cookieName, value: 'true', path: request.nextUrl.pathname, maxAge: 120})
+
+    return response
   }
 
   const storage = createStorageClient()
