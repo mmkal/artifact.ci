@@ -155,7 +155,7 @@ export const appRouter = router({
       return {
         artifact: ctx.artifact,
         records,
-        entrypoints: getEntrypoints(input.uploads.map(u => u.entry)),
+        entrypoints: getEntrypoints(records.flatMap(u => u.aliases)),
       }
     }),
 })
