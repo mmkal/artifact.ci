@@ -19,13 +19,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: mkdir -p vitest
       - name: setup
         working-directory: ./vitest
         run: |
           git ls-files | xargs rm && echo '*' >> .gitignore
           rm -rf node_modules
-          rm postcss.config.js
+          rm -rf postcss.config.js
           npm init -y
           npm install vitest @vitest/ui @types/node@^20.0.0 --save-dev
           cat package.json
