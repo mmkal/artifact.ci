@@ -2,7 +2,6 @@
 
 import {useMutation} from '@tanstack/react-query'
 import {useSearchParams as useSearchParamsBase} from 'next/navigation'
-import {useSession} from 'next-auth/react'
 import {useCallback, useEffect, useState} from 'react'
 import {clientUpload} from './client-upload'
 
@@ -22,12 +21,10 @@ export function ArtifactLoader2() {
   const artifactId = searchParams?.get('artifactId') || undefined
   const [updates, setUpdates] = useState([] as SubscriptionData[])
   const stage = updates.at(0)?.stage
-  const session = useSession()
   const mutation = useMutation({
     mutationFn: (input: {artifactId: string}) => {
       return clientUpload({
         ...input,
-        githubToken: session.data?.user.access_token,
         onProgress: (newStage, message) =>
           setUpdates(prev => {
             const next = [...prev]

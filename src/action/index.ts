@@ -5,7 +5,7 @@ import {HttpClient} from '@actions/http-client'
 import * as cheerio from 'cheerio'
 import {readFile} from 'fs/promises'
 import {z} from 'zod'
-import {getLogger} from '~/logger'
+import {logger} from '~/tag-logger'
 import {BulkRequest} from '~/types'
 
 async function main() {
@@ -21,7 +21,11 @@ async function main() {
     // const artifactCiDebugKeyword = event.repository === 'mmkal/artifact.ci' ? 'debug' : 'artifactci_debug'
     // return '${{ github.event.head_commit.message }}'.includes(`${artifactCiDebugKeyword}=${context.job}`)
   }
-  const logger = getLogger({debug: isDebug()})
+  if (isDebug()) {
+    logger.level = 'debug'
+  }
+
+  // const logger = getLogger({debug: isDebug()})
   logger.debug('event', JSON.stringify(event, null, 2))
   logger.debug('getInput(artifactci-origin)', getInput('artifactci-origin'))
 
@@ -110,9 +114,9 @@ async function main() {
 // eslint-disable-next-line @typescript-eslint/no-floating-promises, unicorn/prefer-top-level-await
 ;(async function run() {
   try {
-    await main()
+    await logger.try('action', main)
   } catch (error) {
-    setFailed(String(error?.stack || error))
+    setFailed(String((error as Error)?.stack || error))
   }
 })()
 
