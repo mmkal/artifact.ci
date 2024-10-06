@@ -1,10 +1,9 @@
 import {initTRPC, TRPCError} from '@trpc/server'
 import mime from 'mime'
 import {Session} from 'next-auth'
-import pMap from 'p-map'
+import pMap from 'p-suite/p-map'
 import {z} from 'zod'
 import {client, Id, sql} from '../db'
-import {storeArtifact} from '~/app/artifact/upload/actions'
 import {getEntrypoints} from '~/app/artifact/upload/signed-url/route'
 import {getCollaborationLevel, getInstallationOctokit} from '~/auth'
 import {createStorageClient} from '~/storage/supabase'
@@ -20,16 +19,11 @@ export const publicProcedure = t.procedure
 
 // todo: do a better authz check
 // things to do first:
-// - include the github login in the session so we don't need to make an extra request
-// - shortcut if the user = repo owner
 // - otherwise check if they have a repo_access_permission entry
 // - otherwise use github api to check if user has access to repo
 // - create a repo_access_permission entry if they have a usage credit
 // - maybe separately, check that the user has a credit for this service (as opposed to allowed to see the repo artifacts)
 // - might someday want to *allow* users to see repo artifacts even if they don't have a usage credit, for example if the repo is public or if the repo owner allows it
-// export const authorizeRepoAccess = async (session: AugmentedSession | null, repo: {owner: string; repo: string}) => {
-//   if (!session) return {authorized: false , error: 'not_authenticated'} as const
-// }
 
 export const artifactAccessProcedure = t.procedure
   .input(
@@ -43,7 +37,7 @@ export const artifactAccessProcedure = t.procedure
     }
     const githubLogin = ctx.session.user.github_login
     const artifact = await client.one(sql<queries.Artifact>`
-      select a.*, gi.github_id as installation_github_id, r.owner as repo_owner, r.name as repo_name
+      select a.*, gi.github_id as installation_github_id, r.owner, r.name as repo
       from artifacts a
       join github_installations gi on gi.id = a.installation_id
       join repos r on r.id = a.repo_id
@@ -51,13 +45,12 @@ export const artifactAccessProcedure = t.procedure
     `)
     const octokit = await getInstallationOctokit(artifact.installation_github_id)
 
-    const repo = {owner: artifact.repo_owner, repo: artifact.repo_name}
-    const permission = await getCollaborationLevel(octokit, repo, githubLogin)
+    const permission = await getCollaborationLevel(octokit, artifact, githubLogin)
     if (permission === 'none') {
       throw new TRPCError({
         code: 'UNAUTHORIZED',
         message: `user ${githubLogin} is not authorized to access artifact ${input.artifactId}`,
-        cause: new Error(`user ${githubLogin} has permission ${permission} for repo ${repo.owner}/${repo.repo}`),
+        cause: new Error(`user:${githubLogin}, permission:${permission} repo:${artifact.owner}/${artifact.repo}`),
       })
     }
 
@@ -67,8 +60,8 @@ export const artifactAccessProcedure = t.procedure
 export const appRouter = router({
   getDownloadUrl: artifactAccessProcedure.output(z.string()).query(async ({ctx}) => {
     const archiveResponse = await ctx.octokit.rest.actions.downloadArtifact({
-      owner: ctx.artifact.repo_owner,
-      repo: ctx.artifact.repo_name,
+      owner: ctx.artifact.owner,
+      repo: ctx.artifact.repo,
       artifact_id: ctx.artifact.github_id,
       archive_format: 'zip',
       request: {redirect: 'manual'}, // without this it will follow the redirect and actually download the file, but we want to just give a signed url to the client
@@ -82,7 +75,7 @@ export const appRouter = router({
       const storage = createStorageClient()
       const artifactPathPrefix = [
         'github/artifacts',
-        `${artifact.repo_owner}/${artifact.repo_name}`,
+        `${artifact.owner}/${artifact.repo}`,
         artifact.created_at.toISOString().split(/\D/).slice(0, 3).join('/'), // date part in subfolders so when debugging can navigate to year/month/day
         artifact.created_at.toISOString().split('T')[1].replaceAll(':', '.'), // time part as a dot-separated string
         artifact.name,
@@ -110,7 +103,7 @@ export const appRouter = router({
 
       return {tokens, supabaseUrl: storage.$options.baseUrl}
     }),
-  recordUploads: artifactAccessProcedure
+  storeUploadRecords: artifactAccessProcedure
     .input(
       z.object({
         uploads: z.array(
@@ -160,19 +153,6 @@ export const appRouter = router({
         `,
       )
     }),
-  startArtifactProcessing: publicProcedure
-    .input(
-      z.object({
-        artifactId: Id('artifact'), //
-      }),
-    )
-    .mutation(async function* ({input}) {
-      console.log('startArtifactProcessing', input)
-      for await (const event of storeArtifact(input)) {
-        console.log('event', event)
-        yield event
-      }
-    }),
 })
 
 export type AppRouter = typeof appRouter
@@ -210,9 +190,9 @@ export declare namespace queries {
     installation_github_id: number
 
     /** column: `public.repos.owner`, not null: `true`, regtype: `text` */
-    repo_owner: string
+    owner: string
 
     /** column: `public.repos.name`, not null: `true`, regtype: `text` */
-    repo_name: string
+    repo: string
   }
 }

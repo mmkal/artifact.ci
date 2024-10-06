@@ -3,7 +3,7 @@
 import {useMutation} from '@tanstack/react-query'
 import {useSearchParams as useSearchParamsBase} from 'next/navigation'
 import {useSession} from 'next-auth/react'
-import {useCallback, useState} from 'react'
+import {useCallback, useEffect, useState} from 'react'
 import {clientUpload} from './client-upload'
 
 type SubscriptionData = {stage: string; message: string}
@@ -42,6 +42,12 @@ export function ArtifactLoader2() {
     },
     onError: error => setUpdates(prev => [...prev, {stage: 'error', message: error.stack || error.message}]),
   })
+  useEffect(() => {
+    if (mutation.status === 'idle' && artifactId) {
+      setTimeout(() => mutation.mutate({artifactId}), 1000)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mutation.status, artifactId, mutation.mutate])
   const isProcessing = mutation.isPending
 
   const gogo = useCallback(() => {
@@ -71,7 +77,7 @@ export function ArtifactLoader2() {
               ))}
             </div>
             {!isProcessing && stage !== 'complete' && updates.length === 0 && (
-              <div className="text-amber-700">Waiting to prepare artifact...</div>
+              <div className="text-amber-700">Getting ready...</div>
             )}
           </div>
         </div>
@@ -83,7 +89,7 @@ export function ArtifactLoader2() {
               })
             }}
             disabled={isProcessing}
-            className="bg-amber-500 hover:bg-amber-600 text-white font-mono font-bold py-2 px-4 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="hidden bg-amber-500 hover:bg-amber-600 text-white font-mono font-bold py-2 px-4 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isProcessing ? 'Preparing...' : 'Prepare'}
           </button>

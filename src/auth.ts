@@ -100,6 +100,7 @@ export const getCollaborationLevel = async (
   repo: {owner: string; repo: string},
   username: string,
 ) => {
+  if (username === repo.owner) return 'admin'
   const {data: collaboration} = await octokit.rest.repos.getCollaboratorPermissionLevel({
     owner: repo.owner,
     repo: repo.repo,
