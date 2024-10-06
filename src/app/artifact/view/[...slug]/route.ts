@@ -5,6 +5,7 @@ import {NextResponse} from 'next/server'
 import {NextAuthRequest} from 'node_modules/next-auth/lib'
 import * as path from 'path'
 import {ArtifactUploadPageSearchParams} from '../../upload/page'
+import {getEntrypoints} from '../../upload/signed-url/route'
 import {auth, getCollaborationLevel, getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
 import {createStorageClient} from '~/storage/supabase'
@@ -109,8 +110,8 @@ const tryGet = async (request: NextAuthRequest) => {
     )
   }
 
+  const requestUrl = request.nextUrl
   if (!artifactInfo.entries?.length) {
-    const requestUrl = request.nextUrl
     const cookieName = 'redirected'
     const cookieStore = cookies()
 
@@ -133,6 +134,13 @@ const tryGet = async (request: NextAuthRequest) => {
     return response
   }
 
+  if (filepathParts.length === 0) {
+    // for now, redirect to the calculated entrypoint, but maybe this should be a file-selector UI or something
+    const {entrypoints} = getEntrypoints(artifactInfo.entries)
+    const newUrl = new URL(requestUrl.origin + requestUrl.pathname + '/' + entrypoints[0])
+    return NextResponse.redirect(newUrl)
+  }
+
   const storage = createStorageClient()
   const dbFile = await client.maybeOne(sql<queries.DbFile>`
     select o.name as storage_pathname
@@ -140,7 +148,7 @@ const tryGet = async (request: NextAuthRequest) => {
     join artifact_entries ae on ae.artifact_id = a.id
     join storage.objects o on ae.storage_object_id = o.id
     where a.id = ${artifactInfo.artifact_id}
-    and ${filepathParts.join('/') || 'index'} = any(ae.aliases)
+    and ${filepathParts.join('/') || '.'} = any(ae.aliases)
     and o.name is not null
     order by ae.created_at desc
     limit 1
