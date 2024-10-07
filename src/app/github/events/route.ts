@@ -16,7 +16,11 @@ const getPreviewOrigin = (request: NextRequest, event: WorkflowJobCompleted) => 
   if (repo !== 'mmkal/artifact.ci') return null
   if (headBranch === 'main') return null
 
-  const branchSlug = headBranch.replaceAll(/\W/g, '-')
+  return getPreviewUrl(headBranch)
+}
+
+const getPreviewUrl = (branch: string) => {
+  const branchSlug = branch.replaceAll(/\W/g, '-')
   return `https://artifactci-git-${branchSlug}-mmkals-projects.vercel.app`
 }
 
@@ -123,9 +127,8 @@ export async function POST(request: NextRequest) {
 
         const entrypointSummaries = artifacts.map(arti => {
           const identifierLinks = arti.identifiers.map(({type, value}) => {
-            const url =
-              // use request.url origin for preview branches etc.
-              new URL(request.url).origin + ARTIFACT_BLOB_PREFIX + `${owner}/${repo}/${type}/${value}/${arti.name}`
+            const origin = getPreviewOrigin(request, event)
+            const url = origin + ARTIFACT_BLOB_PREFIX + `${owner}/${repo}/${type}/${value}/${arti.name}`
             return `[${type}](${url})`
           })
           return `- **${arti.name}**: ${identifierLinks.join(' / ')}`
