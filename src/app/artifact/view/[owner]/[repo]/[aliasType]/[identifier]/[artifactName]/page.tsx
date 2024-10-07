@@ -35,7 +35,7 @@ export default async function ArtifactPage({params, searchParams}: ArtifactPage.
 
   return (
     <ArtifactLayout params={params}>
-      <FileList entries={artifact.artifactInfo.entries || []} params={params} />
+      <FileList names={artifact.artifactInfo.entries || []} params={params} />
     </ArtifactLayout>
   )
 }

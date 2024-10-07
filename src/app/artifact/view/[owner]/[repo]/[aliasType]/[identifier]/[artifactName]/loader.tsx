@@ -67,7 +67,7 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
         🗿 artifact: {params.artifactName}
       </h1>
 
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between pr-5">
         <h2 className="text-2xl font-semibold">
           {mutation.isSuccess
             ? [<Check key="check" className="inline mr-1" />, 'Artifact ready']
@@ -84,7 +84,7 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
         )}
       </div>
 
-      <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-2 scroll-smooth snap-y snap-mandatory">
+      <div className="space-y-2 max-h-[70vh] overflow-y-auto scroll-smooth snap-y snap-mandatory pr-5">
         <div className="snap-start">
           {updates.map((line, index) => (
             <div
@@ -102,7 +102,7 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
         </div>
         {mutation.isSuccess && (
           <div ref={fileListRef} className="snap-start pb-[100%]">
-            <FileList entries={mutation.data.records.map(r => r.entry_name)} params={params} />
+            <FileList names={mutation.data.records.map(r => r.entry_name)} params={params} />
           </div>
         )}
       </div>
