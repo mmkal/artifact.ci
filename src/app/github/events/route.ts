@@ -91,8 +91,8 @@ export async function POST(request: NextRequest) {
                 const dbRepo = await tx.one(
                   sql<queries.Repo>`
                     with insertion as (
-                      insert into repos (name, owner)
-                      select ${repo} as name, ${owner} as owner
+                      insert into repos (owner, name)
+                      values (${owner}, ${repo})
                       on conflict (owner, name) do nothing
                     )
                     select id from repos where name = ${repo} and owner = ${owner}
