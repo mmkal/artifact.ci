@@ -1,8 +1,8 @@
-import {NextRequest} from 'next/server'
 import NextAuth, {type DefaultSession} from 'next-auth'
 import DefaultGithub from 'next-auth/providers/github'
 import {App, Octokit} from 'octokit'
 import {z} from 'zod'
+import {logger} from './tag-logger'
 
 declare module 'next-auth' {
   /** Augmented - see https://authjs.dev/getting-started/typescript */
@@ -36,7 +36,7 @@ export const {handlers, signIn, signOut, auth} = NextAuth({
   providers: [Github],
   callbacks: {
     async jwt({token, account}) {
-      if (token.github_login) {
+      if (token.github_login && typeof token.github_login === 'string') {
         token.github_login_note = `jwt callback: github_login already set`
       } else if (account) {
         const octokit = new Octokit({auth: account.access_token})
@@ -58,20 +58,9 @@ export const {handlers, signIn, signOut, auth} = NextAuth({
   },
 })
 
-// export const getGithubAccessToken = async (request: NextRequest) => {
-//   const cookieToken = request?.cookies.get('gh_token')?.value
-//   if (cookieToken) return cookieToken
-
-//   const session = await auth()
-//   return session?.user.access_token
-// }
-
 export const getOctokitApp = () => {
   const env = GithubAppEnv.parse(process.env)
-  return new App({
-    appId: env.GITHUB_APP_ID,
-    privateKey: env.GITHUB_APP_PRIVATE_KEY,
-  })
+  return new App({appId: env.GITHUB_APP_ID, privateKey: env.GITHUB_APP_PRIVATE_KEY})
 }
 
 export const getInstallationOctokit = async (installationId: number) => {
@@ -81,15 +70,11 @@ export const getInstallationOctokit = async (installationId: number) => {
 
 export const getCollaborationLevel = async (
   octokit: Octokit,
-  repo: {owner: string; repo: string},
-  username: string,
+  params: {owner: string; repo: string; username: string},
 ) => {
-  if (username === repo.owner) return 'admin'
-  const {data: collaboration} = await octokit.rest.repos.getCollaboratorPermissionLevel({
-    owner: repo.owner,
-    repo: repo.repo,
-    username,
-  })
-  const {permission} = z.object({permission: z.enum(['none', 'read', 'write', 'admin'])}).parse(collaboration)
-  return permission
+  if (params.username === params.owner) return 'admin'
+  const {data: collaboration} = await octokit.rest.repos.getCollaboratorPermissionLevel(params)
+  const parsed = z.object({permission: z.enum(['none', 'read', 'write', 'admin'])}).safeParse(collaboration)
+  if (!parsed.success) logger.error({collaboration}, 'getCollaborationLevel: failed to parse collaboration')
+  return parsed.success ? parsed.data.permission : 'none'
 }

@@ -40,7 +40,7 @@ export const searchArtifacts = async (params: Partial<PathParams>, {offset = 0, 
 
   const dedupedRepos = Object.values(Object.fromEntries(artifacts.map(r => [`${r.owner}/${r.repo}`, r])))
   for (const repo of dedupedRepos) {
-    const permission = await getCollaborationLevel(octokit, repo, session.user.github_login)
+    const permission = await getCollaborationLevel(octokit, {...repo, username: session.user.github_login})
     if (permission === 'none') return []
   }
 

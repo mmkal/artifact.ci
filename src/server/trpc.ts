@@ -45,7 +45,7 @@ export const artifactAccessProcedure = t.procedure
     `)
     const octokit = await getInstallationOctokit(artifact.installation_github_id)
 
-    const permission = await getCollaborationLevel(octokit, artifact, githubLogin)
+    const permission = await getCollaborationLevel(octokit, {...artifact, username: githubLogin})
     if (permission === 'none') {
       throw new TRPCError({
         code: 'UNAUTHORIZED',

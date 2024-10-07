@@ -41,7 +41,7 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
   }
 
   const octokit = await getInstallationOctokit(artifactInfo.installation_github_id)
-  const permission = await getCollaborationLevel(octokit, {owner, repo}, githubLogin)
+  const permission = await getCollaborationLevel(octokit, {owner, repo, username: githubLogin})
 
   if (permission === 'none') {
     const message = `Not authorized to access artifact ${artifactName}`
