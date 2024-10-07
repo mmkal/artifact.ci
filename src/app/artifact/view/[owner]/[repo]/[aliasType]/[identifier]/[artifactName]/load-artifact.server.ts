@@ -1,48 +1,20 @@
 import {lookup as mimeTypeLookup} from 'mime-types'
 import {cookies} from 'next/headers'
-import {NextResponse} from 'next/server'
-import {NextAuthRequest} from 'node_modules/next-auth/lib'
 import * as path from 'path'
-import {ArtifactUploadPageSearchParams} from '~/app/artifact/upload/page'
-import {getEntrypoints} from '~/app/artifact/upload/signed-url/route'
-import {auth, getCollaborationLevel, getInstallationOctokit} from '~/auth'
+import {type ArtifactLoader} from './loader'
+import {type PathParams} from '~/app/artifact/view/params'
+import {getCollaborationLevel, getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
 import {createStorageClient} from '~/storage/supabase'
 import {logger} from '~/tag-logger'
 
-export type PathParams = {
-  owner: string
-  repo: string
-  aliasType: string
-  identifier: string
-  artifactName: string
-  filepath?: string[]
+const ResponseHelpers = {
+  json: <const T>(body: T, options: {status: 400 | 401 | 403 | 404}) => ({outcome: '4xx', body, options}) as const,
 }
 
-// sample: http://localhost:3000/artifact/view/mmkal/artifact.ci/11020882214/mocha/output.html
-export const GET = auth(async (request, {params}) => {
-  return logger
-    .try('request', () => tryGet(request, {params: params as PathParams}))
-    .catch(error => {
-      logger.error(error)
-      return NextResponse.json({message: 'Internal server error'}, {status: 500})
-    })
-})
-
-const tryGet = async (request: NextAuthRequest, {params}: {params: PathParams}) => {
+export const loadArtifact = async (githubLogin: string, {params}: {params: PathParams}) => {
   logger.tag('params').debug(params)
   const {owner, repo, aliasType, identifier, artifactName, filepath = []} = params
-  const callbackUrlPathname = request.nextUrl.toString().replace(request.nextUrl.origin, '')
-  const githubLogin = request.auth?.user.github_login
-
-  if (!githubLogin && request.nextUrl.searchParams.get('disable_redirect') === 'true') {
-    return NextResponse.json({message: 'Unauthorized - no github login'}, {status: 401})
-  }
-
-  if (!githubLogin) {
-    const searchParams = new URLSearchParams({callbackUrl: callbackUrlPathname})
-    return NextResponse.redirect(`${request.nextUrl.origin}/api/auth/signin?${searchParams}`)
-  }
 
   const artifactInfo = await client.maybeOne(sql<queries.ArtifactInfo>`
     select
@@ -59,11 +31,13 @@ const tryGet = async (request: NextAuthRequest, {params}: {params: PathParams}) 
     and aid.value = ${identifier}
     and r.owner = ${owner}
     and r.name = ${repo}
+    order by a.created_at desc
+    limit 1
   `)
 
   if (!artifactInfo) {
     const message = `Artifact ${artifactName} not found`
-    return NextResponse.json({message, params, githubUser: githubLogin}, {status: 404})
+    return ResponseHelpers.json({message, params, githubUser: githubLogin}, {status: 404})
   }
 
   const octokit = await getInstallationOctokit(artifactInfo.installation_github_id)
@@ -71,41 +45,32 @@ const tryGet = async (request: NextAuthRequest, {params}: {params: PathParams}) 
 
   if (permission === 'none') {
     const message = `Not authorized to access artifact ${artifactName}`
-    return NextResponse.json({message, params, githubLogin, permission}, {status: 403})
+    return ResponseHelpers.json({message, params, githubLogin, permission}, {status: 403})
   }
 
-  const requestUrl = request.nextUrl
+  const loaderParams: ArtifactLoader.Params = {
+    ...params,
+    githubLogin,
+    artifactId: artifactInfo.artifact_id,
+    entry: filepath.join('/') || null,
+  }
+
   if (!artifactInfo.entries?.length) {
     const cookieName = 'redirected'
     const cookieStore = cookies()
 
     if (cookieStore.get(cookieName)) {
       const message = `Artifact ${artifactName} has no entries, probably hasn't been extracted and stored yet`
-      return NextResponse.json({message, params, githubLogin}, {status: 404})
+      return ResponseHelpers.json({message, params, githubLogin}, {status: 404})
     }
 
-    const uploadPageParams: ArtifactUploadPageSearchParams = {
-      ...params,
-      artifactId: artifactInfo.artifact_id,
-      entry: filepath.join('/'),
-    }
-
-    const response = NextResponse.redirect(
-      requestUrl.origin + `/artifact/upload?${new URLSearchParams(uploadPageParams)}`,
-    )
-    response.cookies.set({name: cookieName, value: 'true', path: request.nextUrl.pathname, maxAge: 120})
-
-    return response
+    return {outcome: 'not_uploaded_yet', loaderParams, artifactInfo} as const
   }
 
   if (filepath.length === 0) {
-    // for now, redirect to the calculated entrypoint, but maybe this should be a file-selector UI or something
-    const {entrypoints} = getEntrypoints(artifactInfo.entries)
-    const newUrl = new URL(requestUrl.origin + requestUrl.pathname + '/' + entrypoints[0])
-    return NextResponse.redirect(newUrl)
+    return {outcome: '2xx', storagePathname: null, artifactInfo, loaderParams} as const
   }
 
-  const storage = createStorageClient()
   const dbFile = await client.maybeOne(sql<queries.DbFile>`
     select o.name as storage_pathname
     from artifacts a
@@ -119,24 +84,25 @@ const tryGet = async (request: NextAuthRequest, {params}: {params: PathParams}) 
   `)
 
   if (!dbFile || !dbFile.storage_pathname) {
-    return NextResponse.json({dbFile, message: `Upload not found`, params, githubLogin, artifactInfo}, {status: 404})
+    return ResponseHelpers.json({dbFile, message: `Upload not found`, params, githubLogin, artifactInfo}, {status: 404})
   }
 
-  const file = await storage.object.bucketName('artifact_files').wildcard(dbFile.storage_pathname).get()
+  return {outcome: '2xx', storagePathname: dbFile.storage_pathname, artifactInfo, loaderParams} as const
+}
 
-  if (!file) {
-    return NextResponse.json({message: `Upload not found`, params, githubLogin}, {status: 404})
-  }
+export async function loadFile(storagePathname: string, params: PathParams) {
+  const storage = createStorageClient()
+  const file = await storage.object.bucketName('artifact_files').wildcard(storagePathname).get()
 
-  const contentType = mimeTypeLookup(dbFile.storage_pathname) || 'text/plain'
+  const contentType = mimeTypeLookup(storagePathname) || 'text/plain'
 
   const headers: Record<string, string> = {}
 
   headers['content-type'] = contentType
-  headers['artifactci-path'] = filepath.join('/')
-  headers['artifactci-name'] = artifactName
-  headers['artifactci-identifier'] = identifier
-  headers['artifactci-alias-type'] = aliasType
+  headers['artifactci-path'] = (params.filepath || []).join('/')
+  headers['artifactci-name'] = params.artifactName
+  headers['artifactci-identifier'] = params.identifier
+  headers['artifactci-alias-type'] = params.aliasType
 
   // Add relevant headers from the object response
   const relevantHeaders = ['content-length', 'etag', 'last-modified']
@@ -145,7 +111,7 @@ const tryGet = async (request: NextAuthRequest, {params}: {params: PathParams}) 
     if (value) headers[header] = value
   }
 
-  const ext = path.extname(dbFile.storage_pathname)
+  const ext = path.extname(storagePathname)
   if (
     ext === '.html' ||
     ext === '.htm' ||
@@ -157,12 +123,12 @@ const tryGet = async (request: NextAuthRequest, {params}: {params: PathParams}) 
     contentType.startsWith('video/') ||
     contentType.startsWith('audio/')
   ) {
-    headers['content-disposition'] = `inline; filename="${encodeURIComponent(path.basename(dbFile.storage_pathname))}"`
+    headers['content-disposition'] = `inline; filename="${encodeURIComponent(path.basename(storagePathname))}"`
   }
 
-  if (aliasType === 'branch') {
+  if (params.aliasType === 'branch') {
     headers['cache-control'] = 'public, max-age=300, must-revalidate'
-  } else if (aliasType === 'run' || aliasType === 'sha') {
+  } else if (params.aliasType === 'run' || params.aliasType === 'sha') {
     headers['cache-control'] = 'public, max-age=31536000, immutable'
   } else {
     headers['cache-control'] = file.response.headers.get('cache-control') || 'no-cache'
@@ -174,7 +140,7 @@ const tryGet = async (request: NextAuthRequest, {params}: {params: PathParams}) 
 export declare namespace queries {
   // Generated by @pgkit/typegen
 
-  /** - query: `select i.github_id as installation_githu... [truncated] ...ue = $3 and r.owner = $4 and r.name = $5` */
+  /** - query: `select i.github_id as installation_githu... [truncated] ... = $5 order by a.created_at desc limit 1` */
   export interface ArtifactInfo {
     /** column: `public.github_installations.github_id`, not null: `true`, regtype: `bigint` */
     installation_github_id: number

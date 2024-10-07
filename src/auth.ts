@@ -58,13 +58,13 @@ export const {handlers, signIn, signOut, auth} = NextAuth({
   },
 })
 
-export const getGithubAccessToken = async (request: NextRequest) => {
-  const cookieToken = request?.cookies.get('gh_token')?.value
-  if (cookieToken) return cookieToken
+// export const getGithubAccessToken = async (request: NextRequest) => {
+//   const cookieToken = request?.cookies.get('gh_token')?.value
+//   if (cookieToken) return cookieToken
 
-  const session = await auth()
-  return session?.user.access_token
-}
+//   const session = await auth()
+//   return session?.user.access_token
+// }
 
 export const getOctokitApp = () => {
   const env = GithubAppEnv.parse(process.env)

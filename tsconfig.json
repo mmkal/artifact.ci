@@ -27,7 +27,9 @@
     "isolatedModules": true,
     "baseUrl": ".",
     "paths": {
-      "~/*": ["src/*"]
+      "~/*": [
+        "src/*"
+      ]
     }
   },
   "include": [
@@ -36,7 +38,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "upload/*"
-, "src/action/generate.ts"  ],
+  ],
   "exclude": [
     "node_modules"
   ]

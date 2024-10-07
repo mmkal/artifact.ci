@@ -4,10 +4,14 @@ import {trpcClient} from '~/client/trpc'
 import {createProxyClient} from '~/openapi/client'
 import {paths} from '~/openapi/generated/supabase-storage'
 
-export namespace clientUpload {
-  export type Params = {artifactId: string; onProgress?: (stage: string, message: string) => void}
+export declare namespace clientUpload {
+  export type Params = {
+    artifactId: string
+    onProgress?: (stage: string, message: string) => void
+  }
 }
 
+/** Pulls an artifact and uploads to a storage bucket. The server is used for auth, but the hard work (/most bandwidth usage 😈) is done by the client. */
 export async function clientUpload({artifactId, onProgress = () => {}}: clientUpload.Params) {
   onProgress('start', 'Getting artifact information')
   const signedDownloadUrl = await trpcClient.getDownloadUrl.query({artifactId})

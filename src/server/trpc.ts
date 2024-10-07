@@ -106,9 +106,7 @@ export const appRouter = router({
   storeUploadRecords: artifactAccessProcedure
     .input(
       z.object({
-        uploads: z.array(
-          z.object({entry: z.string(), artifactFullPath: z.string()}), //
-        ),
+        uploads: z.array(z.object({entry: z.string(), artifactFullPath: z.string()})),
       }),
     )
     .mutation(async ({input, ctx}) => {
@@ -152,6 +150,7 @@ export const appRouter = router({
           returning entry_name, aliases, storage_object_id
         `,
       )
+
       return {
         artifact: ctx.artifact,
         records,
