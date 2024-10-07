@@ -1,6 +1,6 @@
 import React from 'react'
 import {getEntrypoints} from './entrypoints'
-import {PathParams} from './load-artifact.server'
+import {PathParams} from './params'
 
 interface FileListProps {
   names: string[]

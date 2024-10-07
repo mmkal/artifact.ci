@@ -1,0 +1,54 @@
+import Link from 'next/link'
+import React from 'react'
+import {toBreadcrumbs, type PathParams} from './[owner]/[repo]/[aliasType]/[identifier]/[artifactName]/params'
+
+const Header = ({params}: {params: PathParams}) => {
+  const breadcrumbs = toBreadcrumbs(params)
+  return (
+    <header className="mb-6 border-b-2 border-amber-300/50 pb-2">
+      <div className="flex items-center justify-between mb-4">
+        <Link href="/" className="text-2xl font-bold hover:text-amber-300 transition-colors">
+          🗿 artifact.ci
+        </Link>
+      </div>
+      <nav aria-label="Breadcrumb">
+        <ol className="flex flex-wrap items-center space-x-2 text-sm">
+          {breadcrumbs.map((crumb, index) => (
+            <React.Fragment key={crumb.path}>
+              {index > 0 && <li className="text-amber-200/60">/</li>}
+              <li>
+                {crumb.path ? (
+                  <Link href={crumb.path} className="hover:text-amber-300 transition-colors">
+                    {crumb.label}
+                  </Link>
+                ) : (
+                  <span className={index === breadcrumbs.length - 1 ? 'text-amber-300' : 'text-amber-200/60'}>
+                    {crumb.label}
+                  </span>
+                )}
+              </li>
+            </React.Fragment>
+          ))}
+        </ol>
+      </nav>
+    </header>
+  )
+}
+
+const Footer = () => {
+  return (
+    <footer className="mt-8 pt-4 border-t-2 border-amber-300/50 text-sm text-amber-200/60">
+      <p>artifact.ci</p>
+    </footer>
+  )
+}
+
+export default function ArtifactLayout({children, params}: {children: React.ReactNode; params: PathParams}) {
+  return (
+    <div className="bg-slate-950 text-amber-200/80 p-6 font-mono min-h-screen flex flex-col">
+      <Header params={params} />
+      <main className="flex-grow">{children}</main>
+      <Footer />
+    </div>
+  )
+}

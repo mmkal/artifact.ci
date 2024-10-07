@@ -1,22 +1,12 @@
 import {lookup as mimeTypeLookup} from 'mime-types'
 import {cookies} from 'next/headers'
 import * as path from 'path'
-import {z} from 'zod'
 import {type ArtifactLoader} from './loader'
+import {PathParams} from './params'
 import {getCollaborationLevel, getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
 import {createStorageClient} from '~/storage/supabase'
 import {logger} from '~/tag-logger'
-
-export const PathParams = z.object({
-  owner: z.string(),
-  repo: z.string(),
-  aliasType: z.string(),
-  identifier: z.string(),
-  artifactName: z.string(),
-  filepath: z.array(z.string()).optional(),
-})
-export type PathParams = z.infer<typeof PathParams>
 
 const ResponseHelpers = {
   json: <const T>(body: T, options: {status: 400 | 401 | 403 | 404}) => ({outcome: '4xx', body, options}) as const,

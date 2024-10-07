@@ -1,8 +1,9 @@
 import {redirect} from 'next/navigation'
 import {FileList} from './FileList'
 import {TrpcProvider} from './TrpcProvider'
-import {loadArtifact, PathParams} from './load-artifact.server'
+import {loadArtifact} from './load-artifact.server'
 import {ArtifactLoader} from './loader'
+import {PathParams} from './params'
 import {auth} from '~/auth'
 import {logger} from '~/tag-logger'
 

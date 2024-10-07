@@ -1,5 +1,6 @@
 import {NextResponse} from 'next/server'
-import {loadArtifact, loadFile, PathParams} from '../load-artifact.server'
+import {loadArtifact, loadFile} from '../load-artifact.server'
+import {PathParams} from '../params'
 import {auth} from '~/auth'
 import {logger} from '~/tag-logger'
 
