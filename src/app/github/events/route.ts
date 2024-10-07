@@ -34,12 +34,14 @@ export async function POST(request: NextRequest) {
   logger.debug('event received', request.url, body)
   const parsed = AppWebhookEvent.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json({error: fromError(parsed.error).message}, {status: 400})
+    logger.error('error parsing event', parsed.error)
+    return NextResponse.json({error: fromError(parsed.error).message}, {status: 500})
   }
   return logger.run(`event=${parsed.data.eventType}`, async () => {
     const event = parsed.data
 
     if (event.eventType === 'ignored_action') {
+      logger.warn('ignored action', event)
       return NextResponse.json({
         ok: true,
         action: event.action,
@@ -87,7 +89,14 @@ export async function POST(request: NextRequest) {
                   select * from github_installations where github_id = ${event.installation.id}
                 `)
                 const dbRepo = await tx.one(
-                  sql<queries.Repo>`select id from repos where name = ${repo} and owner = ${owner}`,
+                  sql<queries.Repo>`
+                    with insertion as (
+                      insert into repos (name, owner)
+                      select ${repo} as name, ${owner} as owner
+                      on conflict (name, owner) do nothing
+                    )
+                    select id from repos where name = ${repo} and owner = ${owner}
+                  `,
                 )
                 const dbArtifact = await tx.one(sql<queries.Artifact>`
                   insert into artifacts (repo_id, name, github_id, download_url, installation_id)
@@ -190,7 +199,7 @@ export declare namespace queries {
     updated_at: Date
   }
 
-  /** - query: `select id from repos where name = $1 and owner = $2` */
+  /** - query: `with insertion as ( insert into repos (n... [truncated] ...rom repos where name = $3 and owner = $4` */
   export interface Repo {
     /** column: `public.repos.id`, not null: `true`, regtype: `prefixed_ksuid` */
     id: import('~/db').Id<'repos'>
