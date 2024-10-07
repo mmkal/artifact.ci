@@ -16,7 +16,7 @@ export type PathParams = {
   aliasType: string
   identifier: string
   artifactName: string
-  filepath: string[]
+  filepath?: string[]
 }
 
 // sample: http://localhost:3000/artifact/view/mmkal/artifact.ci/11020882214/mocha/output.html
@@ -31,7 +31,7 @@ export const GET = auth(async (request, {params}) => {
 
 const tryGet = async (request: NextAuthRequest, {params}: {params: PathParams}) => {
   logger.tag('params').debug(params)
-  const {owner, repo, aliasType, identifier, artifactName, filepath} = params
+  const {owner, repo, aliasType, identifier, artifactName, filepath = []} = params
   const callbackUrlPathname = request.nextUrl.toString().replace(request.nextUrl.origin, '')
   const githubLogin = request.auth?.user.github_login
 
