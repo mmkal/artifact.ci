@@ -14,7 +14,6 @@ export const toBreadcrumbs = (params: Partial<PathParams>) => {
   const breadcrumbs = [{label: 'Artifacts', path: '/artifact/view', template: `/artifact/view`}]
   Object.keys(PathParams.shape).flatMap(key => {
     const value = params[key as keyof PathParams]
-    console.log({key, value, previous: breadcrumbs.at(-1)})
     if (!value) return []
     const previous = breadcrumbs.at(-1)!
     const valueString = [value].flat().join('/')
