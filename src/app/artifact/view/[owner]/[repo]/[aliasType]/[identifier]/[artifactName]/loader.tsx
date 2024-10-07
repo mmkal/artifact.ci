@@ -18,6 +18,14 @@ export namespace ArtifactLoader {
   }
 }
 
+export function ArtifactLoader(params: ArtifactLoader.Params) {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ArtifactLoaderInner {...params} />
+    </Suspense>
+  )
+}
+
 function ArtifactLoaderInner(params: ArtifactLoader.Params) {
   const searchParams = useSearchParams()
   const reload = searchParams?.get('reload') === 'true'
@@ -62,11 +70,7 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
   }, [mutation.isSuccess])
 
   return (
-    <div className="bg-gray-950 text-amber-200/80 p-6 font-mono min-h-screen">
-      <h1 className="text-3xl font-bold mb-6 border-b-2 border-amber-300/50 pb-2">
-        🗿 artifact: {params.artifactName}
-      </h1>
-
+    <>
       <div className="mb-4 flex items-center justify-between pr-5">
         <h2 className="text-2xl font-semibold">
           {mutation.isSuccess
@@ -106,14 +110,6 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
           </div>
         )}
       </div>
-    </div>
-  )
-}
-
-export function ArtifactLoader(params: ArtifactLoader.Params) {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <ArtifactLoaderInner {...params} />
-    </Suspense>
+    </>
   )
 }

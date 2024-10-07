@@ -11,7 +11,7 @@ function getUrl() {
   return '/api/trpc'
 }
 
-export function ClientLayout({children}: {children: ReactNode}) {
+export function TrpcProvider({children}: {children: ReactNode}) {
   const [queryClient] = useState(() => new QueryClient())
   const [trpcClient] = useState(() =>
     trpc.createClient({

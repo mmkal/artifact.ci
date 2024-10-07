@@ -1,7 +1,6 @@
 import {redirect} from 'next/navigation'
-import {ArtifactLayout} from './ArtifactLayout'
 import {FileList} from './FileList'
-import {ClientLayout} from './TrpcProvider'
+import {TrpcProvider} from './TrpcProvider'
 import {loadArtifact, PathParams} from './load-artifact.server'
 import {ArtifactLoader} from './loader'
 import {auth} from '~/auth'
@@ -26,16 +25,12 @@ export default async function ArtifactPage({params, searchParams}: ArtifactPage.
   }
   if (artifact.outcome === 'not_uploaded_yet' || searchParams.reload === 'true') {
     return (
-      <ClientLayout>
+      <TrpcProvider>
         <ArtifactLoader {...artifact.loaderParams} />
-      </ClientLayout>
+      </TrpcProvider>
     )
   }
   artifact.outcome satisfies '2xx'
 
-  return (
-    <ArtifactLayout params={params}>
-      <FileList names={artifact.artifactInfo.entries || []} params={params} />
-    </ArtifactLayout>
-  )
+  return <FileList names={artifact.artifactInfo.entries || []} params={params} />
 }
