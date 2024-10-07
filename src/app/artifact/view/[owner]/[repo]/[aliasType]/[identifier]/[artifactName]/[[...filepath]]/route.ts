@@ -23,7 +23,10 @@ export type PathParams = {
 export const GET = auth(async (request, {params}) => {
   return logger
     .try('request', () => tryGet(request, {params: params as PathParams}))
-    .catch(_err => NextResponse.json({message: 'Internal server error'}, {status: 500}))
+    .catch(error => {
+      logger.error(error)
+      return NextResponse.json({message: 'Internal server error'}, {status: 500})
+    })
 })
 
 const tryGet = async (request: NextAuthRequest, {params}: {params: PathParams}) => {
