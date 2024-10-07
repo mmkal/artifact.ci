@@ -2,7 +2,7 @@ import {lookup as mimeTypeLookup} from 'mime-types'
 import {cookies} from 'next/headers'
 import * as path from 'path'
 import {z} from 'zod'
-import {ArtifactUploadPageSearchParams} from './loader'
+import {type ArtifactLoader} from './loader'
 import {getCollaborationLevel, getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
 import {createStorageClient} from '~/storage/supabase'
@@ -65,8 +65,9 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
       return ResponseHelpers.json({message, params, githubLogin}, {status: 404})
     }
 
-    const uploadPageParams: ArtifactUploadPageSearchParams = {
+    const uploadPageParams: ArtifactLoader.Params = {
       ...params,
+      githubLogin,
       artifactId: artifactInfo.artifact_id,
       entry: filepath.join('/'),
     }

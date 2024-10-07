@@ -1,36 +1,21 @@
 'use client'
 
 import {useMutation} from '@tanstack/react-query'
-import {useSearchParams as useSearchParamsBase} from 'next/navigation'
+import {revalidatePath} from 'next/cache'
 import React from 'react'
 import {clientUpload} from './client-upload'
+import {PathParams} from './load-artifact.server'
 
 type SubscriptionData = {stage: string; message: string}
 
-function useSearchParams() {
-  try {
-    return useSearchParamsBase()
-  } catch {
-    // i don't want to use suspense
-    return null
+export namespace ArtifactLoader {
+  export type Params = PathParams & {
+    artifactId: string
+    githubLogin: string
   }
 }
 
-export type ArtifactUploadPageSearchParams = {
-  artifactId: string
-  artifactName: string
-  aliasType: string
-  identifier: string
-  entry: string
-}
-
-export function ArtifactLoader({githubLogin}: {githubLogin: string}) {
-  const rawSearchParams = useSearchParams()
-  const searchParams = React.useMemo(
-    () => (rawSearchParams ? (Object.fromEntries(rawSearchParams.entries()) as ArtifactUploadPageSearchParams) : null),
-    [rawSearchParams],
-  )
-  const artifactId = searchParams?.artifactId || undefined
+export function ArtifactLoader(params: ArtifactLoader.Params) {
   const [updates, setUpdates] = React.useState([] as SubscriptionData[])
   const stage = updates.at(0)?.stage
   const mutation = useMutation({
@@ -45,21 +30,23 @@ export function ArtifactLoader({githubLogin}: {githubLogin: string}) {
           }),
       })
     },
-    onSuccess: ({artifact, entrypoints}) => {
+    onSuccess: ({artifact}) => {
       setUpdates(prev => [...prev, {stage: 'success', message: 'Taking you to your artifact...'}])
-      if (!searchParams) throw new Error('searchParams not found')
-      const entry = searchParams.entry || entrypoints.entrypoints[0]
-      window.location.href = `/artifact/view/${artifact.owner}/${artifact.repo}/${searchParams.aliasType}/${searchParams.identifier}/${artifact.name}/${entry}`
+      revalidatePath(
+        `/artifact/view/${artifact.owner}/${artifact.repo}/${params.aliasType}/${params.identifier}/${artifact.name}`,
+      )
+      // const entry = params.entry || entrypoints.entrypoints[0]
+      // window.location.href = `/artifact/view/${artifact.owner}/${artifact.repo}/${params.aliasType}/${params.identifier}/${artifact.name}/${entry}`
     },
     onError: error => setUpdates(prev => [...prev, {stage: 'error', message: error.message}]),
   })
   React.useEffect(() => {
-    if (mutation.status === 'idle' && artifactId) {
-      const timeout = setTimeout(() => mutation.mutate({artifactId}), 200)
+    if (mutation.status === 'idle' && params.artifactId) {
+      const timeout = setTimeout(() => mutation.mutate(params), 200)
       return () => clearTimeout(timeout)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mutation.status, artifactId, mutation.mutate])
+  }, [mutation.status, params.artifactId, mutation.mutate])
   const isProcessing = mutation.isPending
 
   return (
@@ -68,7 +55,7 @@ export function ArtifactLoader({githubLogin}: {githubLogin: string}) {
         <h1 className="text-4xl font-mono font-bold text-center mb-8 text-amber-900">🗿 artifact.ci</h1>
         <div className="bg-amber-200 rounded-lg border-2 border-amber-700 p-6 mb-8 font-mono text-amber-800 shadow-lg">
           <div className="mb-4">
-            <span className="text-amber-700">$</span> preparing artifact {searchParams?.artifactName || ''}
+            <span className="text-amber-700">$</span> preparing artifact {params.artifactId}
           </div>
           <div className="h-64 overflow-y-auto bg-amber-100 p-2 rounded">
             <div className="font-mono text-amber-800 whitespace-pre-wrap">
@@ -77,17 +64,13 @@ export function ArtifactLoader({githubLogin}: {githubLogin: string}) {
               ))}
             </div>
             {!isProcessing && stage !== 'complete' && updates.length === 0 && (
-              <div className="text-amber-700">Welcom, {githubLogin}. Getting ready...</div>
+              <div className="text-amber-700">Welcome, {params.githubLogin}. Getting ready...</div>
             )}
           </div>
         </div>
         <div className="flex justify-center">
           <button
-            onClick={() => {
-              mutation.mutate({
-                artifactId: artifactId!.slice(),
-              })
-            }}
+            onClick={() => mutation.mutate(params)}
             disabled={isProcessing}
             className="hidden bg-amber-500 hover:bg-amber-600 text-white font-mono font-bold py-2 px-4 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
