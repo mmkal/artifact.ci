@@ -1,4 +1,3 @@
-/* eslint-disable no-console -- let me do basic console logging */
 import {lookup as mimeTypeLookup} from 'mime-types'
 import {cookies} from 'next/headers'
 import {NextResponse} from 'next/server'

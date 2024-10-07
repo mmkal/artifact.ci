@@ -55,38 +55,40 @@ export class TagLogger {
     }
   }
 
-  _log(level: TagLogger.Level, ...args: unknown[]) {
-    this.context.logs.push({level, prefix: this.prefix, args})
+  _log({level, args, forget}: {level: TagLogger.Level; args: unknown[]; forget?: boolean}) {
+    if (!forget) this.context.logs.push({level, prefix: this.prefix, args})
+
     if (this.levelNumber > TagLogger.levels[level]) return
     this._implementation[level](...this.prefix, ...args)
   }
 
   debug(...args: unknown[]) {
-    this._log('debug', ...args)
+    this._log({level: 'debug', args})
   }
 
   info(...args: unknown[]) {
-    this._log('info', ...args)
+    this._log({level: 'info', args})
   }
 
   warn(...args: unknown[]) {
-    this._log('warn', ...args)
+    this._log({level: 'warn', args})
   }
 
   error(...args: unknown[]) {
-    this._log('error', ...args)
+    this._log({level: 'error', args})
   }
 
   memories() {
     return this.context.logs.map(log => [log.level, ...log.prefix, ...log.args])
   }
 
+  /** Like `.run(...)`, but if there is an error, it will log the "memories" of its context, including all log levels, even debug */
   try<T>(tag: string, fn: () => Promise<T>): Promise<T> {
     return this.run(tag, async () => {
       try {
         return await fn()
       } catch (error) {
-        this.tag('memories').error(this.memories())
+        this.run('memories', () => this._log({level: 'error', args: [this.memories()], forget: true}))
         throw error
       }
     })
