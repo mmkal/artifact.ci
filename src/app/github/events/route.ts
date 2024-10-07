@@ -6,17 +6,22 @@ import {client, sql} from '~/db'
 import {ARTIFACT_BLOB_PREFIX} from '~/routing'
 import {logger} from '~/tag-logger'
 
+/** either the preview origin (for this repo) or null if another repo/for the default branch */
 const getPreviewOrigin = (request: NextRequest, event: WorkflowJobCompleted) => {
-  const {origin} = new URL(request.url)
-  const normalizedOrigin = origin.replace('https://www', 'https://')
+  const {hostname} = new URL(request.url)
   const headBranch = event.workflow_job.head_branch
   const repo = event.repository.full_name
 
-  if (normalizedOrigin !== 'https://artifact.ci') return null
+  if (hostname !== 'artifact.ci') return null
   if (repo !== 'mmkal/artifact.ci') return null
   if (headBranch === 'main') return null
 
   return getPreviewUrl(headBranch)
+}
+
+/** either the preview origin (for this repo) or the same origin as from the request */
+const getOrigin = (request: NextRequest, event: WorkflowJobCompleted) => {
+  return getPreviewOrigin(request, event) || new URL(request.url).origin
 }
 
 const getPreviewUrl = (branch: string) => {
@@ -127,7 +132,7 @@ export async function POST(request: NextRequest) {
 
         const entrypointSummaries = artifacts.map(arti => {
           const identifierLinks = arti.identifiers.map(({type, value}) => {
-            const origin = getPreviewOrigin(request, event)
+            const origin = getOrigin(request, event)
             const url = origin + ARTIFACT_BLOB_PREFIX + `${owner}/${repo}/${type}/${value}/${arti.name}`
             return `[${type}](${url})`
           })
