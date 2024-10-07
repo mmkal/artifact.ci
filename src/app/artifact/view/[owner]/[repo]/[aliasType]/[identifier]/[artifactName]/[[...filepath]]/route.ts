@@ -16,7 +16,7 @@ export type PathParams = {
   aliasType: string
   identifier: string
   artifactName: string
-  filepathParts?: string[]
+  filepath: string[]
 }
 
 // sample: http://localhost:3000/artifact/view/mmkal/artifact.ci/11020882214/mocha/output.html
@@ -31,7 +31,7 @@ export const GET = auth(async (request, {params}) => {
 
 const tryGet = async (request: NextAuthRequest, {params}: {params: PathParams}) => {
   logger.tag('params').debug(params)
-  const {owner, repo, aliasType, identifier, artifactName, filepathParts = []} = params
+  const {owner, repo, aliasType, identifier, artifactName, filepath} = params
   const callbackUrlPathname = request.nextUrl.toString().replace(request.nextUrl.origin, '')
   const githubLogin = request.auth?.user.github_login
 
@@ -87,7 +87,7 @@ const tryGet = async (request: NextAuthRequest, {params}: {params: PathParams}) 
     const uploadPageParams: ArtifactUploadPageSearchParams = {
       ...params,
       artifactId: artifactInfo.artifact_id,
-      entry: filepathParts.join('/'),
+      entry: filepath.join('/'),
     }
 
     const response = NextResponse.redirect(
@@ -98,7 +98,7 @@ const tryGet = async (request: NextAuthRequest, {params}: {params: PathParams}) 
     return response
   }
 
-  if (filepathParts.length === 0) {
+  if (filepath.length === 0) {
     // for now, redirect to the calculated entrypoint, but maybe this should be a file-selector UI or something
     const {entrypoints} = getEntrypoints(artifactInfo.entries)
     const newUrl = new URL(requestUrl.origin + requestUrl.pathname + '/' + entrypoints[0])
@@ -112,7 +112,7 @@ const tryGet = async (request: NextAuthRequest, {params}: {params: PathParams}) 
     join artifact_entries ae on ae.artifact_id = a.id
     join storage.objects o on ae.storage_object_id = o.id
     where a.id = ${artifactInfo.artifact_id}
-    and ${filepathParts.join('/') || '.'} = any(ae.aliases)
+    and ${filepath.join('/') || '.'} = any(ae.aliases)
     and o.name is not null
     order by ae.created_at desc
     limit 1
@@ -133,7 +133,7 @@ const tryGet = async (request: NextAuthRequest, {params}: {params: PathParams}) 
   const headers: Record<string, string> = {}
 
   headers['content-type'] = contentType
-  headers['artifactci-path'] = filepathParts.join('/')
+  headers['artifactci-path'] = filepath.join('/')
   headers['artifactci-name'] = artifactName
   headers['artifactci-identifier'] = identifier
   headers['artifactci-alias-type'] = aliasType
