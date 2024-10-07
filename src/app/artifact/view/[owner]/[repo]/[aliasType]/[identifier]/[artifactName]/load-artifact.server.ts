@@ -75,6 +75,10 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
     return {outcome: 'not_uploaded_yet', loaderParams, artifactInfo} as const
   }
 
+  if (filepath.length === 0) {
+    return {outcome: '2xx', storagePathname: null, artifactInfo} as const
+  }
+
   const dbFile = await client.maybeOne(sql<queries.DbFile>`
     select o.name as storage_pathname
     from artifacts a

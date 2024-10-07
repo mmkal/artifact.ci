@@ -25,6 +25,11 @@ export const GET = auth(async (request, {params}) => {
         artifact satisfies never // this ensures typescript believes we've handled all cases
         throw new Error('Unexpected outcome', {cause: artifact})
       }
+      if (!artifact.storagePathname) {
+        return NextResponse.redirect(
+          new URL('/artifact/view/[owner]/[repo]/[aliasType]/[identifier]/[artifactName]', request.nextUrl.origin),
+        )
+      }
 
       return loadFile(artifact.storagePathname, pathParams)
     })

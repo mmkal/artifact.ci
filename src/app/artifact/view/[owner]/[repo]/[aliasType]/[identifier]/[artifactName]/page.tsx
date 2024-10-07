@@ -25,6 +25,7 @@ export default async function ArtifactPage({params}: {params: PathParams}) {
       </ClientLayout>
     )
   }
+  artifact.outcome satisfies '2xx'
 
   return (
     <div className="bg-gray-900 text-green-400 p-6 font-mono">

@@ -55,7 +55,7 @@ export function ArtifactLoader(params: ArtifactLoader.Params) {
         <h1 className="text-4xl font-mono font-bold text-center mb-8 text-amber-900">🗿 artifact.ci</h1>
         <div className="bg-amber-200 rounded-lg border-2 border-amber-700 p-6 mb-8 font-mono text-amber-800 shadow-lg">
           <div className="mb-4">
-            <span className="text-amber-700">$</span> preparing artifact {params.artifactId}
+            <span className="text-amber-700">$</span> preparing artifact {params.artifactName}
           </div>
           <div className="h-64 overflow-y-auto bg-amber-100 p-2 rounded">
             <div className="font-mono text-amber-800 whitespace-pre-wrap">
