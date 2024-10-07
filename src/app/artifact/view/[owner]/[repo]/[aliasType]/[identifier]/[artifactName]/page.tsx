@@ -4,6 +4,7 @@ import {TrpcProvider} from './TrpcProvider'
 import {loadArtifact} from './load-artifact.server'
 import {ArtifactLoader} from './loader'
 import {PathParams} from './params'
+import {ArtifactViewPageTemplate} from '~/app/artifact/view/nav'
 import {auth} from '~/auth'
 import {logger} from '~/tag-logger'
 
@@ -12,6 +13,14 @@ export declare namespace ArtifactPage {
 }
 
 export default async function ArtifactPage({params, searchParams}: ArtifactPage.Params) {
+  return (
+    <ArtifactViewPageTemplate params={params}>
+      <ArtifactPageInner params={params} searchParams={searchParams} />
+    </ArtifactViewPageTemplate>
+  )
+}
+
+async function ArtifactPageInner({params, searchParams}: ArtifactPage.Params) {
   const session = await auth()
 
   const githubLogin = session?.user?.github_login
