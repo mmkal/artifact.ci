@@ -5,13 +5,13 @@ import {SessionProvider} from 'next-auth/react'
 import React from 'react'
 import {ReactNode} from 'react'
 import {useState} from 'react'
-import {trpc} from '../../../client/trpc'
+import {trpc} from '~/client/trpc'
 
 function getUrl() {
   return '/api/trpc'
 }
 
-export default function Layout({children}: {children: ReactNode}) {
+export function ClientLayout({children}: {children: ReactNode}) {
   const [queryClient] = useState(() => new QueryClient())
   const [trpcClient] = useState(() =>
     trpc.createClient({

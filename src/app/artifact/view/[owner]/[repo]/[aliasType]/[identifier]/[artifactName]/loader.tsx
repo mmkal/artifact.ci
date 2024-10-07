@@ -24,7 +24,7 @@ export type ArtifactUploadPageSearchParams = {
   entry: string
 }
 
-export function ArtifactLoader2() {
+export function ArtifactLoader() {
   const rawSearchParams = useSearchParams()
   const searchParams = React.useMemo(
     () => (rawSearchParams ? (Object.fromEntries(rawSearchParams.entries()) as ArtifactUploadPageSearchParams) : null),
@@ -98,5 +98,3 @@ export function ArtifactLoader2() {
     </div>
   )
 }
-
-export default ArtifactLoader2
