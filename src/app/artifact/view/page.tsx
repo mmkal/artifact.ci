@@ -17,16 +17,17 @@ export default async function ArtifactViewPage({params}: {params: Partial<PathPa
           ) : (
             results.map(({pathParams}, index) => (
               <div key={index} className="snap-start">
-                <Link href={toPath(pathParams)}>
-                  <div className="p-3 rounded-md hover:bg-gray-900 transition duration-300 ease-in-out">
-                    <span className="text-lg font-semibold text-amber-400">{pathParams.artifactName}</span>
-                    <span className="ml-3 text-sm text-gray-300">
-                      {toPath(pathParams)}
-                      {/* Owner: {pathParams.owner} | Repo: {pathParams.repo} | Type: {pathParams.aliasType} */}
-                    </span>
-                    {/* <p className="text-sm text-gray-400 mt-1">{artifact.description || 'No description available'}</p> */}
-                  </div>
-                </Link>
+                <div className="p-3 rounded-md hover:bg-gray-900 transition duration-300 ease-in-out">
+                  <span className="text-lg font-semibold text-amber-400">{pathParams[0].artifactName}</span>
+                  <span className="ml-3 text-sm text-gray-300">
+                    {pathParams.map((p, i, {length}) => (
+                      <Link href={toPath(p)} key={p.aliasType}>
+                        {p.aliasType}/{p.identifier}
+                        {i < length - 1 && <span className="text-gray-300"> | </span>}
+                      </Link>
+                    ))}
+                  </span>
+                </div>
               </div>
             ))
           )}
