@@ -1,6 +1,6 @@
 'use client'
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query'
-import {httpBatchLink, unstable_httpSubscriptionLink, loggerLink, splitLink} from '@trpc/client'
+import {httpBatchLink, unstable_httpSubscriptionLink as httpSubscriptionLink, loggerLink, splitLink} from '@trpc/client'
 import {SessionProvider} from 'next-auth/react'
 import React from 'react'
 import {ReactNode} from 'react'
@@ -19,7 +19,7 @@ export function ClientLayout({children}: {children: ReactNode}) {
         loggerLink(),
         splitLink({
           condition: op => op.type === 'subscription',
-          true: unstable_httpSubscriptionLink({url: getUrl()}),
+          true: httpSubscriptionLink({url: getUrl()}),
           false: httpBatchLink({url: getUrl()}),
         }),
       ],

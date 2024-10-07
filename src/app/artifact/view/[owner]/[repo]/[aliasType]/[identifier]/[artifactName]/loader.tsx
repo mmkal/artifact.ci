@@ -12,6 +12,7 @@ export namespace ArtifactLoader {
   export type Params = PathParams & {
     artifactId: string
     githubLogin: string
+    entry: string | null
   }
 }
 

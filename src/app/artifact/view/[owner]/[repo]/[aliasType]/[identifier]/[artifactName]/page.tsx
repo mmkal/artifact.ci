@@ -1,5 +1,5 @@
 import {redirect} from 'next/navigation'
-import {ClientLayout} from './layout.client'
+import {ClientLayout} from './TrpcProvider'
 import {loadArtifact, PathParams} from './load-artifact.server'
 import {ArtifactLoader} from './loader'
 import {auth} from '~/auth'
@@ -21,7 +21,7 @@ export default async function ArtifactPage({params}: {params: PathParams}) {
   if (artifact.outcome === 'not_uploaded_yet') {
     return (
       <ClientLayout>
-        <ArtifactLoader {...params} githubLogin={githubLogin} artifactId={artifact.artifactInfo.artifact_id} />
+        <ArtifactLoader {...artifact.loaderParams} />
       </ClientLayout>
     )
   }

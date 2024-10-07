@@ -65,14 +65,14 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
       return ResponseHelpers.json({message, params, githubLogin}, {status: 404})
     }
 
-    const uploadPageParams: ArtifactLoader.Params = {
+    const loaderParams: ArtifactLoader.Params = {
       ...params,
       githubLogin,
       artifactId: artifactInfo.artifact_id,
-      entry: filepath.join('/'),
+      entry: filepath.join('/') || null,
     }
 
-    return {outcome: 'not_uploaded_yet', uploadPageParams, artifactInfo} as const
+    return {outcome: 'not_uploaded_yet', loaderParams, artifactInfo} as const
   }
 
   const dbFile = await client.maybeOne(sql<queries.DbFile>`
