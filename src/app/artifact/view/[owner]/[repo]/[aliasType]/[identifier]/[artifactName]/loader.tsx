@@ -1,13 +1,14 @@
 'use client'
 
 import {useMutation} from '@tanstack/react-query'
+import {ChevronDown, ChevronUp} from 'lucide-react'
 import {useSearchParams} from 'next/navigation'
 import React, {Suspense} from 'react'
 import {FileList} from './FileList'
 import {clientUpload} from './client-upload'
 import {PathParams} from './load-artifact.server'
 
-type SubscriptionData = {stage: string; message: string}
+type Update = {stage: string; message: string}
 
 export namespace ArtifactLoader {
   export type Params = PathParams & {
@@ -20,9 +21,12 @@ export namespace ArtifactLoader {
 function ArtifactLoaderInner(params: ArtifactLoader.Params) {
   const searchParams = useSearchParams()
   const reload = searchParams?.get('reload') === 'true'
-  const [updates, setUpdates] = React.useState([] as SubscriptionData[])
+  const [updates, setUpdates] = React.useState([] as Update[])
+  const detailsRef = React.useRef<HTMLDetailsElement>(null)
+
   const mutation = useMutation({
     mutationFn: (input: {artifactId: string}) => {
+      setUpdates([])
       return clientUpload({
         ...input,
         onProgress: (newStage, message) =>
@@ -34,7 +38,10 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
       })
     },
     onSuccess: () => {
-      setUpdates(prev => [...prev, {stage: 'success', message: 'Taking you to your artifact...'}])
+      // Automatically close the details element after a short delay
+      setTimeout(() => {
+        if (detailsRef.current) detailsRef.current.open = false
+      }, 500)
     },
     onError: error => setUpdates(prev => [...prev, {stage: 'error', message: error.message}]),
   })
@@ -54,9 +61,26 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
         🗿 artifact: {params.artifactName}
       </h1>
 
-      <div className="mb-8">
-        <h2 className="text-2xl font-semibold mb-4 border-b border-amber-300/50 pb-2">Preparing Artifact</h2>
-        <div className="space-y-2">
+      <details ref={detailsRef} className="group mb-8" open>
+        <summary className="flex items-center justify-between mb-4 border-b border-amber-300/50 pb-2 cursor-pointer list-none">
+          <h2 className="text-2xl font-semibold flex items-center">
+            <span>{mutation.isSuccess ? 'Artifact ready' : 'Preparing Artifact'}</span>
+            <ChevronDown className="h-6 w-6 ml-2 transform transition-transform duration-200 group-open:rotate-180" />
+          </h2>
+          {(mutation.isIdle || reload) && (
+            <button
+              onClick={e => {
+                e.preventDefault()
+                mutation.mutate(params)
+              }}
+              disabled={isProcessing}
+              className="bg-amber-700/30 hover:bg-amber-600/50 text-amber-100 font-bold py-1 px-3 rounded border border-amber-400/50 transition duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Prepare
+            </button>
+          )}
+        </summary>
+        <div className="space-y-2 mt-4 overflow-hidden transition-all duration-500 ease-in-out">
           {updates.map((line, index) => (
             <div
               key={index}
@@ -73,19 +97,8 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
             </div>
           )}
         </div>
-      </div>
+      </details>
 
-      {(mutation.isIdle || reload) && (
-        <div className="flex justify-center mt-8">
-          <button
-            onClick={() => mutation.mutate(params)}
-            disabled={isProcessing}
-            className="bg-amber-700 hover:bg-amber-600 text-amber-100 font-bold py-2 px-4 rounded-md shadow-lg transition duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Prepare
-          </button>
-        </div>
-      )}
       {mutation.isSuccess && <FileList entries={mutation.data.records.map(r => r.entry_name)} params={params} />}
     </div>
   )
