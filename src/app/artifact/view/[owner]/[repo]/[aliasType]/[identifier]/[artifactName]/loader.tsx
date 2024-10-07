@@ -6,7 +6,7 @@ import {useSearchParams} from 'next/navigation'
 import React, {Suspense, useRef, useEffect} from 'react'
 import {FileList} from './FileList'
 import {clientUpload} from './client-upload'
-import {PathParams} from './params'
+import {type PathParams} from '~/app/artifact/view/params'
 
 type Update = {stage: string; message: string}
 

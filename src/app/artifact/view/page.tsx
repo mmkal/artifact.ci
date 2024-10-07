@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import React from 'react'
-import {PathParams, toPath} from './[owner]/[repo]/[aliasType]/[identifier]/[artifactName]/params'
 import {ArtifactViewPageTemplate} from './nav'
+import {PathParams, toPath} from './params'
 import {searchArtifacts} from './search'
 
 export default async function ArtifactViewPage({params}: {params: Partial<PathParams>}) {

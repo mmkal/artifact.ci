@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import React from 'react'
-import {toBreadcrumbs, type PathParams} from './[owner]/[repo]/[aliasType]/[identifier]/[artifactName]/params'
+import {toBreadcrumbs, type PathParams} from './params'
 
 export const Header = ({params}: {params: Partial<PathParams>}) => {
   const breadcrumbs = toBreadcrumbs(params)

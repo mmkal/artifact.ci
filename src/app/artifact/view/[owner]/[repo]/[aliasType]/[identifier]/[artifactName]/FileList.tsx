@@ -1,6 +1,6 @@
 import React from 'react'
 import {getEntrypoints} from './entrypoints'
-import {PathParams} from './params'
+import {type PathParams} from '~/app/artifact/view/params'
 
 interface FileListProps {
   names: string[]

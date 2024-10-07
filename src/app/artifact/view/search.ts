@@ -1,4 +1,4 @@
-import {PathParams} from './[owner]/[repo]/[aliasType]/[identifier]/[artifactName]/params'
+import {type PathParams} from './params'
 import {auth, getCollaborationLevel, getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
 
