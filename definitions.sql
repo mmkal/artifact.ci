@@ -75,32 +75,6 @@ create table repos (
   updated_at timestamp with time zone not null default current_timestamp
 );
 
--- Table for storing upload information
-create table upload_requests (
-    id prefixed_ksuid primary key default generate_prefixed_ksuid('upload_request'),
-    repo_id prefixed_ksuid not null references repos(id),
-	ref text not null,
-	sha text not null,
-	actions_run_id int8 not null,
-	actions_run_attempt int not null,
-	job_id text not null,
-    created_at timestamp with time zone not null default current_timestamp,
-    updated_at timestamp with time zone not null default current_timestamp
-);
-
-create table uploads (
-	id prefixed_ksuid primary key default generate_prefixed_ksuid('upload'),
-	upload_request_id prefixed_ksuid not null references upload_requests(id),
-    pathname text not null,
-    mime_type text not null,
-    blob_url text not null,
-	expires_at timestamptz not null,
-    created_at timestamp with time zone not null default current_timestamp,
-    updated_at timestamp with time zone not null default current_timestamp
-);
-
-comment on column uploads.pathname is 'looks like `/[owner]/[repo]/[runId]/[...filepath]`';
-
 create table sponsors (
 	id prefixed_ksuid primary key default generate_prefixed_ksuid('sponsor'),
 	sponsor_login text not null,
@@ -122,16 +96,6 @@ create table usage_credits (
 	created_at timestamp with time zone not null default current_timestamp,
 	updated_at timestamp with time zone not null default current_timestamp,
 	unique(github_login, reason)
-);
-
-create table repo_access_permissions (
-	id prefixed_ksuid primary key default generate_prefixed_ksuid('repo_access_permission'),
-	repo_id prefixed_ksuid not null references repos(id),
-	github_login text not null,
-	expiry timestamptz not null, -- typically should be fairly short so when github access is lost to repo artifacts are soon lost too
-	created_at timestamp with time zone not null default current_timestamp,
-	updated_at timestamp with time zone not null default current_timestamp,
-	unique(repo_id, github_login)
 );
 
 create table github_installations (
@@ -175,29 +139,23 @@ create table artifact_entries (
 	unique(artifact_id, entry_name)
 );
 
-create table file_aliases (
-	id prefixed_ksuid primary key default generate_prefixed_ksuid('file_alias'),
-	artifact_id prefixed_ksuid not null references artifacts(id),
-	alias text not null,
-	object_id text not null, -- references storage.objects(id) but pgkit doesn't know about the storage schema
-	created_at timestamp with time zone not null default current_timestamp,
-	updated_at timestamp with time zone not null default current_timestamp,
-	unique(alias, object_id)
-);
-
+-- not using supabase auth but may as well make sure the anonymous key can't access our tables
 alter table repos enable row level security;
-alter table uploads enable row level security;
 alter table sponsors enable row level security;
 alter table usage_credits enable row level security;
-alter table repo_access_permissions enable row level security;
-alter table upload_requests enable row level security;
+alter table artifacts enable row level security;
+alter table artifact_identifiers enable row level security;
+alter table artifact_entries enable row level security;
+alter table github_installations enable row level security;
 
 -- Create indexes
-create index idx_uploads_upload_request_id on uploads(upload_request_id);
-create index idx_upload_requests_repo_id on upload_requests(repo_id);
-create index idx_upload_requests_ref_sha on upload_requests(ref, sha);
 create index idx_usage_credits_github_login on usage_credits(github_login);
 create index idx_usage_credits_sponsor_id on usage_credits(sponsor_id);
-create index idx_file_aliases_artifact_id on file_aliases(artifact_id);
 create index idx_artifacts_repo_id on artifacts(repo_id);
-create index idx_file_aliases_alias on file_aliases(alias);
+create index idx_artifact_identifiers_artifact_id on artifact_identifiers(artifact_id);
+create index idx_artifact_entries_artifact_id on artifact_entries(artifact_id);
+create index idx_artifact_entries_entry_name on artifact_entries(entry_name);
+create index idx_artifact_entries_aliases on artifact_entries(aliases);
+create index idx_artifact_entries_storage_object_id on artifact_entries(storage_object_id);
+create index idx_artifacts_name on artifacts(name);
+create index idx_repos_owner_name on repos(owner, name);

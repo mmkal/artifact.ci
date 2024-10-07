@@ -5,7 +5,7 @@ import {type ArtifactLoader} from './loader'
 import {type PathParams} from '~/app/artifact/view/params'
 import {getCollaborationLevel, getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
-import {createStorageClient} from '~/storage/supabase'
+import {supabaseStorageServiceRoleClient} from '~/storage/supabase'
 import {logger} from '~/tag-logger'
 
 const ResponseHelpers = {
@@ -91,7 +91,7 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
 }
 
 export async function loadFile(storagePathname: string, params: PathParams) {
-  const storage = createStorageClient()
+  const storage = supabaseStorageServiceRoleClient()
   const file = await storage.object.bucketName('artifact_files').wildcard(storagePathname).get()
 
   const contentType = mimeTypeLookup(storagePathname) || 'text/plain'

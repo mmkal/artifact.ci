@@ -4,9 +4,9 @@ import {Session} from 'next-auth'
 import pMap from 'p-suite/p-map'
 import {z} from 'zod'
 import {client, Id, sql} from '../db'
-import {getEntrypoints} from '~/app/artifact/upload/signed-url/route'
+import {getEntrypoints} from '~/app/artifact/view/[owner]/[repo]/[aliasType]/[identifier]/[artifactName]/entrypoints'
 import {getCollaborationLevel, getInstallationOctokit} from '~/auth'
-import {createStorageClient} from '~/storage/supabase'
+import {supabaseStorageServiceRoleClient} from '~/storage/supabase'
 
 export interface TrpcContext {
   session: Session | null
@@ -72,7 +72,7 @@ export const appRouter = router({
   createUploadTokens: artifactAccessProcedure
     .input(z.object({entries: z.array(z.string())}))
     .mutation(async ({input, ctx: {artifact}}) => {
-      const storage = createStorageClient()
+      const storage = supabaseStorageServiceRoleClient()
       const artifactPathPrefix = [
         'github/artifacts',
         `${artifact.owner}/${artifact.repo}`,
