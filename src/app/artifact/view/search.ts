@@ -45,18 +45,19 @@ export const searchArtifacts = async (params: Partial<PathParams>, {offset = 0, 
   }
 
   return artifacts.map(a => {
-    const priority = ['run', 'sha', 'branch']
+    const priority: Record<string, number> = {run: 0, commit: 1, branch: 2}
     const pathParams: PathParams[] = a
       .aggregated_identifiers!.map(id => {
         const [aliasType, identifier] = id.split('/')
         return {owner: a.owner, repo: a.repo, aliasType, identifier, artifactName: a.name}
       })
-      .sort((a, b) => {
-        const priorities = [a, b].map(p => priority.indexOf(p.aliasType))
-        return priorities[0] - priorities[1]
+      .sort((...items) => {
+        const [left, right] = items.map(p => priority[p.aliasType] ?? Number.POSITIVE_INFINITY)
+        return left - right
       })
     return {
       artifactId: a.artifact_id,
+      name: a.name,
       pathParams,
       installationId: a.installation_github_id,
     }
