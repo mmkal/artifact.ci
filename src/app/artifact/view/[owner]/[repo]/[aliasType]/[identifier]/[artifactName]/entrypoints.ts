@@ -9,8 +9,10 @@ const path = {
   join: (...paths: string[]) => paths.map(p => p.replace(/^\/$/, '').replace(/^\.\//, '')).join('/'),
 }
 
+export type Entrypoint = {path: string; shortened: string; score: number}
+
 export const getEntrypoints = (pathnames: string[]) => {
-  let entrypoints = [{path: pathnames.at(0), shortened: pathnames.at(0), score: -1}]
+  let entrypoints: Entrypoint[] = []
 
   const aliases = pathnames.flatMap(pathname => {
     const paths: string[] = []
@@ -38,7 +40,10 @@ export const getEntrypoints = (pathnames: string[]) => {
   const flatAliases = aliases.flatMap(a => a.paths)
 
   entrypoints = entrypoints.sort((a, b) => b.score - a.score)
-  entrypoints = Object.values(Object.fromEntries(entrypoints.map(e => [e.path!, e])))
+  entrypoints = Object.values(Object.fromEntries(entrypoints.map(e => [e.path, e])))
+  if (!entrypoints.length && pathnames.length > 0) {
+    entrypoints.push({path: pathnames[0], shortened: pathnames[0], score: -1})
+  }
 
   return {aliases, entrypoints, flatAliases}
 }
