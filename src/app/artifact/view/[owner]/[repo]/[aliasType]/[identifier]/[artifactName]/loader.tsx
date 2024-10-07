@@ -1,7 +1,6 @@
 'use client'
 
 import {useMutation} from '@tanstack/react-query'
-import {revalidatePath} from 'next/cache'
 import React from 'react'
 import {clientUpload} from './client-upload'
 import {PathParams} from './load-artifact.server'
