@@ -1,7 +1,8 @@
 'use client'
 
 import {useMutation} from '@tanstack/react-query'
-import React from 'react'
+import {useSearchParams} from 'next/navigation'
+import React, {Suspense} from 'react'
 import {clientUpload} from './client-upload'
 import {PathParams} from './load-artifact.server'
 
@@ -15,7 +16,9 @@ export namespace ArtifactLoader {
   }
 }
 
-export function ArtifactLoader(params: ArtifactLoader.Params) {
+function ArtifactLoaderInner(params: ArtifactLoader.Params) {
+  const searchParams = useSearchParams()
+  const reload = searchParams?.get('reload') === 'true'
   const [updates, setUpdates] = React.useState([] as SubscriptionData[])
   const mutation = useMutation({
     mutationFn: (input: {artifactId: string}) => {
@@ -34,19 +37,18 @@ export function ArtifactLoader(params: ArtifactLoader.Params) {
       const newUrl = new URL(window.location.href)
       newUrl.searchParams.delete('reload')
       window.location.href = newUrl.href
-      // `/artifact/view/${artifact.owner}/${artifact.repo}/${params.aliasType}/${params.identifier}/${artifact.name}`,
-      // const entry = params.entry || entrypoints.entrypoints[0]
-      // window.location.href = `/artifact/view/${artifact.owner}/${artifact.repo}/${params.aliasType}/${params.identifier}/${artifact.name}/${entry}`
     },
     onError: error => setUpdates(prev => [...prev, {stage: 'error', message: error.message}]),
   })
+
   React.useEffect(() => {
-    if (mutation.status === 'idle' && params.artifactId) {
+    if (mutation.status === 'idle' && params.artifactId && !reload) {
       const timeout = setTimeout(() => mutation.mutate(params), 200)
       return () => clearTimeout(timeout)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mutation.status, params.artifactId, mutation.mutate])
+  }, [mutation.status, params.artifactId, mutation.mutate, reload])
+
   const isProcessing = mutation.isPending
 
   return (
@@ -70,13 +72,13 @@ export function ArtifactLoader(params: ArtifactLoader.Params) {
           ))}
           {!isProcessing && updates.length === 0 && (
             <div className="p-3 rounded-md border border-amber-400/30 hover:bg-gray-900">
-              {'>'} Welcome, {params.githubLogin}. Getting ready...
+              {'>'} Welcome, {params.githubLogin}. {reload ? 'Click Prepare to start.' : 'Getting ready...'}
             </div>
           )}
         </div>
       </div>
 
-      {mutation.isIdle && (
+      {(mutation.isIdle || reload) && (
         <div className="flex justify-center mt-8">
           <button
             onClick={() => mutation.mutate(params)}
@@ -88,5 +90,13 @@ export function ArtifactLoader(params: ArtifactLoader.Params) {
         </div>
       )}
     </div>
+  )
+}
+
+export function ArtifactLoader(params: ArtifactLoader.Params) {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ArtifactLoaderInner {...params} />
+    </Suspense>
   )
 }
