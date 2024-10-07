@@ -3,6 +3,7 @@
 import {useMutation} from '@tanstack/react-query'
 import {useSearchParams} from 'next/navigation'
 import React, {Suspense} from 'react'
+import {FileList} from './FileList'
 import {clientUpload} from './client-upload'
 import {PathParams} from './load-artifact.server'
 
@@ -34,9 +35,6 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
     },
     onSuccess: () => {
       setUpdates(prev => [...prev, {stage: 'success', message: 'Taking you to your artifact...'}])
-      const newUrl = new URL(window.location.href)
-      newUrl.searchParams.delete('reload')
-      window.location.href = newUrl.href
     },
     onError: error => setUpdates(prev => [...prev, {stage: 'error', message: error.message}]),
   })
@@ -89,6 +87,7 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
           </button>
         </div>
       )}
+      {mutation.isSuccess && <FileList entries={mutation.data.records.map(r => r.entry_name)} params={params} />}
     </div>
   )
 }
