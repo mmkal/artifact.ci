@@ -17,7 +17,6 @@ export namespace ArtifactLoader {
 
 export function ArtifactLoader(params: ArtifactLoader.Params) {
   const [updates, setUpdates] = React.useState([] as SubscriptionData[])
-  const stage = updates.at(0)?.stage
   const mutation = useMutation({
     mutationFn: (input: {artifactId: string}) => {
       return clientUpload({
@@ -51,34 +50,43 @@ export function ArtifactLoader(params: ArtifactLoader.Params) {
   const isProcessing = mutation.isPending
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4 text-amber-200/80 font-mono">
-      <div className="w-full max-w-2xl">
-        <h1 className="text-4xl font-bold text-center mb-8">🗿 artifact.ci</h1>
-        <div className="bg-gray-900 rounded-lg border-2 border-amber-400/30 p-6 mb-8 shadow-lg">
-          <div className="mb-4">
-            <span className="text-amber-300/80">$</span> preparing artifact {params.artifactName}
-          </div>
-          <div className="h-64 overflow-y-auto bg-gray-950 p-2 rounded border border-amber-400/30">
-            <div className="whitespace-pre-wrap">
-              {updates.map((line, index) => (
-                <div className={line.stage === 'error' ? 'text-red-400' : ''} key={index}>{`> ${line.message}`}</div>
-              ))}
+    <div className="bg-gray-950 text-amber-200/80 p-6 font-mono min-h-screen">
+      <h1 className="text-3xl font-bold mb-6 border-b-2 border-amber-300/50 pb-2">
+        🗿 artifact: {params.artifactName}
+      </h1>
+
+      <div className="mb-8">
+        <h2 className="text-2xl font-semibold mb-4 border-b border-amber-300/50 pb-2">Preparing Artifact</h2>
+        <div className="space-y-2">
+          {updates.map((line, index) => (
+            <div
+              key={index}
+              className={`p-3 rounded-md ${
+                line.stage === 'error' ? 'text-red-400' : 'border border-amber-400/30 hover:bg-gray-900'
+              }`}
+            >
+              {'> ' + line.message}
             </div>
-            {!isProcessing && stage !== 'complete' && updates.length === 0 && (
-              <div className="text-amber-300/80">Welcome, {params.githubLogin}. Getting ready...</div>
-            )}
-          </div>
+          ))}
+          {!isProcessing && updates.length === 0 && (
+            <div className="p-3 rounded-md border border-amber-400/30 hover:bg-gray-900">
+              {'>'} Welcome, {params.githubLogin}. Getting ready...
+            </div>
+          )}
         </div>
-        <div className="flex justify-center">
+      </div>
+
+      {mutation.isIdle && (
+        <div className="flex justify-center mt-8">
           <button
             onClick={() => mutation.mutate(params)}
             disabled={isProcessing}
-            className="hidden bg-amber-700 hover:bg-amber-600 text-amber-100 font-bold py-2 px-4 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-amber-700 hover:bg-amber-600 text-amber-100 font-bold py-2 px-4 rounded-md shadow-lg transition duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isProcessing ? 'Preparing...' : 'Prepare'}
+            Prepare
           </button>
         </div>
-      </div>
+      )}
     </div>
   )
 }
