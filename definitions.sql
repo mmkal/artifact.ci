@@ -70,9 +70,9 @@ create table repos (
   id prefixed_ksuid primary key default generate_prefixed_ksuid('repo'),
   owner text not null,
   name text not null,
-  html_url text not null unique,
   created_at timestamp with time zone not null default current_timestamp,
-  updated_at timestamp with time zone not null default current_timestamp
+  updated_at timestamp with time zone not null default current_timestamp,
+  unique(owner, name)
 );
 
 create table sponsors (

@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
                     with insertion as (
                       insert into repos (name, owner)
                       select ${repo} as name, ${owner} as owner
-                      on conflict (name, owner) do nothing
+                      on conflict (owner, name) do nothing
                     )
                     select id from repos where name = ${repo} and owner = ${owner}
                   `,
