@@ -9,8 +9,8 @@ const path = {
   join: (...paths: string[]) => paths.map(p => p.replace(/^\/$/, '').replace(/^\.\//, '')).join('/'),
 }
 
-export const getEntrypoints = (pathnames: string[], requestedEntrypoints: string[] = []) => {
-  const bestEntrypoints = [{path: pathnames.at(0), shortened: pathnames.at(0), score: -1}]
+export const getEntrypoints = (pathnames: string[]) => {
+  let entrypoints = [{path: pathnames.at(0), shortened: pathnames.at(0), score: -1}]
 
   const aliases = pathnames.flatMap(pathname => {
     const paths: string[] = []
@@ -19,16 +19,16 @@ export const getEntrypoints = (pathnames: string[], requestedEntrypoints: string
 
     const parsedPath = path.parse(pathname)
     if (parsedPath.base === 'index.html') {
-      const score = 2
+      const score = 2 - pathname.length / 1_000_000
       const shortened = parsedPath.dir
-      bestEntrypoints.push({path: pathname, score, shortened})
+      entrypoints.push({path: pathname, score, shortened})
       paths.push(shortened)
     }
 
     if (parsedPath.ext === '.html') {
-      const score = 1
+      const score = 1 - pathname.length / 1_000_000
       const shortened = path.join(parsedPath.dir, parsedPath.name)
-      bestEntrypoints.push({path: pathname, score, shortened})
+      entrypoints.push({path: pathname, score, shortened})
       paths.push(shortened)
     }
 
@@ -36,16 +36,9 @@ export const getEntrypoints = (pathnames: string[], requestedEntrypoints: string
   })
 
   const flatAliases = aliases.flatMap(a => a.paths)
-  const set = new Set(flatAliases)
 
-  const entrypoints = requestedEntrypoints.filter(pathname => set.has(pathname))
-  const bestEntrypoint = bestEntrypoints
-    // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
-    .sort((a, b) => a.path?.length! - b.path?.length!)
-    .sort((a, b) => b.score - a.score)[0]
-  if (entrypoints.length === 0 && bestEntrypoint.path) {
-    entrypoints.push(bestEntrypoint.path)
-  }
+  entrypoints = entrypoints.sort((a, b) => b.score - a.score)
+  entrypoints = Object.values(Object.fromEntries(entrypoints.map(e => [e.path!, e])))
 
   return {aliases, entrypoints, flatAliases}
 }

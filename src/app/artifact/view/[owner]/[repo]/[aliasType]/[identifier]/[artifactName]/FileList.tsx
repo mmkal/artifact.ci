@@ -18,7 +18,7 @@ export function FileList({entries, params}: FileListProps) {
         <div className="mb-8">
           <h2 className="text-2xl font-semibold mb-4 border-b border-amber-300/50 pb-2">Detected Entrypoints</h2>
           <div className="space-y-2">
-            {entrypoints.map(entry => (
+            {entrypoints.map(({path: entry}) => (
               <div
                 key={entry}
                 className="border border-amber-400/30 p-3 rounded-md hover:bg-gray-900 transition-colors"
