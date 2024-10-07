@@ -6,7 +6,11 @@ import {getEntrypoints} from '~/app/artifact/upload/signed-url/route'
 import {auth} from '~/auth'
 import {logger} from '~/tag-logger'
 
-export default async function ArtifactPage({params}: {params: PathParams}) {
+export declare namespace ArtifactPage {
+  export type Params = {params: PathParams; searchParams: {reload?: 'true'}}
+}
+
+export default async function ArtifactPage({params, searchParams}: ArtifactPage.Params) {
   const session = await auth()
 
   const githubLogin = session?.user?.github_login
@@ -19,7 +23,7 @@ export default async function ArtifactPage({params}: {params: PathParams}) {
   if (artifact.outcome === '4xx') {
     return <pre>{JSON.stringify(artifact, null, 2)}</pre>
   }
-  if (artifact.outcome === 'not_uploaded_yet') {
+  if (artifact.outcome === 'not_uploaded_yet' || searchParams.reload === 'true') {
     return (
       <ClientLayout>
         <ArtifactLoader {...artifact.loaderParams} />

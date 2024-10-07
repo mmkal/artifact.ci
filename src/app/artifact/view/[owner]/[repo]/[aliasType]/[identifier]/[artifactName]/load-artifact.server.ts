@@ -56,6 +56,13 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
     return ResponseHelpers.json({message, params, githubLogin, permission}, {status: 403})
   }
 
+  const loaderParams: ArtifactLoader.Params = {
+    ...params,
+    githubLogin,
+    artifactId: artifactInfo.artifact_id,
+    entry: filepath.join('/') || null,
+  }
+
   if (!artifactInfo.entries?.length) {
     const cookieName = 'redirected'
     const cookieStore = cookies()
@@ -65,18 +72,11 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
       return ResponseHelpers.json({message, params, githubLogin}, {status: 404})
     }
 
-    const loaderParams: ArtifactLoader.Params = {
-      ...params,
-      githubLogin,
-      artifactId: artifactInfo.artifact_id,
-      entry: filepath.join('/') || null,
-    }
-
     return {outcome: 'not_uploaded_yet', loaderParams, artifactInfo} as const
   }
 
   if (filepath.length === 0) {
-    return {outcome: '2xx', storagePathname: null, artifactInfo} as const
+    return {outcome: '2xx', storagePathname: null, artifactInfo, loaderParams} as const
   }
 
   const dbFile = await client.maybeOne(sql<queries.DbFile>`
@@ -95,7 +95,7 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
     return ResponseHelpers.json({dbFile, message: `Upload not found`, params, githubLogin, artifactInfo}, {status: 404})
   }
 
-  return {outcome: '2xx', storagePathname: dbFile.storage_pathname, artifactInfo} as const
+  return {outcome: '2xx', storagePathname: dbFile.storage_pathname, artifactInfo, loaderParams} as const
 }
 
 export async function loadFile(storagePathname: string, params: PathParams) {
