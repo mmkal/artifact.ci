@@ -48,7 +48,6 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
   }, [mutation.status, params.artifactId, mutation.mutate, reload])
 
   const isProcessing = mutation.isPending
-
   return (
     <div className="bg-gray-950 text-amber-200/80 p-6 font-mono min-h-screen">
       <h1 className="text-3xl font-bold mb-6 border-b-2 border-amber-300/50 pb-2">

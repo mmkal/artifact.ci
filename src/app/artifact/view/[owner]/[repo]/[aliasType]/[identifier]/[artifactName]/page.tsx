@@ -1,4 +1,5 @@
 import {redirect} from 'next/navigation'
+import {ArtifactLayout} from './ArtifactLayout'
 import {FileList} from './FileList'
 import {ClientLayout} from './TrpcProvider'
 import {loadArtifact, PathParams} from './load-artifact.server'
@@ -32,5 +33,9 @@ export default async function ArtifactPage({params, searchParams}: ArtifactPage.
   }
   artifact.outcome satisfies '2xx'
 
-  return <FileList entries={artifact.artifactInfo.entries || []} params={params} />
+  return (
+    <ArtifactLayout params={params}>
+      <FileList entries={artifact.artifactInfo.entries || []} params={params} />
+    </ArtifactLayout>
+  )
 }
