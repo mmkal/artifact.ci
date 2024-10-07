@@ -3,28 +3,30 @@ import {cookies} from 'next/headers'
 import {NextResponse} from 'next/server'
 import {NextAuthRequest} from 'node_modules/next-auth/lib'
 import * as path from 'path'
-import {ArtifactUploadPageSearchParams} from '../../upload/page'
-import {getEntrypoints} from '../../upload/signed-url/route'
+import {ArtifactUploadPageSearchParams} from '~/app/artifact/upload/page'
+import {getEntrypoints} from '~/app/artifact/upload/signed-url/route'
 import {auth, getCollaborationLevel, getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
 import {createStorageClient} from '~/storage/supabase'
 import {logger} from '~/tag-logger'
 
-export const ARTIFACT_BLOB_PREFIX = '/artifact/view/'
+export type PathParams = {
+  owner: string
+  repo: string
+  aliasType: string
+  identifier: string
+  artifactName: string
+  filepathParts: string[]
+}
 
 // sample: http://localhost:3000/artifact/view/mmkal/artifact.ci/11020882214/mocha/output.html
-export const GET = auth(async request => {
-  try {
-    const res = await tryGet(request)
-    logger.debug('succeeding', res)
-    return res
-  } catch (err) {
-    logger.error('erroring', err)
-    return NextResponse.json({message: 'Internal server error', stack: (err as Error).stack}, {status: 500})
-  }
+export const GET = auth(async (request, {params}) => {
+  return logger
+    .try('request', () => tryGet(request, {params: params as PathParams}))
+    .catch(_err => NextResponse.json({message: 'Internal server error'}, {status: 500}))
 })
 
-const tryGet = async (request: NextAuthRequest) => {
+const tryGet = async (request: NextAuthRequest, {params}: {params: PathParams}) => {
   const callbackUrlPathname = request.nextUrl.toString().replace(request.nextUrl.origin, '')
   const githubLogin = request.auth?.user.github_login
 
@@ -37,34 +39,7 @@ const tryGet = async (request: NextAuthRequest) => {
     return NextResponse.redirect(`${request.nextUrl.origin}/api/auth/signin?${searchParams}`)
   }
 
-  const pathname = request.nextUrl.pathname.slice(ARTIFACT_BLOB_PREFIX.length)
-  const [owner, repo, aliasType, identifier, artifactName, ...filepathParts] = pathname.split('/')
-
-  // const _blobInfo = await client.maybeOne(sql<queries.BlobInfo>`
-  //   select
-  //     blob_url,
-  //     mime_type,
-  //     r.owner as repo_owner,
-  //     r.name as repo_name,
-  //     u.expires_at,
-  //     true in (
-  //       select true from usage_credits
-  //       where github_login = ${githubUser.login}
-  //       and expiry > current_timestamp
-  //     ) as has_credit,
-  //     r.owner = ${githubUser.login} or ${githubUser.login} in (
-  //       select rap.github_login
-  //       from repo_access_permissions rap
-  //       where rap.repo_id = ur.repo_id
-  //       and rap.expiry > current_timestamp
-  //     ) as already_has_access
-  //   from uploads u
-  //   join upload_requests ur on ur.id = u.upload_request_id
-  //   join repos r on r.id = ur.repo_id
-  //   where r.owner = ${owner}
-  //   and r.name = ${repo}
-  //   and u.pathname = ${pathname}
-  // `)
+  const {owner, repo, aliasType, identifier, artifactName, filepathParts} = params
 
   const artifactInfo = await client.maybeOne(sql<queries.ArtifactInfo>`
     select
@@ -84,29 +59,16 @@ const tryGet = async (request: NextAuthRequest) => {
   `)
 
   if (!artifactInfo) {
-    return NextResponse.json(
-      {
-        message: `Artifact ${artifactName} (from path ${pathname}) not found`,
-        details: {artifactName, aliasType, identifier, owner, repo},
-        githubUser: githubLogin,
-      },
-
-      {status: 404},
-    )
+    const message = `Artifact ${artifactName} not found`
+    return NextResponse.json({message, params, githubUser: githubLogin}, {status: 404})
   }
 
   const octokit = await getInstallationOctokit(artifactInfo.installation_github_id)
   const permission = await getCollaborationLevel(octokit, {owner, repo}, githubLogin)
 
   if (permission === 'none') {
-    return NextResponse.json(
-      {
-        message: `Not authorized to access artifact ${artifactName} (from path ${pathname})`,
-        githubUser: githubLogin,
-        permission,
-      },
-      {status: 403},
-    )
+    const message = `Not authorized to access artifact ${artifactName}`
+    return NextResponse.json({message, params, githubLogin, permission}, {status: 403})
   }
 
   const requestUrl = request.nextUrl
@@ -115,19 +77,19 @@ const tryGet = async (request: NextAuthRequest) => {
     const cookieStore = cookies()
 
     if (cookieStore.get(cookieName)) {
-      const message = `Artifact ${artifactName} (from path ${pathname}) has no entries, probably hasn't been extracted and stored yet`
-      return NextResponse.json({message, githubUser: githubLogin}, {status: 404})
+      const message = `Artifact ${artifactName} has no entries, probably hasn't been extracted and stored yet`
+      return NextResponse.json({message, params, githubLogin}, {status: 404})
     }
 
-    const params = {
+    const uploadPageParams: ArtifactUploadPageSearchParams = {
+      ...params,
       artifactId: artifactInfo.artifact_id,
-      artifactName,
-      aliasType,
-      identifier,
       entry: filepathParts.join('/'),
-    } satisfies ArtifactUploadPageSearchParams
+    }
 
-    const response = NextResponse.redirect(requestUrl.origin + `/artifact/upload?${new URLSearchParams(params)}`)
+    const response = NextResponse.redirect(
+      requestUrl.origin + `/artifact/upload?${new URLSearchParams(uploadPageParams)}`,
+    )
     response.cookies.set({name: cookieName, value: 'true', path: request.nextUrl.pathname, maxAge: 120})
 
     return response
@@ -154,23 +116,13 @@ const tryGet = async (request: NextAuthRequest) => {
   `)
 
   if (!dbFile || !dbFile.storage_pathname) {
-    return NextResponse.json(
-      {
-        dbFile,
-        message: `Upload for ${pathname} not found`,
-        githubUser: githubLogin,
-        filepathParts,
-        artifactInfo,
-      },
-      {status: 404},
-    )
+    return NextResponse.json({dbFile, message: `Upload not found`, params, githubLogin, artifactInfo}, {status: 404})
   }
 
   const file = await storage.object.bucketName('artifact_files').wildcard(dbFile.storage_pathname).get()
 
-  // const file = await loadFile(pathname)
   if (!file) {
-    return NextResponse.json({message: `Upload for ${pathname} not found`, githubUser: githubLogin}, {status: 404})
+    return NextResponse.json({message: `Upload not found`, params, githubLogin}, {status: 404})
   }
 
   const contentType = mimeTypeLookup(dbFile.storage_pathname) || 'text/plain'

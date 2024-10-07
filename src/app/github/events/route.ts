@@ -1,9 +1,9 @@
 import {NextRequest, NextResponse} from 'next/server'
 import {fromError} from 'zod-validation-error'
 import {AppWebhookEvent, WorkflowJobCompleted} from './types'
-import {ARTIFACT_BLOB_PREFIX} from '~/app/artifact/view/[...slug]/route'
 import {getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
+import {ARTIFACT_BLOB_PREFIX} from '~/routing'
 import {logger} from '~/tag-logger'
 
 const getPreviewOrigin = (request: NextRequest, event: WorkflowJobCompleted) => {
