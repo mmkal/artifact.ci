@@ -59,6 +59,7 @@ export const searchArtifacts = async (params: Partial<PathParams>, {offset = 0, 
       artifactId: a.artifact_id,
       name: a.name,
       pathParams,
+      label: params.repo ? '' : `${a.owner}/${a.repo}`,
       installationId: a.installation_github_id,
     }
   })

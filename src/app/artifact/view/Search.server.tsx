@@ -14,9 +14,10 @@ export function SearchUI({results}: SearchUI.Props) {
         {results.length === 0 ? (
           <div className="p-3 rounded-md hover:bg-gray-900">No artifacts found</div>
         ) : (
-          results.map(({pathParams, name}, index) => (
+          results.map(({pathParams, label, name}, index) => (
             <div key={index} className="snap-start">
               <div className="p-3 rounded-md transition duration-300 ease-in-out">
+                <span className="text-sm text-amber-400 mr-3">{label}</span>
                 <span className="text-lg font-semibold text-amber-400">{name}</span>
                 <span className="ml-3 text-sm text-gray-300 gap-2 inline-flex flex-row">
                   {pathParams.map(p => (

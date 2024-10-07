@@ -1,5 +1,4 @@
 import {lookup as mimeTypeLookup} from 'mime-types'
-import {cookies} from 'next/headers'
 import * as path from 'path'
 import {type ArtifactLoader} from './loader'
 import {type PathParams} from '~/app/artifact/view/params'
@@ -56,14 +55,6 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
   }
 
   if (!artifactInfo.entries?.length) {
-    const cookieName = 'redirected'
-    const cookieStore = cookies()
-
-    if (cookieStore.get(cookieName)) {
-      const message = `Artifact ${artifactName} has no entries, probably hasn't been extracted and stored yet`
-      return ResponseHelpers.json({message, params, githubLogin}, {status: 404})
-    }
-
     return {outcome: 'not_uploaded_yet', loaderParams, artifactInfo} as const
   }
 
