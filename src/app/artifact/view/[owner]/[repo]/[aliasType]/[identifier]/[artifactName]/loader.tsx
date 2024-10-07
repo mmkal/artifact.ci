@@ -31,11 +31,10 @@ export function ArtifactLoader(params: ArtifactLoader.Params) {
           }),
       })
     },
-    onSuccess: ({artifact}) => {
+    onSuccess: () => {
       setUpdates(prev => [...prev, {stage: 'success', message: 'Taking you to your artifact...'}])
-      revalidatePath(
-        `/artifact/view/${artifact.owner}/${artifact.repo}/${params.aliasType}/${params.identifier}/${artifact.name}`,
-      )
+      window.location.reload()
+      // `/artifact/view/${artifact.owner}/${artifact.repo}/${params.aliasType}/${params.identifier}/${artifact.name}`,
       // const entry = params.entry || entrypoints.entrypoints[0]
       // window.location.href = `/artifact/view/${artifact.owner}/${artifact.repo}/${params.aliasType}/${params.identifier}/${artifact.name}/${entry}`
     },
