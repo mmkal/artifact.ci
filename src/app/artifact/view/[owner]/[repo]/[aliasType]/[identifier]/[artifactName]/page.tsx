@@ -29,34 +29,36 @@ export default async function ArtifactPage({params}: {params: PathParams}) {
   artifact.outcome satisfies '2xx'
 
   const {entrypoints} = getEntrypoints(artifact.artifactInfo.entries || [])
+  const allFiles = artifact.artifactInfo.entries || []
+  const showSections = allFiles.length > 1
 
   return (
-    <div className="bg-gray-900 text-amber-400 p-6 font-mono">
+    <div className="bg-gray-950 text-amber-400 p-6 font-mono">
       <h1 className="text-3xl font-bold mb-6 border-b-2 border-amber-500 pb-2">artifact: {params.artifactName}</h1>
 
-      {/* Entrypoints section */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-semibold mb-4 border-b border-amber-500 pb-2">Detected Entrypoints</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {entrypoints.map(entry => (
-            <div key={entry} className="border border-amber-600 p-3 rounded-md hover:bg-gray-800 transition-colors">
-              <a
-                href={`/artifact/view/${params.owner}/${params.repo}/${params.aliasType}/${params.identifier}/${params.artifactName}/${entry}`}
-                className="block text-amber-400 hover:text-amber-300 truncate"
-                title={entry}
-              >
-                {'>'} {entry}
-              </a>
-            </div>
-          ))}
+      {showSections && entrypoints.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-2xl font-semibold mb-4 border-b border-amber-500 pb-2">Detected Entrypoints</h2>
+          <div className="space-y-2">
+            {entrypoints.map(entry => (
+              <div key={entry} className="border border-amber-600 p-3 rounded-md hover:bg-gray-900 transition-colors">
+                <a
+                  href={`/artifact/view/${params.owner}/${params.repo}/${params.aliasType}/${params.identifier}/${params.artifactName}/${entry}`}
+                  className="block text-amber-400 hover:text-amber-300 truncate"
+                  title={entry}
+                >
+                  {'>'} {entry}
+                </a>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* All files section */}
-      <h2 className="text-2xl font-semibold mb-4 border-b border-amber-500 pb-2">All Files</h2>
+      {showSections && <h2 className="text-2xl font-semibold mb-4 border-b border-amber-500 pb-2">All Files</h2>}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {artifact.artifactInfo.entries?.map(e => (
-          <div key={e} className="border border-amber-600 p-3 rounded-md hover:bg-gray-800 transition-colors">
+        {allFiles.map(e => (
+          <div key={e} className="border border-amber-600 p-3 rounded-md hover:bg-gray-900 transition-colors">
             <a
               href={`/artifact/view/${params.owner}/${params.repo}/${params.aliasType}/${params.identifier}/${params.artifactName}/${e}`}
               className="block text-amber-400 hover:text-amber-300 truncate"
