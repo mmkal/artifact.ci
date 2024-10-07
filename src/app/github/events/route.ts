@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const event = parsed.data
 
     if (event.eventType === 'ignored_action') {
-      logger.warn('ignored action', event)
+      logger.warn('ignored action', body)
       return NextResponse.json({
         ok: true,
         action: event.action,
@@ -79,22 +79,21 @@ export async function POST(request: NextRequest) {
         const artifacts = await Promise.all(
           dedupedArtifacts.map(async a => {
             return logger.run(`artifact=${a.name}`, async () => {
+              await client.query(sql`
+                insert into repos (owner, name)
+                values (${owner}, ${repo})
+                on conflict (owner, name) do nothing;
+
+                insert into github_installations (github_id)
+                select ${event.installation.id}
+                on conflict (github_id) do nothing;
+              `)
               const txResult = await client.transaction(async tx => {
                 const installation = await tx.one(sql<queries.GithubInstallation>`
-                  with insertion as (
-                    insert into github_installations (github_id)
-                    select ${event.installation.id}
-                    on conflict (github_id) do nothing
-                  )
                   select * from github_installations where github_id = ${event.installation.id}
                 `)
                 const dbRepo = await tx.one(
                   sql<queries.Repo>`
-                    with insertion as (
-                      insert into repos (owner, name)
-                      values (${owner}, ${repo})
-                      on conflict (owner, name) do nothing
-                    )
                     select id from repos where name = ${repo} and owner = ${owner}
                   `,
                 )
