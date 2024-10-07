@@ -21,7 +21,7 @@ export default async function ArtifactPage({params}: {params: PathParams}) {
   if (artifact.outcome === 'not_uploaded_yet') {
     return (
       <ClientLayout>
-        <ArtifactLoader />
+        <ArtifactLoader githubLogin={githubLogin} />
       </ClientLayout>
     )
   }

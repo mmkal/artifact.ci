@@ -24,7 +24,7 @@ export type ArtifactUploadPageSearchParams = {
   entry: string
 }
 
-export function ArtifactLoader() {
+export function ArtifactLoader({githubLogin}: {githubLogin: string}) {
   const rawSearchParams = useSearchParams()
   const searchParams = React.useMemo(
     () => (rawSearchParams ? (Object.fromEntries(rawSearchParams.entries()) as ArtifactUploadPageSearchParams) : null),
@@ -77,7 +77,7 @@ export function ArtifactLoader() {
               ))}
             </div>
             {!isProcessing && stage !== 'complete' && updates.length === 0 && (
-              <div className="text-amber-700">Getting ready...</div>
+              <div className="text-amber-700">Welcom, {githubLogin}. Getting ready...</div>
             )}
           </div>
         </div>
