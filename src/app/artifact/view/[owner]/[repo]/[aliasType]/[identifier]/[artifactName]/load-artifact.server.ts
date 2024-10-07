@@ -1,38 +1,30 @@
 import {lookup as mimeTypeLookup} from 'mime-types'
 import {cookies} from 'next/headers'
-import {NextResponse} from 'next/server'
-import {NextAuthRequest} from 'node_modules/next-auth/lib'
 import * as path from 'path'
+import {z} from 'zod'
 import {ArtifactUploadPageSearchParams} from './loader'
-import {getEntrypoints} from '~/app/artifact/upload/signed-url/route'
 import {getCollaborationLevel, getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
 import {createStorageClient} from '~/storage/supabase'
 import {logger} from '~/tag-logger'
 
-export type PathParams = {
-  owner: string
-  repo: string
-  aliasType: string
-  identifier: string
-  artifactName: string
-  filepath?: string[]
+export const PathParams = z.object({
+  owner: z.string(),
+  repo: z.string(),
+  aliasType: z.string(),
+  identifier: z.string(),
+  artifactName: z.string(),
+  filepath: z.array(z.string()).optional(),
+})
+export type PathParams = z.infer<typeof PathParams>
+
+const ResponseHelpers = {
+  json: <const T>(body: T, options: {status: 400 | 401 | 403 | 404}) => ({outcome: '4xx', body, options}) as const,
 }
 
-export const loadArtifact = async (request: NextAuthRequest, {params}: {params: PathParams}) => {
+export const loadArtifact = async (githubLogin: string, {params}: {params: PathParams}) => {
   logger.tag('params').debug(params)
   const {owner, repo, aliasType, identifier, artifactName, filepath = []} = params
-  const callbackUrlPathname = request.nextUrl.toString().replace(request.nextUrl.origin, '')
-  const githubLogin = request.auth?.user.github_login
-
-  if (!githubLogin && request.nextUrl.searchParams.get('disable_redirect') === 'true') {
-    return NextResponse.json({message: 'Unauthorized - no github login'}, {status: 401})
-  }
-
-  if (!githubLogin) {
-    const searchParams = new URLSearchParams({callbackUrl: callbackUrlPathname})
-    return NextResponse.redirect(`${request.nextUrl.origin}/api/auth/signin?${searchParams}`)
-  }
 
   const artifactInfo = await client.maybeOne(sql<queries.ArtifactInfo>`
     select
@@ -53,7 +45,7 @@ export const loadArtifact = async (request: NextAuthRequest, {params}: {params: 
 
   if (!artifactInfo) {
     const message = `Artifact ${artifactName} not found`
-    return NextResponse.json({message, params, githubUser: githubLogin}, {status: 404})
+    return ResponseHelpers.json({message, params, githubUser: githubLogin}, {status: 404})
   }
 
   const octokit = await getInstallationOctokit(artifactInfo.installation_github_id)
@@ -61,17 +53,16 @@ export const loadArtifact = async (request: NextAuthRequest, {params}: {params: 
 
   if (permission === 'none') {
     const message = `Not authorized to access artifact ${artifactName}`
-    return NextResponse.json({message, params, githubLogin, permission}, {status: 403})
+    return ResponseHelpers.json({message, params, githubLogin, permission}, {status: 403})
   }
 
-  const requestUrl = request.nextUrl
   if (!artifactInfo.entries?.length) {
     const cookieName = 'redirected'
     const cookieStore = cookies()
 
     if (cookieStore.get(cookieName)) {
       const message = `Artifact ${artifactName} has no entries, probably hasn't been extracted and stored yet`
-      return NextResponse.json({message, params, githubLogin}, {status: 404})
+      return ResponseHelpers.json({message, params, githubLogin}, {status: 404})
     }
 
     const uploadPageParams: ArtifactUploadPageSearchParams = {
@@ -80,22 +71,9 @@ export const loadArtifact = async (request: NextAuthRequest, {params}: {params: 
       entry: filepath.join('/'),
     }
 
-    const response = NextResponse.redirect(
-      requestUrl.origin + `/artifact/upload?${new URLSearchParams(uploadPageParams)}`,
-    )
-    response.cookies.set({name: cookieName, value: 'true', path: request.nextUrl.pathname, maxAge: 120})
-
-    return response
+    return {outcome: 'not_uploaded_yet', uploadPageParams, artifactInfo} as const
   }
 
-  if (filepath.length === 0) {
-    // for now, redirect to the calculated entrypoint, but maybe this should be a file-selector UI or something
-    const {entrypoints} = getEntrypoints(artifactInfo.entries)
-    const newUrl = new URL(requestUrl.origin + requestUrl.pathname + '/' + entrypoints[0])
-    return NextResponse.redirect(newUrl)
-  }
-
-  const storage = createStorageClient()
   const dbFile = await client.maybeOne(sql<queries.DbFile>`
     select o.name as storage_pathname
     from artifacts a
@@ -109,24 +87,25 @@ export const loadArtifact = async (request: NextAuthRequest, {params}: {params: 
   `)
 
   if (!dbFile || !dbFile.storage_pathname) {
-    return NextResponse.json({dbFile, message: `Upload not found`, params, githubLogin, artifactInfo}, {status: 404})
+    return ResponseHelpers.json({dbFile, message: `Upload not found`, params, githubLogin, artifactInfo}, {status: 404})
   }
 
-  const file = await storage.object.bucketName('artifact_files').wildcard(dbFile.storage_pathname).get()
+  return {outcome: '2xx', storagePathname: dbFile.storage_pathname, artifactInfo} as const
+}
 
-  if (!file) {
-    return NextResponse.json({message: `Upload not found`, params, githubLogin}, {status: 404})
-  }
+export async function loadFile(storagePathname: string, params: PathParams) {
+  const storage = createStorageClient()
+  const file = await storage.object.bucketName('artifact_files').wildcard(storagePathname).get()
 
-  const contentType = mimeTypeLookup(dbFile.storage_pathname) || 'text/plain'
+  const contentType = mimeTypeLookup(storagePathname) || 'text/plain'
 
   const headers: Record<string, string> = {}
 
   headers['content-type'] = contentType
-  headers['artifactci-path'] = filepath.join('/')
-  headers['artifactci-name'] = artifactName
-  headers['artifactci-identifier'] = identifier
-  headers['artifactci-alias-type'] = aliasType
+  headers['artifactci-path'] = (params.filepath || []).join('/')
+  headers['artifactci-name'] = params.artifactName
+  headers['artifactci-identifier'] = params.identifier
+  headers['artifactci-alias-type'] = params.aliasType
 
   // Add relevant headers from the object response
   const relevantHeaders = ['content-length', 'etag', 'last-modified']
@@ -135,7 +114,7 @@ export const loadArtifact = async (request: NextAuthRequest, {params}: {params: 
     if (value) headers[header] = value
   }
 
-  const ext = path.extname(dbFile.storage_pathname)
+  const ext = path.extname(storagePathname)
   if (
     ext === '.html' ||
     ext === '.htm' ||
@@ -147,12 +126,12 @@ export const loadArtifact = async (request: NextAuthRequest, {params}: {params: 
     contentType.startsWith('video/') ||
     contentType.startsWith('audio/')
   ) {
-    headers['content-disposition'] = `inline; filename="${encodeURIComponent(path.basename(dbFile.storage_pathname))}"`
+    headers['content-disposition'] = `inline; filename="${encodeURIComponent(path.basename(storagePathname))}"`
   }
 
-  if (aliasType === 'branch') {
+  if (params.aliasType === 'branch') {
     headers['cache-control'] = 'public, max-age=300, must-revalidate'
-  } else if (aliasType === 'run' || aliasType === 'sha') {
+  } else if (params.aliasType === 'run' || params.aliasType === 'sha') {
     headers['cache-control'] = 'public, max-age=31536000, immutable'
   } else {
     headers['cache-control'] = file.response.headers.get('cache-control') || 'no-cache'
