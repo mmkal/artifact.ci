@@ -80,10 +80,10 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
         {(mutation.isIdle || reload) && (
           <button
             onClick={() => mutation.mutate(params)}
-            disabled={mutation.isPending}
+            disabled={!mutation.isIdle}
             className="bg-amber-700/30 hover:bg-amber-600/50 text-amber-100 font-bold py-1 px-3 rounded border border-amber-400/50 transition duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Prepare
+            Load
           </button>
         )}
       </div>
@@ -100,7 +100,7 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
           ))}
           {!mutation.isPending && updates.length === 0 && (
             <div className="p-3 rounded-md hover:bg-gray-900">
-              {'>'} Welcome, {params.githubLogin}. {reload ? 'Click Prepare to start.' : 'Getting ready...'}
+              {'>'} Welcome, {params.githubLogin}. {reload ? '' : 'Getting ready...'}
             </div>
           )}
         </div>

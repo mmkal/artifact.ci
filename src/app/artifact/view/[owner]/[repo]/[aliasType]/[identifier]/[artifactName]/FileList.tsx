@@ -6,7 +6,7 @@ import {type PathParams} from '~/app/artifact/view/params'
 interface FileListProps {
   names: string[]
   params: PathParams
-  artifactId: string // Add this prop
+  artifactId: string
 }
 
 export function FileList({names, params, artifactId}: FileListProps) {
@@ -15,13 +15,9 @@ export function FileList({names, params, artifactId}: FileListProps) {
   return (
     <>
       <div className="mb-8">
-        <div className="flex justify-between items-center mb-4 border-b border-amber-300/50 pb-2">
-          {entrypoints.length < names.length && <h2 className="text-2xl font-semibold">Detected Entrypoints</h2>}
-          <DeleteButton
-            artifactId={artifactId}
-            className="bg-red-950 hover:bg-red-900 text-white font-bold py-2 px-4 rounded"
-          />
-        </div>
+        {entrypoints.length < names.length && (
+          <h2 className="text-2xl font-semibold mb-4 border-b border-amber-300/50 pb-2">Detected Entrypoints</h2>
+        )}
         <div className="space-y-2">
           {entrypoints.map(({path: entry}) => (
             <div key={entry} className="border border-amber-400/30 p-3 rounded-md hover:bg-gray-900 transition-colors">
@@ -58,6 +54,16 @@ export function FileList({names, params, artifactId}: FileListProps) {
           </div>
         </>
       )}
+
+      {/* Delete button styled like a file entry */}
+      <div className="mt-8">
+        <DeleteButton
+          artifactId={artifactId}
+          className="w-full border border-red-400/30 p-3 rounded-md hover:bg-red-900/15 transition-colors text-red-200/80 hover:text-red-100 font-bold text-left"
+        >
+          {'>'} Delete Entries
+        </DeleteButton>
+      </div>
     </>
   )
 }

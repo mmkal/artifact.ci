@@ -3,21 +3,24 @@
 import {TrpcProvider} from './TrpcProvider'
 import {trpc} from '~/client/trpc'
 
-export const DeleteButton = (params: {artifactId: string; className?: string}) => {
+export declare namespace DeleteButton {
+  export type Props = {artifactId: string; className?: string; children?: React.ReactNode}
+}
+export const DeleteButton = (props: DeleteButton.Props) => {
   return (
     <TrpcProvider>
-      <DeleteButtonInner {...params} />
+      <DeleteButtonInner {...props} />
     </TrpcProvider>
   )
 }
 
-function DeleteButtonInner(params: {artifactId: string; className?: string}) {
+function DeleteButtonInner(props: DeleteButton.Props) {
   const mutation = trpc.deleteEntries.useMutation({
     onSuccess: () => (window.location.href = window.location.pathname + `?reload=true`),
   })
   return (
-    <button disabled={!mutation.isIdle} className={params.className} onClick={() => mutation.mutate(params)}>
-      Delete
+    <button disabled={!mutation.isIdle} className={props.className} onClick={() => mutation.mutate(props)}>
+      {props.children || 'Delete Artifact'}
     </button>
   )
 }
