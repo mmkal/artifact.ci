@@ -26,17 +26,7 @@ export async function POST(request: NextRequest) {
 
   const event = parsed.data
   return logger.run([`event=${event.eventType}`, `action=${event.action}`], async () => {
-    const result = await handleEvent(request, parsed.data)
-    if (
-      parsed.data.eventType === 'workflow_job_completed' &&
-      parsed.data.repository.full_name !== 'mmkal/artifact.ci'
-    ) {
-      logger.info('memories', logger.memories()) // todo: remove, this is just in case things go wrong if other ppl start using
-    }
-    if (parsed.data.eventType === 'unknown_action') {
-      logger.warn('unknown action')
-    }
-    return result
+    return handleEvent(request, parsed.data)
   })
 }
 
@@ -53,7 +43,7 @@ async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
   if (event.eventType !== 'workflow_job_completed') {
     event satisfies never // make sure at compile time we checked for all "ok" cases above
     logger.warn('unknown event type')
-    return NextResponse.json({ok: false, error: 'unexpected body', keys: Object.keys(event)}, {status: 400})
+    return NextResponse.json({ok: false, error: 'unexpected body', keys: Object.keys(event)}, {status: 500})
   }
 
   return logger.run(`job=${event.workflow_job.name}`, async () => {
