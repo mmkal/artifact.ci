@@ -8,7 +8,7 @@ import {FileList} from './FileList'
 import {clientUpload} from './client-upload'
 import {type PathParams} from '~/app/artifact/view/params'
 
-type Update = {stage: string; message: string}
+type Update = {stage: string; message: string; onClick?: () => void}
 
 export namespace ArtifactLoader {
   export type Params = PathParams & {
@@ -29,13 +29,16 @@ export function ArtifactLoader(params: ArtifactLoader.Params) {
 function ArtifactLoaderInner(params: ArtifactLoader.Params) {
   const searchParams = useSearchParams()
   const reload = searchParams?.get('reload') === 'true'
-  const [updates, setUpdates] = React.useState([] as Update[])
+  const initialUpdates: Update[] = [{stage: 'welcome', message: 'Welcome, ' + params.githubLogin} as Update].concat(
+    reload ? [{stage: 'trigger', message: 'Load artifact', onClick: () => mutation.mutate(params)}] : [],
+  )
+  const [updates, setUpdates] = React.useState<Update[]>(initialUpdates)
   const detailsRef = React.useRef<HTMLDetailsElement>(null)
   const fileListRef = useRef<HTMLDivElement>(null)
 
   const mutation = useMutation({
     mutationFn: (input: {artifactId: string}) => {
-      setUpdates([])
+      setUpdates([...initialUpdates, {stage: 'preparation', message: 'Preparing artifact'}])
       return clientUpload({
         ...input,
         onProgress: (newStage, message) =>
@@ -47,7 +50,7 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
       })
     },
     onSuccess: () => {
-      // Automatically close the details element after a short delay
+      setUpdates(prev => [...prev, {stage: 'success', message: 'Artifact ready'}])
       setTimeout(() => {
         if (detailsRef.current) detailsRef.current.open = false
       }, 500)
@@ -71,33 +74,32 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
 
   return (
     <>
-      <div className="mb-4 flex items-center justify-between pr-5">
-        <h2 className="text-2xl font-semibold">
-          {mutation.isSuccess
-            ? [<Check key="check" className="inline mr-1" />, 'Artifact ready']
-            : 'Preparing Artifact'}
-        </h2>
-        {(mutation.isIdle || reload) && (
-          <button
-            onClick={() => mutation.mutate(params)}
-            disabled={!mutation.isIdle}
-            className="bg-amber-700/30 hover:bg-amber-600/50 text-amber-100 font-bold py-1 px-3 rounded border border-amber-400/50 transition duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Load
-          </button>
-        )}
-      </div>
-
       <div className="space-y-2 max-h-[70vh] overflow-y-auto scroll-smooth snap-y snap-mandatory pr-5">
         <div data-element="updates-list" className="snap-start">
-          {updates.map((line, index) => (
-            <div
-              key={index}
-              className={`p-3 rounded-md ${line.stage === 'error' ? 'text-red-400' : 'hover:bg-gray-900'}`}
-            >
-              {'> ' + line.message}
-            </div>
-          ))}
+          {updates.map((update, index, {length}) => {
+            if (update.onClick) {
+              return (
+                <span key={update.stage + update.message} className="p-3">
+                  {'> '}
+                  <button
+                    disabled={index < length - 1}
+                    onClick={update.onClick}
+                    className="DISABLEDbg-amber-700/30 hover:bg-amber-600/20 text-amber-100 font-bold py-1 px-3 rounded border border-amber-400/50 transition duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {update.message}
+                  </button>
+                </span>
+              )
+            }
+            return (
+              <div
+                key={update.stage + update.message}
+                className={`p-3 rounded-md ${update.stage === 'error' ? 'text-red-400' : 'hover:bg-gray-900'}`}
+              >
+                {'> ' + update.message}
+              </div>
+            )
+          })}
           {!mutation.isPending && updates.length === 0 && (
             <div className="p-3 rounded-md hover:bg-gray-900">
               {'>'} Welcome, {params.githubLogin}. {reload ? '' : 'Getting ready...'}
