@@ -106,7 +106,11 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
         </div>
         {mutation.isSuccess && (
           <div ref={fileListRef} className="snap-start pb-[100%]">
-            <FileList names={mutation.data.records.map(r => r.entry_name)} params={params} />
+            <FileList
+              names={mutation.data.records.map(r => r.entry_name)}
+              params={params}
+              artifactId={params.artifactId}
+            />
           </div>
         )}
       </div>
