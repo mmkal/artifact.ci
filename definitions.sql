@@ -65,7 +65,7 @@ check (value ~ '^[a-z0-9_]+_[0-9A-Za-z]{27}$');
 
 -- #endregion KSUID Setup
 
--- Table for storing repository information
+-- #region core tables
 create table repos (
   id prefixed_ksuid primary key default generate_prefixed_ksuid('repo'),
   owner text not null,
@@ -138,7 +138,9 @@ create table artifact_entries (
 	updated_at timestamp with time zone not null default current_timestamp,
 	unique(artifact_id, entry_name)
 );
+-- #endregion core tables
 
+-- #region row level security
 -- not using supabase auth but may as well make sure the anonymous key can't access our tables
 alter table repos enable row level security;
 alter table sponsors enable row level security;
@@ -147,8 +149,9 @@ alter table artifacts enable row level security;
 alter table artifact_identifiers enable row level security;
 alter table artifact_entries enable row level security;
 alter table github_installations enable row level security;
+-- #endregion row level security
 
--- Create indexes
+-- #region indexes
 create index idx_usage_credits_github_login on usage_credits(github_login);
 create index idx_usage_credits_sponsor_id on usage_credits(sponsor_id);
 create index idx_artifacts_repo_id on artifacts(repo_id);
@@ -159,3 +162,4 @@ create index idx_artifact_entries_aliases on artifact_entries(aliases);
 create index idx_artifact_entries_storage_object_id on artifact_entries(storage_object_id);
 create index idx_artifacts_name on artifacts(name);
 create index idx_repos_owner_name on repos(owner, name);
+-- #endregion indexes

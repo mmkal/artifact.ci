@@ -27,7 +27,7 @@ export async function GET(_request: Request) {
       monthly_amount_usd = excluded.monthly_amount_usd,
       expiry = excluded.expiry,
       updated_at = current_timestamp
-    returning id, sponsor_login, sponsoree_login, expiry, created_at, updated_at
+    returning *
   `)
 
   const credits = await client.any(sql<queries.UsageCredit>`
@@ -44,20 +44,15 @@ export async function GET(_request: Request) {
         })),
       )}
     )
-    on conflict (github_login, reason) 
+    on conflict (github_login, reason)
     do update set
       expiry = excluded.expiry,
       sponsor_id = excluded.sponsor_id,
       updated_at = current_timestamp
-    returning id, github_login, expiry, sponsor_id, reason, created_at, updated_at
+    returning *
   `)
 
-  console.log({inserted, credits})
-
-  return NextResponse.json({
-    inserted: inserted.map(i => i.id),
-    credits: credits.map(c => c.id),
-  })
+  return NextResponse.json({inserted, credits})
 }
 
 export declare namespace queries {
