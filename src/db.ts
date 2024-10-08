@@ -1,12 +1,20 @@
 import {createClient} from 'pgkit/client'
 import {z} from 'zod'
 import config from '../pgkit.config'
+import {logger} from './tag-logger'
 
 export const client = createClient(config.client.connectionString, {
   pgpOptions: {
     initialize: {
       noWarnings: new Date(process.env.SILENCE_PG_PROMISE_WARNINGS_UNTIL || 0) > new Date(),
     },
+  },
+  wrapQueryFn: queryFn => {
+    return async query => {
+      const result = await queryFn(query)
+      logger.debug('queryResult', query.name, {rowCount: result.rowCount})
+      return result
+    }
   },
 })
 

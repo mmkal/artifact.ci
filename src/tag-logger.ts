@@ -42,11 +42,11 @@ export class TagLogger {
     return [this.tags.map(c => `[${c}]`).join('')]
   }
 
-  run<T>(tag: string, fn: () => T): T {
+  run<T>(tag: string | string[], fn: () => T): T {
     return this._storage.run({...this.context, tags: this.context.tags.concat(tag)}, fn)
   }
 
-  tag(tag: string) {
+  tag(tag: string | string[]) {
     return {
       info: (...args: unknown[]) => this.run(tag, () => this.info(...args)),
       warn: (...args: unknown[]) => this.run(tag, () => this.warn(...args)),
@@ -86,7 +86,7 @@ export class TagLogger {
   try<T>(tag: string, fn: () => Promise<T>): Promise<T> {
     return this.run(tag, async () => {
       try {
-        return await fn()
+        return fn()
       } catch (error) {
         this.run('memories', () => this._log({level: 'error', args: [this.memories()], forget: true}))
         throw error
