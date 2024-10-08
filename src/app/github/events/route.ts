@@ -138,7 +138,7 @@ async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
 
     if (summaries.length > 0) {
       const jobsCompleted = jobsForRun.jobs.filter(j => j.status === 'completed').length
-      const title = `${job.workflow_name} workflow: ${artifacts.length} artifacts (${jobsCompleted} of ${jobsForRun.total_count} jobs completed)`
+      const title = `${artifacts.length} artifacts (${jobsCompleted} of ${jobsForRun.total_count} jobs completed)`
       const output = {
         title: title.replace('1 artifacts', '1 artifact').replace(' (1 of 1 jobs completed)', ''),
         summary: 'The following artifacts are ready to view',
@@ -147,7 +147,7 @@ async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
       await octokit.rest.checks.create({
         owner,
         repo,
-        name: `${job.workflow_name} / ${emoji} ${productionUrl.hostname}`,
+        name: `${job.workflow_name} ${productionUrl.hostname}`,
         head_sha: event.workflow_job.head_sha,
         status: 'completed',
         conclusion: 'success',
