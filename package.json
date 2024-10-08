@@ -7,6 +7,7 @@
   "scripts": {
     "pgkit-link": "npx link ../pgkit/packages/pgkit",
     "pgkit": "node node_modules/pgkit/dist/cli.js",
+    "build-supabase-client": "openapi-typescript --default-non-nullable=false https://supabase.github.io/storage/api.json -o src/openapi/generated/supabase-storage.ts",
     "generate": "pnpm build-action",
     "build-composite-action": "tsx src/action/generate.ts",
     "build-action": "esbuild src/action/index.ts --bundle --platform=node --target=node20 --outfile=upload/action.min.js --minify",
@@ -72,6 +73,7 @@
     "eslint": "^8.57.0",
     "eslint-plugin-mmkal": "0.10.0",
     "expect-type": "^0.20.0",
+    "openapi-typescript": "^7.4.1",
     "postcss": "^8.4.47",
     "simple-git-hooks": "^2.11.1",
     "tailwindcss": "^3.4.13",
