@@ -7,9 +7,10 @@ interface FileListProps {
   names: string[]
   params: PathParams
   artifactId: string
+  allowDelete?: boolean
 }
 
-export function FileList({names, params, artifactId}: FileListProps) {
+export function FileList({names, params, artifactId, allowDelete}: FileListProps) {
   const {entrypoints} = getEntrypoints(names)
 
   return (
@@ -55,7 +56,7 @@ export function FileList({names, params, artifactId}: FileListProps) {
         </>
       )}
 
-      {params.repo === 'artifact.ci' && (
+      {allowDelete && (
         <div className="mt-8">
           <DeleteButton
             artifactId={artifactId}

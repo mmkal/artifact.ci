@@ -109,6 +109,7 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
               names={mutation.data.records.map(r => r.entry_name)}
               params={params}
               artifactId={params.artifactId}
+              allowDelete={searchParams?.get('delete') === 'true'}
             />
           </div>
         )}
