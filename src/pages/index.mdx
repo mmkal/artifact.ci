@@ -4,15 +4,61 @@
 
 A GitHub App that provides browsable links for artifacts uploaded during GitHub Actions workflow runs.
 
-[Click here to install on GitHub](https://github.com/apps/artifact-ci/installations/new/permissions?target_id=71831023)
+To use it, all you need to do is install the app. Then use `actions/upload-artifact` as normal in your workflow. It will add a link to view any artifacts uploaded via GitHub checks.
 
-Once installed, the app adds a link to view your artifacts in a browser:
+import '../styles/docs.css'
+import {GithubIcon} from 'lucide-react'
+export function InstallButton() {
+    return <a 
+      className="install-button"
+      style={{
+        margin: '1rem 0',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        padding: '0.5rem 1rem',
+        borderRadius: '0.5rem',
+        backgroundColor: '#1f2328',
+        color: '#c9d1d9',
+        textDecoration: 'none',
+      }}
+      href="https://github.com/apps/artifact-ci/installations/new/permissions?target_id=71831023">
+        <GithubIcon />
+        Install on GitHub
+    </a>
+}
 
-![playwright report](/reports/playwright.png)
+<InstallButton />
+
+Here's an end-to-end example of a repo installing the app, then using vitest's HTML report to view test results in-browser:
+
+export function DemoVideo() {
+    return <video
+      muted
+      autoPlay
+      playsInline
+      onClick={ev => {
+        /** @type {HTMLVideoElement} */
+        // @ts-expect-error whatever
+        const video = ev.target
+        if (video.paused) void video.play()
+        else void video.pause()
+      }}
+      >
+      <source src={`/artifactci-demo.mp4`} type="video/mp4" />
+      Your browser does not support the video tag.
+    </video>
+}
+
+<br />
+<br />
+<DemoVideo />
 
 ## Why
 
 CI jobs often generate useful HTML reports (test results, coverage, etc.). GitHub Actions doesn't provide a way to view these directly. The existing option is to use `actions/upload-artifact`, then download it as a zip file, unzip it on your local machine, and then poke around at the files or run a local server. This app fills that gap, letting you view artifacts in your browser without downloading and unzipping.
+
+This _should_ really be a feature built into GitHub, and likely one day will be, but [for now it isn't](https://github.com/actions/upload-artifact/issues/14). (Note: it is built into some other CI providers like CircleCI).
 
 ## Usage
 

@@ -154,4 +154,10 @@ export declare namespace queries {
      */
     entries: string[] | null
   }
+
+  /** - query: `select o.name as storage_pathname from a... [truncated] ...null order by ae.created_at desc limit 1` */
+  export interface DbFile {
+    /** column: `storage.objects.name`, regtype: `text` */
+    storage_pathname: string | null
+  }
 }
