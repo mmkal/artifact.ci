@@ -53,7 +53,7 @@ export async function clientUpload({artifactId, onProgress = () => {}}: clientUp
   onProgress('saving', 'Saving upload records')
   const records = await trpcClient.storeUploadRecords.mutate({artifactId, uploads})
 
-  onProgress('complete', 'Done')
+  onProgress('success', 'Done')
 
   return records
 }

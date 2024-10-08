@@ -3,7 +3,7 @@
 import {useMutation} from '@tanstack/react-query'
 import {Check, ChevronRight} from 'lucide-react'
 import {useSearchParams} from 'next/navigation'
-import React, {Suspense, useRef, useEffect} from 'react'
+import React, {Suspense} from 'react'
 import {FileList} from './FileList'
 import {clientUpload} from './client-upload'
 import {type PathParams} from '~/app/artifact/view/params'
@@ -34,26 +34,26 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
   )
   const [updates, setUpdates] = React.useState<Update[]>(initialUpdates)
   const detailsRef = React.useRef<HTMLDetailsElement>(null)
-  const fileListRef = useRef<HTMLDivElement>(null)
+  const fileListRef = React.useRef<HTMLDivElement>(null)
+
+  const onProgress = React.useCallback((stage: string, message: string) => {
+    setUpdates(prev => {
+      const next = [...prev]
+      if (stage === next.at(-1)?.stage) next.pop()
+      return [...next, {stage, message}]
+    })
+  }, [])
 
   const mutation = useMutation({
     mutationFn: (input: {artifactId: string}) => {
-      setUpdates([...initialUpdates, {stage: 'preparation', message: 'Preparing artifact'}])
-      return clientUpload({
-        ...input,
-        onProgress: (newStage, message) =>
-          setUpdates(prev => {
-            const next = [...prev]
-            if (newStage === next.at(-1)?.stage) next.pop()
-            return [...next, {stage: newStage, message}]
-          }),
-      })
+      setUpdates(initialUpdates)
+      return clientUpload({...input, onProgress})
     },
     onSuccess: () => {
-      setUpdates(prev => [...prev, {stage: 'success', message: 'Artifact ready'}])
+      onProgress('success', 'Artifact ready')
       setTimeout(() => {
         if (detailsRef.current) detailsRef.current.open = false
-      }, 500)
+      }, 100)
     },
     onError: error => setUpdates(prev => [...prev, {stage: 'error', message: error.message}]),
   })
@@ -66,9 +66,10 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mutation.status, params.artifactId, mutation.mutate, reload, params])
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (mutation.isSuccess && fileListRef.current) {
-      fileListRef.current.scrollIntoView({behavior: 'smooth', block: 'start'})
+      const timeout = setTimeout(() => fileListRef.current?.scrollIntoView({behavior: 'smooth', block: 'start'}), 500)
+      return () => clearTimeout(timeout)
     }
   }, [mutation.isSuccess])
 
@@ -78,7 +79,11 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
         <div data-element="updates-list" className="snap-start">
           {updates.map((update, index, {length}) => {
             const prefix =
-              index < length - 1 ? <Check className="inline text-xs" /> : <ChevronRight className="inline text-xs" />
+              update.stage === 'success' || index < length - 1 ? (
+                <Check className="inline text-xs" />
+              ) : (
+                <ChevronRight className="inline text-xs" />
+              )
             if (update.onClick) {
               return (
                 <span key={update.stage + update.message} className="py-2">
