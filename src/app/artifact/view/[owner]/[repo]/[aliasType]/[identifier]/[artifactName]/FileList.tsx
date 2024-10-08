@@ -35,14 +35,17 @@ export function FileList({names, params}: FileListProps) {
         <>
           <h2 className="text-2xl font-semibold mb-4 border-b border-amber-300/50 pb-2">All Files</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {names.map(e => (
-              <div key={e} className="border border-amber-400/30 p-3 rounded-md hover:bg-gray-900 transition-colors">
+            {names.map(entry => (
+              <div
+                key={entry}
+                className="border border-amber-400/30 p-3 rounded-md hover:bg-gray-900 transition-colors"
+              >
                 <a
-                  href={`/artifact/view/${params.owner}/${params.repo}/${params.aliasType}/${params.identifier}/${params.artifactName}/${e}`}
+                  href={`/artifact/view/${params.owner}/${params.repo}/${params.aliasType}/${params.identifier}/${params.artifactName}/${entry}`}
                   className="block text-amber-200/80 hover:text-amber-100 truncate"
-                  title={e}
+                  title={entry}
                 >
-                  {'>'} {e}
+                  {'>'} {entry}
                 </a>
               </div>
             ))}

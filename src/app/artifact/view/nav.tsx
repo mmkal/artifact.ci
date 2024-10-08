@@ -3,6 +3,8 @@ import React from 'react'
 import {toBreadcrumbs, type PathParams} from './params'
 import {emoji, productionUrl} from '~/site-config'
 
+// don't put these in a layout because layout is cached between routes. so it won't show the right breadcrumbs for child pages
+
 export const Header = ({params}: {params: Partial<PathParams>}) => {
   const breadcrumbs = toBreadcrumbs(params)
   return (

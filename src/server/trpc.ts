@@ -157,6 +157,10 @@ export const appRouter = router({
         entrypoints: getEntrypoints(records.map(u => u.entry_name)),
       }
     }),
+  deleteArtifact: artifactAccessProcedure.input(z.object({artifactId: Id('artifact')})).mutation(async ({input}) => {
+    await client.query(sql`delete from artifacts where id = ${input.artifactId} cascade`)
+    return {artifactId: input.artifactId}
+  }),
 })
 
 export type AppRouter = typeof appRouter
