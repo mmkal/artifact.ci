@@ -1,5 +1,5 @@
-import {Octokit} from '@octokit/rest'
 import * as cheerio from 'cheerio'
+import {Octokit} from 'octokit'
 import {type GithubActionsContext} from '../types'
 
 export type JobInfo = {
@@ -110,7 +110,7 @@ export function parseJobStatuses(runPageHtml: string): JobInfo[] {
       href: $el.find('a').attr('href')!.slice(),
       jobId: $el.attr('data-job-id')!.slice(),
       jobName: $el.find('[data-target="streaming-graph-job.name"]').text().trim(),
-      status: Object.keys(checks).find(key => checks[key]) as keyof typeof checks,
+      status: (Object.keys(checks) as Array<keyof typeof checks>).find(key => checks[key])!,
     }
   })
 
