@@ -22,6 +22,20 @@ export async function POST(request: NextRequest) {
     if (parsed.data.eventType === 'workflow_job_update' && parsed.data.repository.full_name !== 'mmkal/artifact.ci') {
       logger.info('memories', logger.memories())
     }
+    if (parsed.data.eventType === 'ignored_action') {
+      logger.warn('ignored action', {
+        bodyKeys: Object.keys(body),
+        bodyKeysKeys: Object.entries(body)
+          .flatMap(([k, v]) => {
+            try {
+              return Object.keys(v as {}).map(subkey => `${k}.${subkey}`)
+            } catch {
+              return [`${k}`]
+            }
+          })
+          .join(', '),
+      })
+    }
     return result
   })
 }
