@@ -49,11 +49,11 @@ jobs:
       - name: setup
         run: |
           git ls-files | xargs rm && echo '*' >> .gitignore
+          rm -rf test && mkdir test
           npm install @playwright/test --save-dev
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + 1' >> calc.ts
           echo 'export const sub = (a: number, b: number) => a - b' >> calc.ts
-          rm -rf test && mkdir test
           echo 'import {test, expect} from "@playwright/test"' >> test/adding.test.ts
           echo 'import * as calc from "../calc"' >> test/adding.test.ts
           echo 'test("add well", () => expect(calc.add(1, 1)).toEqual(2))' >> test/adding.test.ts
