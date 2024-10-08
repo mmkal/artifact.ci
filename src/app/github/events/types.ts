@@ -1,7 +1,7 @@
 import {z} from 'zod'
 
 export const WorkflowJobCompleted = z.object({
-  action: z.enum(['queued', 'waiting', 'in_progress', 'completed']),
+  action: z.enum(['completed']),
   installation: z.object({
     id: z.number(),
   }),
@@ -21,6 +21,11 @@ export const WorkflowJobCompleted = z.object({
   }),
 })
 export type WorkflowJobCompleted = z.infer<typeof WorkflowJobCompleted>
+
+export const WorkflowJobNotCompleted = z.object({
+  action: z.enum(['queued', 'waiting', 'in_progress']),
+  workflow_job: z.object({}),
+})
 
 export const InstallationAdded = z.object({
   action: z.enum(['added']),
@@ -44,7 +49,11 @@ export type InstallationRemoved = z.infer<typeof InstallationRemoved>
 export const AppWebhookEvent = z.union([
   WorkflowJobCompleted.transform(data => ({
     ...data,
-    eventType: 'workflow_job_update' as const,
+    eventType: 'workflow_job_completed' as const,
+  })),
+  WorkflowJobNotCompleted.transform(data => ({
+    ...data,
+    eventType: 'workflow_job_not_completed' as const,
   })),
   InstallationAdded.transform(data => ({
     ...data,
@@ -203,7 +212,7 @@ const _sampleInstallationRemoved = {
   },
 }
 
-const sampleWorkflowJobCompleted = {
+const _sampleWorkflowJobCompleted = {
   action: 'completed',
   workflow_job: {
     id: 30_799_966_660,
