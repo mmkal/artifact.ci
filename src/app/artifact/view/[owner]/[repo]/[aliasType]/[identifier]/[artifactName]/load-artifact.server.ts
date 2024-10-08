@@ -1,6 +1,6 @@
 import {lookup as mimeTypeLookup} from 'mime-types'
 import * as path from 'path'
-import {type ArtifactLoader} from './loader'
+import {type ArtifactLoader} from './ArtifactLoader'
 import {type PathParams} from '~/app/artifact/view/params'
 import {checkCanAccess, getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
@@ -153,11 +153,5 @@ export declare namespace queries {
      * column: `✨.subquery_3_for_column_entries.entries`, regtype: `text[]`
      */
     entries: string[] | null
-  }
-
-  /** - query: `select o.name as storage_pathname from a... [truncated] ...null order by ae.created_at desc limit 1` */
-  export interface DbFile {
-    /** column: `storage.objects.name`, regtype: `text` */
-    storage_pathname: string | null
   }
 }

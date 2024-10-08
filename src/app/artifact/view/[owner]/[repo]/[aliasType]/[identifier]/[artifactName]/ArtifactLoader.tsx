@@ -89,7 +89,7 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
       </div>
 
       <div className="space-y-2 max-h-[70vh] overflow-y-auto scroll-smooth snap-y snap-mandatory pr-5">
-        <div className="snap-start">
+        <div data-element="updates-list" className="snap-start">
           {updates.map((line, index) => (
             <div
               key={index}
