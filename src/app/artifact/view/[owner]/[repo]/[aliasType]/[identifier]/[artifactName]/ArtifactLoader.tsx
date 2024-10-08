@@ -1,7 +1,7 @@
 'use client'
 
 import {useMutation} from '@tanstack/react-query'
-import {Check} from 'lucide-react'
+import {Check, ChevronRight} from 'lucide-react'
 import {useSearchParams} from 'next/navigation'
 import React, {Suspense, useRef, useEffect} from 'react'
 import {FileList} from './FileList'
@@ -77,10 +77,12 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
       <div className="space-y-2 max-h-[70vh] overflow-y-auto scroll-smooth snap-y snap-mandatory pr-5">
         <div data-element="updates-list" className="snap-start">
           {updates.map((update, index, {length}) => {
+            const prefix =
+              index < length - 1 ? <Check className="inline text-xs" /> : <ChevronRight className="inline text-xs" />
             if (update.onClick) {
               return (
-                <span key={update.stage + update.message} className="p-3">
-                  {'> '}
+                <span key={update.stage + update.message} className="py-2">
+                  {prefix}{' '}
                   <button
                     disabled={index < length - 1}
                     onClick={update.onClick}
@@ -94,9 +96,9 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
             return (
               <div
                 key={update.stage + update.message}
-                className={`p-3 rounded-md ${update.stage === 'error' ? 'text-red-400' : 'hover:bg-gray-900'}`}
+                className={`py-2 rounded-md ${update.stage === 'error' ? 'text-red-400' : 'hover:bg-gray-900'}`}
               >
-                {'> ' + update.message}
+                {prefix} {update.message}
               </div>
             )
           })}
