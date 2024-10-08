@@ -55,7 +55,7 @@ export function FileList({names, params, artifactId}: FileListProps) {
         </>
       )}
 
-      {params.owner === 'mmkal' && (
+      {params.repo === 'artifact.ci' && (
         <div className="mt-8">
           <DeleteButton
             artifactId={artifactId}

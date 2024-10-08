@@ -54,7 +54,7 @@ export const ArtifactViewPageTemplate = ({params, children}: ArtifactViewPageTem
   return (
     <div className="flex flex-col h-full">
       <Header params={params} />
-      <main className="flex-grow overflow-y-auto px-2 md:px-6 max-w-7xl mx-auto w-full">{children}</main>
+      <main className="flex-grow overflow-y-auto px-2 md:px-6 mx-auto w-full">{children}</main>
       <Footer />
     </div>
   )
