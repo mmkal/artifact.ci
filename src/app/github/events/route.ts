@@ -4,6 +4,7 @@ import {AppWebhookEvent, WorkflowJobCompleted} from './types'
 import {getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
 import {ARTIFACT_BLOB_PREFIX} from '~/routing'
+import {emoji, productionUrl} from '~/site-config'
 import {logger} from '~/tag-logger'
 
 export async function POST(request: NextRequest) {
@@ -116,7 +117,7 @@ async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
       }),
     )
 
-    const entrypointSummaries = artifacts.map(arti => {
+    const summaries = artifacts.map(arti => {
       const identifierLinks = arti.identifiers.map(({type, value}) => {
         const origin = getOrigin(request, event)
         const url = origin + ARTIFACT_BLOB_PREFIX + `${owner}/${repo}/${type}/${value}/${arti.name}`
@@ -125,19 +126,18 @@ async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
       return `- **${arti.name}**: ${identifierLinks.join(' / ')}`
     })
 
-    if (entrypointSummaries.length > 0) {
+    if (summaries.length > 0) {
       const jobsCompleted = jobsForRun.jobs.filter(j => j.status === 'completed').length
-      const jobInfo =
-        jobsForRun.total_count === 1 ? '' : ` (${jobsCompleted} of ${jobsForRun.total_count} jobs completed)`
+      const title = `${job.workflow_name} workflow: ${artifacts.length} artifacts (${jobsCompleted} of ${jobsForRun.total_count} jobs completed)`
       const output = {
-        title: `Workflow ${job.workflow_name}: ${artifacts.length} artifacts${jobInfo}`,
-        summary: 'The following artifacts are ready to view' + jobInfo,
-        text: 'Entrypoints:\n\n' + entrypointSummaries.join('\n'),
+        title: title.replace('1 artifacts', '1 artifact').replace(' (1 of 1 jobs completed)', ''),
+        summary: 'The following artifacts are ready to view',
+        text: summaries.join('\n'),
       }
       await octokit.rest.checks.create({
         owner,
         repo,
-        name: `artifact.ci`,
+        name: `${job.workflow_name} / ${emoji} ${productionUrl.hostname}`,
         head_sha: event.workflow_job.head_sha,
         status: 'completed',
         conclusion: 'success',
