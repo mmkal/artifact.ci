@@ -5,7 +5,7 @@ You can upload individual files:
 ```yaml
 - name: create pdf
   run: node generate-pdf.js --destination output.pdf
-- uses: mmkal/artifact.ci/upload@main
+- uses: actions/upload-artifact@v4
   with:
     name: pdf
     path: output.pdf

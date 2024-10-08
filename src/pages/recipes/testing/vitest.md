@@ -4,7 +4,7 @@ Vitest has a sort-of builtin report. Just run `vitest --reporter html` via the C
 
 ```yaml
 - run: npx vitest --reporter html
-- uses: mmkal/artifact.ci/upload@main
+- uses: actions/upload-artifact@v4
   if: always()
   with:
       name: vitest

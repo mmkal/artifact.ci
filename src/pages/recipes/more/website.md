@@ -9,7 +9,7 @@ For a simple static HTML website, you can serve it using artifact.ci. For exampl
     export BASE_PATH="/artifact/blob/${{ github.repository }}/${{ github.run_id }}/$GITHUB_RUN_ATTEMPT/website/demosite/dist"
     sed -i "s|integrations|base: '$BASE_PATH', integrations|g" demosite/astro.config.mjs
     npm run build
-- uses: mmkal/artifact.ci/upload@main
+- uses: actions/upload-artifact@v4
   if: always()
   with:
     name: website

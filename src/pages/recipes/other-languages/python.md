@@ -8,7 +8,7 @@ pip install pytest-html
 
 ```yaml
 - run: pytest tests --html report/index.html
-- uses: mmkal/artifact.ci/upload@main
+- uses: actions/upload-artifact@v4
   if: always()
   with:
       name: pytest

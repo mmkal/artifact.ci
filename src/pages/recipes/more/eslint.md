@@ -5,7 +5,7 @@ You couuld serve a rendered version of your eslint config using `@eslint/config-
 ```yaml
 - name: build eslint config inspection
   run: npx @eslint/config-inspector build --base /artifact/blob/${{ github.repository }}/${{ github.run_id }}/$GITHUB_RUN_ATTEMPT/eslint/.eslint-config-inspector
-- uses: mmkal/artifact.ci/upload@main
+- uses: actions/upload-artifact@v4
   if: always()
   with:
     name: eslint

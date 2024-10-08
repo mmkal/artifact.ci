@@ -9,7 +9,7 @@ go install github.com/vakenbolt/go-test-report
 
 ```yaml
 - run: go test -json | go-test-report
-- uses: mmkal/artifact.ci/upload@main
+- uses: actions/upload-artifact@v4
   if: always()
   with:
     name: go

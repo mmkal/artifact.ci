@@ -8,7 +8,7 @@ npm install tap-html --save-dev
 
 ```yaml
 - run: npx ava --tap | npx tap-html --out output.html
-- uses: mmkal/artifact.ci/upload@main
+- uses: actions/upload-artifact@v4
   if: always()
   with:
       name: ava

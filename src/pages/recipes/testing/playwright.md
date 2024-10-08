@@ -4,7 +4,7 @@ HTML reporting is built in to Playwright. It's interactable, and renders detaile
 
 ```yaml
 - run: npx playwright test
-- uses: mmkal/artifact.ci/upload@main
+- uses: actions/upload-artifact@v4
   if: always()
   with:
       name: playwright

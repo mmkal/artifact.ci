@@ -16,7 +16,7 @@ module.exports = {
 
 ```yaml
 - run: npx jest
-- uses: mmkal/artifact.ci/upload@main
+- uses: actions/upload-artifact@v4
   if: always()
   with:
       name: jest

@@ -4,7 +4,7 @@ Mocha's [doc](https://mochajs.org/#doc) reporter outputs simple HTML. Their docu
 
 ```yaml
 - run: npx mocha --reporter doc > output.html
-- uses: mmkal/artifact.ci/upload@main
+- uses: actions/upload-artifact@v4
   if: always()
   with:
       name: mocha
