@@ -23,17 +23,18 @@ export async function POST(request: NextRequest) {
       logger.info('memories', logger.memories())
     }
     if (parsed.data.eventType === 'ignored_action') {
-      logger.warn('ignored action', {
-        bodyKeys: Object.keys(body),
-        bodyKeysKeys: Object.entries(body)
-          .flatMap(([k, v]) => {
-            try {
-              return Object.keys(v as {}).map(subkey => `${k}.${subkey}`)
-            } catch {
-              return [`${k}`]
-            }
-          })
-          .join(', '),
+      logger.warn('ignored action', parsed.data.action, {
+        json: JSON.stringify(body),
+        //   bodyKeys: Object.keys(body),
+        //   bodyKeysKeys: Object.entries(body)
+        //     .flatMap(([k, v]) => {
+        //       try {
+        //         return Object.keys(v as {}).map(subkey => `${k}.${subkey}`)
+        //       } catch {
+        //         return [`${k}`]
+        //       }
+        //     })
+        //     .join(', '),
       })
     }
     return result
