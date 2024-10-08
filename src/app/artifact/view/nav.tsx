@@ -8,7 +8,7 @@ import {emoji, productionUrl} from '~/site-config'
 export const Header = ({params}: {params: Partial<PathParams>}) => {
   const breadcrumbs = toBreadcrumbs(params)
   return (
-    <header className="mb-6 border-b-2 border-amber-300/50 pb-2">
+    <header className="mb-6 border-b-2 border-amber-300/50 p-2">
       <div className="flex items-center justify-between mb-4">
         <Link href="/" className="text-2xl font-bold hover:text-amber-300 transition-colors">
           {emoji} {productionUrl.hostname}
@@ -40,7 +40,7 @@ export const Header = ({params}: {params: Partial<PathParams>}) => {
 
 export const Footer = () => {
   return (
-    <footer className="mt-8 pt-4 border-t-2 border-amber-300/50 text-sm text-amber-200/60">
+    <footer className="mt-8 border-t-2 border-amber-300/50 text-sm text-amber-200/60 p-2">
       <p>{productionUrl.hostname}</p>
     </footer>
   )
@@ -52,10 +52,10 @@ export declare namespace ArtifactViewPageTemplate {
 
 export const ArtifactViewPageTemplate = ({params, children}: ArtifactViewPageTemplate.Props) => {
   return (
-    <>
+    <div className="flex flex-col h-full">
       <Header params={params} />
-      {children}
+      <main className="flex-grow overflow-y-auto">{children}</main>
       <Footer />
-    </>
+    </div>
   )
 }
