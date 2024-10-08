@@ -4,7 +4,7 @@
 
 A GitHub App that provides browsable links for artifacts uploaded during GitHub Actions workflow runs.
 
->⚠️ Not ready yet! [Contact me](https://x.com/mmkalmmkal) to try it.
+[Click here to install on GitHub](https://github.com/apps/artifact-ci/installations/new/permissions?target_id=71831023)
 
 Once installed, the app adds a link to view your artifacts in a browser:
 
