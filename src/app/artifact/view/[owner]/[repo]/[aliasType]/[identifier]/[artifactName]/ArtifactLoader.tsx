@@ -33,7 +33,6 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
     reload ? [{stage: 'trigger', message: 'Load artifact', onClick: () => mutation.mutate(params)}] : [],
   )
   const [updates, setUpdates] = React.useState<Update[]>(initialUpdates)
-  const detailsRef = React.useRef<HTMLDetailsElement>(null)
   const fileListRef = React.useRef<HTMLDivElement>(null)
 
   const onProgress = React.useCallback((stage: string, message: string) => {
@@ -51,9 +50,7 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
     },
     onSuccess: () => {
       onProgress('success', 'Artifact ready')
-      setTimeout(() => {
-        if (detailsRef.current) detailsRef.current.open = false
-      }, 100)
+      setTimeout(() => fileListRef.current?.scrollIntoView({behavior: 'smooth', block: 'start'}), 300)
     },
     onError: error => setUpdates(prev => [...prev, {stage: 'error', message: error.message}]),
   })
@@ -65,13 +62,6 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mutation.status, params.artifactId, mutation.mutate, reload, params])
-
-  React.useEffect(() => {
-    if (mutation.isSuccess && fileListRef.current) {
-      const timeout = setTimeout(() => fileListRef.current?.scrollIntoView({behavior: 'smooth', block: 'start'}), 500)
-      return () => clearTimeout(timeout)
-    }
-  }, [mutation.isSuccess])
 
   return (
     <>
