@@ -23,13 +23,13 @@ jobs:
         run: |
           git ls-files | xargs rm && echo '*' >> .gitignore
           rm -rf node_modules
+          rm -rf test && mkdir test
           npm init -y
           npm install vitest @vitest/ui @types/node@^20.0.0 --save-dev
           cat package.json
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + 1' >> calc.ts
           echo 'export const sub = (a: number, b: number) => a - b' >> calc.ts
-          rm -rf test && mkdir test
           echo 'import {test, expect} from "vitest"' >> test/adding.test.ts
           echo 'import {add, addBad} from "../calc"' >> test/adding.test.ts
           echo 'test("add well", () => expect(add(1, 1)).toEqual(2))' >> test/adding.test.ts
@@ -49,7 +49,7 @@ jobs:
       - name: setup
         run: |
           git ls-files | xargs rm && echo '*' >> .gitignore
-          rm -rf test && mkdir test
+          rm -rf test rm playwright.config.ts && mkdir test
           npm install @playwright/test --save-dev
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + 1' >> calc.ts
