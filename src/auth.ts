@@ -75,10 +75,8 @@ export const getInstallationOctokit = async (installationId: number) => {
   return app.getInstallationOctokit(installationId)
 }
 
-export const getCollaborationLevel = async (
-  octokit: Octokit,
-  params: {owner: string; repo: string; username: string},
-) => {
+export type GetCollaborationLevelParams = {owner: string; repo: string; username: string}
+export const getCollaborationLevel = async (octokit: Octokit, params: GetCollaborationLevelParams) => {
   if (params.username === params.owner) return 'admin'
   const {data: collaboration} = await octokit.rest.repos.getCollaboratorPermissionLevel(params)
   const parsed = z.object({permission: z.enum(['none', 'read', 'write', 'admin'])}).safeParse(collaboration)
@@ -86,15 +84,9 @@ export const getCollaborationLevel = async (
   return parsed.success ? parsed.data.permission : 'none'
 }
 
-export const checkCanAccess = async (
-  octokit: Octokit,
-  params: {owner: string; repo: string; username: string; artifactId: string},
-) => {
-  const level = await getCollaborationLevel(octokit, params)
-  if (level === 'none') {
-    return {result: false, reason: `github access level: ${level}`} as const
-  }
-
+export type CheckCreditStatusParams = GetCollaborationLevelParams & {artifactId: string}
+export const checkCreditStatus = async (params: CheckCreditStatusParams) => {
+  // todo: pgkit: the type isn't quite right. it's a full outer join so everything should be nullable
   const credits = await client.any(sql<queries.Credit>`
     select
       sponsor_id,
@@ -110,10 +102,47 @@ export const checkCanAccess = async (
   if (credits.length > 1) logger.warn({credits, params}, 'checkCanAccess: multiple credits')
 
   if (credits.length === 0) {
-    return {result: false, reason: 'no credits'} as const
+    const freeTrial = await client.maybeOne(sql<queries.FreeTrial>`
+      with prior_free_trial_credits as (
+        select count(*) as prior_free_trial_count
+        from usage_credits
+        where github_login = ${params.username.toLowerCase()}
+        and expiry < now()
+        and reason = 'free_trial'
+      ),
+      new_free_trial_credit as (
+        insert into usage_credits (github_login, reason, expiry)
+        select ${params.username.toLowerCase()}, 'free_trial', now() + interval '24 hours'
+        from prior_free_trial_credits
+        where prior_free_trial_count < 5
+        returning *
+      )
+      select * from new_free_trial_credit
+      join prior_free_trial_credits on true
+    `)
+    logger.warn({freeTrial}, 'checkCanAccess: free trial credits')
+    if (freeTrial) {
+      return {
+        result: true,
+        reason: `created free trial credit: ${freeTrial.reason} (#${freeTrial.prior_free_trial_count + 1})`,
+      } as const
+    }
+    return {result: false, reason: 'no credit'} as const
   }
 
   return {result: true, reason: credits.map(c => c.reason).join(';')} as const
+}
+
+export const checkCanAccess = async (octokit: Octokit, params: CheckCreditStatusParams) => {
+  const creditStatus = await checkCreditStatus(params)
+  if (!creditStatus.result) return creditStatus
+
+  const level = await getCollaborationLevel(octokit, params)
+  if (level === 'none') {
+    return {result: false, reason: `github access level: ${level}`} as const
+  }
+
+  return {result: true, reason: `credit status: ${creditStatus.reason}. github access level: ${level}`} as const
 }
 
 /** Returns the JSON body of a GitHub webhook payload if the signature is valid, null otherwise. */
@@ -145,5 +174,64 @@ export declare namespace queries {
 
     /** column: `public.artifacts.visibility`, not null: `true`, regtype: `text` */
     visibility: string
+  }
+
+  /** - query: `with prior_free_trial_credits as ( selec... [truncated] ...it join prior_free_trial_credits on true` */
+  export interface FreeTrial {
+    /**
+     * From CTE subquery "new_free_trial_credit", column source: public.usage_credits.id
+     *
+     * column: `✨.new_free_trial_credit.id`, not null: `true`, regtype: `prefixed_ksuid`
+     */
+    id: import('~/db').Id<'new_free_trial_credit'>
+
+    /**
+     * From CTE subquery "new_free_trial_credit", column source: public.usage_credits.github_login
+     *
+     * column: `✨.new_free_trial_credit.github_login`, not null: `true`, regtype: `text`
+     */
+    github_login: string
+
+    /**
+     * From CTE subquery "new_free_trial_credit", column source: public.usage_credits.expiry
+     *
+     * column: `✨.new_free_trial_credit.expiry`, not null: `true`, regtype: `timestamp with time zone`
+     */
+    expiry: Date
+
+    /**
+     * From CTE subquery "new_free_trial_credit", column source: public.usage_credits.sponsor_id
+     *
+     * column: `✨.new_free_trial_credit.sponsor_id`, regtype: `prefixed_ksuid`
+     */
+    sponsor_id: string | null
+
+    /**
+     * From CTE subquery "new_free_trial_credit", column source: public.usage_credits.reason
+     *
+     * column: `✨.new_free_trial_credit.reason`, not null: `true`, regtype: `text`
+     */
+    reason: string
+
+    /**
+     * From CTE subquery "new_free_trial_credit", column source: public.usage_credits.created_at
+     *
+     * column: `✨.new_free_trial_credit.created_at`, not null: `true`, regtype: `timestamp with time zone`
+     */
+    created_at: Date
+
+    /**
+     * From CTE subquery "new_free_trial_credit", column source: public.usage_credits.updated_at
+     *
+     * column: `✨.new_free_trial_credit.updated_at`, not null: `true`, regtype: `timestamp with time zone`
+     */
+    updated_at: Date
+
+    /**
+     * From CTE subquery "prior_free_trial_credits"
+     *
+     * column: `✨.prior_free_trial_credits.prior_free_trial_count`, not null: `true`, regtype: `bigint`
+     */
+    prior_free_trial_count: number
   }
 }
