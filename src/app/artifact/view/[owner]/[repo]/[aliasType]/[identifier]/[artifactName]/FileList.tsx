@@ -55,15 +55,16 @@ export function FileList({names, params, artifactId}: FileListProps) {
         </>
       )}
 
-      {/* Delete button styled like a file entry */}
-      <div className="mt-8">
-        <DeleteButton
-          artifactId={artifactId}
-          className="w-full border border-red-400/30 p-3 rounded-md hover:bg-red-900/15 transition-colors text-red-200/80 hover:text-red-100 font-bold text-left"
-        >
-          {'>'} Delete Entries
-        </DeleteButton>
-      </div>
+      {false && (
+        <div className="mt-8">
+          <DeleteButton
+            artifactId={artifactId}
+            className="w-full border border-red-400/30 p-3 rounded-md hover:bg-red-900/15 transition-colors text-red-200/80 hover:text-red-100 font-bold text-left"
+          >
+            {'>'} Delete Entries
+          </DeleteButton>
+        </div>
+      )}
     </>
   )
 }
