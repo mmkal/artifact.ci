@@ -9,7 +9,7 @@ import {logger} from '~/tag-logger'
 
 export async function POST(request: NextRequest) {
   const json = await request.text()
-  logger.debug('event received', {url: request.url, text: json, headers: request.headers})
+  logger.debug('event received', {url: request.url, text: json.slice(0, 200), headers: request.headers})
 
   const isValid = await validateGithubWebhook(request, json)
   if (!isValid) {
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       logger.info('memories', logger.memories()) // todo: remove, this is just in case things go wrong if other ppl start using
     }
     if (parsed.data.eventType === 'unknown_action') {
-      logger.warn('ignored action')
+      logger.warn('unknown action')
     }
     return result
   })
@@ -52,7 +52,7 @@ async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
     return NextResponse.json({ok: false, error: 'unexpected body', keys: Object.keys(event)}, {status: 400})
   }
 
-  const doit = async () => {
+  return logger.run(`job=${event.workflow_job.name}`, async () => {
     const previewOrigin = getPreviewOrigin(request, event)
     if (previewOrigin) {
       const url = new URL(request.url)
@@ -161,8 +161,7 @@ async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
       })
     }
     return NextResponse.json({ok: true, total: data.total_count, artifacts})
-  }
-  return logger.run(`job=${event.workflow_job.name}`, doit)
+  })
 }
 
 /** either the preview origin (for this repo) or null if another repo/for the default branch */
