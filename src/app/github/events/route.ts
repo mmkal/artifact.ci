@@ -1,9 +1,9 @@
 import {NextRequest, NextResponse} from 'next/server'
 import {fromError} from 'zod-validation-error'
 import {AppWebhookEvent, WorkflowJobCompleted} from './types'
+import {toPath} from '~/app/artifact/view/params'
 import {getInstallationOctokit, validateGithubWebhook} from '~/auth'
 import {client, sql} from '~/db'
-import {ARTIFACT_BLOB_PREFIX} from '~/routing'
 import {productionUrl} from '~/site-config'
 import {logger} from '~/tag-logger'
 
@@ -121,35 +121,41 @@ async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
           return {
             name: a.name,
             artifactId: txResult.dbArtifact.id,
-            identifiers: txResult.dbIdentifiers,
+            links: txResult.dbIdentifiers.map(({type: aliasType, value: identifier}) => {
+              return {
+                aliasType,
+                url: getOrigin(request, event) + toPath({owner, repo, aliasType, identifier, artifactName: a.name}),
+              }
+            }),
           }
         })
       }),
     )
 
-    const summaries = artifacts.map(arti => {
-      const identifierLinks = arti.identifiers.map(({type, value}) => {
-        const origin = getOrigin(request, event)
-        const url = origin + ARTIFACT_BLOB_PREFIX + `${owner}/${repo}/${type}/${value}/${arti.name}`
-        return `[${type}](${url})`
+    if (artifacts.length === 1 && jobsForRun.total_count === 1) {
+      await octokit.rest.checks.create({
+        owner,
+        repo,
+        name: productionUrl.hostname,
+        details_url: artifacts[0].links[0].url,
+        head_sha: event.workflow_job.head_sha,
+        conclusion: 'success',
       })
-      return `- **${arti.name}**: ${identifierLinks.join(' / ')}`
-    })
-
-    if (summaries.length > 0) {
+    } else if (artifacts.length > 0) {
+      const summaries = artifacts.map(arti => {
+        return `- **${arti.name}**: ${arti.links.map(i => `[${i.aliasType}](${i.url})`).join(' / ')}`
+      })
       const jobsCompleted = jobsForRun.jobs.filter(j => j.status === 'completed').length
-      const title = `${artifacts.length} artifacts (${jobsCompleted} of ${jobsForRun.total_count} jobs completed)`
       const output = {
-        title: title.replace('1 artifacts', '1 artifact').replace(' (1 of 1 jobs completed)', ''),
+        title: `${artifacts.length} artifacts (${jobsCompleted} of ${jobsForRun.total_count} jobs completed)`,
         summary: 'The following artifacts are ready to view',
         text: summaries.join('\n'),
       }
       await octokit.rest.checks.create({
         owner,
         repo,
-        name: `${job.workflow_name} ${productionUrl.hostname}`,
+        name: productionUrl.hostname,
         head_sha: event.workflow_job.head_sha,
-        status: 'completed',
         conclusion: 'success',
         output,
       })
