@@ -97,14 +97,14 @@ async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
             on conflict (github_id) do nothing;
           `)
           const txResult = await client.transaction(async tx => {
-                const installation = await tx.one(sql<queries.GithubInstallation>`
-                  select * from github_installations where github_id = ${event.installation.id}
-                `)
-                const dbRepo = await tx.one(
-                  sql<queries.Repo>`
-                    select id from repos where name = ${repo} and owner = ${owner}
-                  `,
-                )
+            const installation = await tx.one(sql<queries.GithubInstallation>`
+              select * from github_installations where github_id = ${event.installation.id}
+            `)
+            const dbRepo = await tx.one(
+              sql<queries.Repo>`
+                select id from repos where name = ${repo} and owner = ${owner}
+              `,
+            )
             const dbArtifact = await tx.one(sql<queries.Artifact>`
               insert into artifacts (repo_id, name, github_id, download_url, installation_id)
               select
