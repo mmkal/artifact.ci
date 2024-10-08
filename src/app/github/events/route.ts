@@ -1,18 +1,26 @@
 import {NextRequest, NextResponse} from 'next/server'
 import {fromError} from 'zod-validation-error'
 import {AppWebhookEvent, WorkflowJobCompleted} from './types'
-import {getInstallationOctokit} from '~/auth'
+import {getInstallationOctokit, validateGithubWebhook} from '~/auth'
 import {client, sql} from '~/db'
 import {ARTIFACT_BLOB_PREFIX} from '~/routing'
 import {emoji, productionUrl} from '~/site-config'
 import {logger} from '~/tag-logger'
 
 export async function POST(request: NextRequest) {
-  const body = (await request.json()) as {}
-  logger.debug('event received', request.url, body)
-  const parsed = AppWebhookEvent.safeParse(body)
+  const json = await request.text()
+  logger.debug('event received', {url: request.url, text: json, headers: request.headers})
+
+  const isValid = await validateGithubWebhook(request, json)
+  if (!isValid) {
+    logger.warn('invalid signature was sent')
+    return NextResponse.json({error: 'invalid signature'}, {status: 400})
+  }
+
+  const parsed = AppWebhookEvent.safeParse(JSON.parse(json))
   if (!parsed.success) {
-    logger.error('error parsing event', parsed.error)
+    logger.error('error parsing event', fromError(parsed.error), {json})
+    // better to call this a 500 than a 400, much more likely my zod schemas are bad than github is sending bad data
     return NextResponse.json({error: fromError(parsed.error).message}, {status: 500})
   }
 
@@ -20,33 +28,26 @@ export async function POST(request: NextRequest) {
   return logger.run([`event=${event.eventType}`, `action=${event.action}`], async () => {
     const result = await handleEvent(request, parsed.data)
     if (parsed.data.eventType === 'workflow_job_update' && parsed.data.repository.full_name !== 'mmkal/artifact.ci') {
-      logger.info('memories', logger.memories())
+      logger.info('memories', logger.memories()) // todo: remove, this is just in case things go wrong if other ppl start using
     }
-    if (parsed.data.eventType === 'ignored_action') {
-      logger.warn('ignored action', parsed.data.action, {
-        json: JSON.stringify(body),
-        //   bodyKeys: Object.keys(body),
-        //   bodyKeysKeys: Object.entries(body)
-        //     .flatMap(([k, v]) => {
-        //       try {
-        //         return Object.keys(v as {}).map(subkey => `${k}.${subkey}`)
-        //       } catch {
-        //         return [`${k}`]
-        //       }
-        //     })
-        //     .join(', '),
-      })
+    if (parsed.data.eventType === 'unknown_action') {
+      logger.warn('ignored action')
     }
     return result
   })
 }
 
 async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
-  if (event.eventType === 'ignored_action') {
+  if (
+    event.eventType === 'installation_added' ||
+    event.eventType === 'installation_removed' ||
+    event.eventType === 'unknown_action'
+  ) {
     return NextResponse.json({ok: true, action: event.action, eventType: event.eventType})
   }
 
   if (event.eventType !== 'workflow_job_update') {
+    event satisfies never // make sure at compile time we checked for all "ok" cases above
     logger.warn('unknown event type')
     return NextResponse.json({ok: false, error: 'unexpected body', keys: Object.keys(event)}, {status: 400})
   }

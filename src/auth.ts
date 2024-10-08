@@ -1,3 +1,5 @@
+import {Webhooks} from '@octokit/webhooks'
+import {NextRequest} from 'next/server'
 import NextAuth, {type DefaultSession} from 'next-auth'
 import DefaultGithub from 'next-auth/providers/github'
 import {App, Octokit} from 'octokit'
@@ -21,6 +23,10 @@ export const GithubAppClientEnv = z.object({
 export const GithubAppEnv = z.object({
   GITHUB_APP_ID: z.string().min(1),
   GITHUB_APP_PRIVATE_KEY: z.string().min(1),
+})
+
+export const WebhookEnv = z.object({
+  GITHUB_APP_WEBHOOK_SECRET: z.string(),
 })
 
 const Github: typeof DefaultGithub = options => {
@@ -77,4 +83,14 @@ export const getCollaborationLevel = async (
   const parsed = z.object({permission: z.enum(['none', 'read', 'write', 'admin'])}).safeParse(collaboration)
   if (!parsed.success) logger.error({collaboration}, 'getCollaborationLevel: failed to parse collaboration')
   return parsed.success ? parsed.data.permission : 'none'
+}
+
+/** Returns the JSON body of a GitHub webhook payload if the signature is valid, null otherwise. */
+export const validateGithubWebhook = async (request: NextRequest, json?: string) => {
+  json ??= await request.clone().text()
+  const webhookEnv = WebhookEnv.parse(process.env)
+  const webhooks = new Webhooks({secret: webhookEnv.GITHUB_APP_WEBHOOK_SECRET})
+  const signature = request.headers.get('x-hub-signature-256') || ''
+  logger.debug('validating webhook', {signature, secretLength: webhookEnv.GITHUB_APP_WEBHOOK_SECRET.length})
+  return webhooks.verify(json, signature)
 }
