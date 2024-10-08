@@ -19,7 +19,7 @@ export function FileList({names, params, artifactId}: FileListProps) {
           {entrypoints.length < names.length && <h2 className="text-2xl font-semibold">Detected Entrypoints</h2>}
           <DeleteButton
             artifactId={artifactId}
-            className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+            className="bg-red-950 hover:bg-red-900 text-white font-bold py-2 px-4 rounded"
           />
         </div>
         <div className="space-y-2">

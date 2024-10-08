@@ -7,6 +7,7 @@ import {client, Id, sql} from '../db'
 import {getEntrypoints} from '~/app/artifact/view/[owner]/[repo]/[aliasType]/[identifier]/[artifactName]/entrypoints'
 import {getCollaborationLevel, getInstallationOctokit} from '~/auth'
 import {supabaseStorageServiceRoleClient} from '~/storage/supabase'
+import {logger} from '~/tag-logger'
 
 export interface TrpcContext {
   session: Session | null
@@ -157,9 +158,42 @@ export const appRouter = router({
         entrypoints: getEntrypoints(records.map(u => u.entry_name)),
       }
     }),
-  deleteArtifact: artifactAccessProcedure.input(z.object({artifactId: Id('artifact')})).mutation(async ({input}) => {
-    await client.query(sql`delete from artifacts where id = ${input.artifactId} cascade`)
-    return {artifactId: input.artifactId}
+  deleteEntries: artifactAccessProcedure.mutation(async ({input}) => {
+    const deleted = await client.maybeOne(sql<queries.DeletedArtifact>`
+      with deleted_entries as (
+        delete from artifact_entries where artifact_id = ${input.artifactId}
+        returning *
+      ),
+      storage_objects as (
+        select name
+        from storage.objects
+        where id = any(select storage_object_id from deleted_entries)
+      )
+      select
+        artifacts.*,
+        r.owner,
+        r.name as repo,
+        (select array_agg(name) from storage_objects) object_names,
+        (select count(*) from deleted_entries) deleted_entries_count
+      from artifacts
+      join repos r on r.id = artifacts.repo_id
+      where artifacts.id = ${input.artifactId}
+    `)
+
+    const storage = supabaseStorageServiceRoleClient()
+    await pMap(deleted?.object_names || [], async name => {
+      logger.debug(`deleting artifact file: ${name}`)
+      const response = await storage.object
+        .bucketName('artifact_files')
+        .wildcard(name)
+        .delete({acceptStatus: ['200', '4XX']})
+
+      if (response.statusMatch === '4XX') {
+        logger.warn(`failed to delete artifact file: ${name}`, response, logger.memories())
+      }
+    })
+
+    return deleted
   }),
 })
 
@@ -201,6 +235,89 @@ export declare namespace queries {
     owner: string
 
     /** column: `public.repos.name`, not null: `true`, regtype: `text` */
+    repo: string
+  }
+
+  /** - query: `with deleted_entries as ( delete from ar... [truncated] ..._identifiers_count from deleted_artifact` */
+  export interface DeletedArtifact {
+    /**
+     * From CTE subquery "deleted_artifact", column source: public.artifacts.id
+     *
+     * column: `✨.deleted_artifact.id`, not null: `true`, regtype: `prefixed_ksuid`
+     */
+    id: import('~/db').Id<'deleted_artifact'>
+
+    /**
+     * From CTE subquery "deleted_artifact", column source: public.artifacts.repo_id
+     *
+     * column: `✨.deleted_artifact.repo_id`, not null: `true`, regtype: `prefixed_ksuid`
+     */
+    repo_id: string
+
+    /**
+     * From CTE subquery "deleted_artifact", column source: public.artifacts.name
+     *
+     * column: `✨.deleted_artifact.name`, not null: `true`, regtype: `text`
+     */
+    name: string
+
+    /**
+     * From CTE subquery "deleted_artifact", column source: public.artifacts.created_at
+     *
+     * column: `✨.deleted_artifact.created_at`, not null: `true`, regtype: `timestamp with time zone`
+     */
+    created_at: Date
+
+    /**
+     * From CTE subquery "deleted_artifact", column source: public.artifacts.updated_at
+     *
+     * column: `✨.deleted_artifact.updated_at`, not null: `true`, regtype: `timestamp with time zone`
+     */
+    updated_at: Date
+
+    /**
+     * From CTE subquery "deleted_artifact", column source: public.artifacts.download_url
+     *
+     * column: `✨.deleted_artifact.download_url`, not null: `true`, regtype: `text`
+     */
+    download_url: string
+
+    /**
+     * From CTE subquery "deleted_artifact", column source: public.artifacts.github_id
+     *
+     * column: `✨.deleted_artifact.github_id`, not null: `true`, regtype: `bigint`
+     */
+    github_id: number
+
+    /**
+     * From CTE subquery "deleted_artifact", column source: public.artifacts.installation_id
+     *
+     * column: `✨.deleted_artifact.installation_id`, not null: `true`, regtype: `prefixed_ksuid`
+     */
+    installation_id: string
+
+    /**
+     * From CTE subquery "subquery_1_for_column_object_names"
+     *
+     * column: `✨.subquery_1_for_column_object_names.object_names`, regtype: `text[]`
+     */
+    object_names: string[] | null
+
+    /**
+     * From CTE subquery "subquery_2_for_column_deleted_entries_count"
+     *
+     * column: `✨.subquery_2_for_column_deleted_entries_count.deleted_entries_count`, not null: `true`, regtype: `bigint`
+     */
+    deleted_entries_count: number
+
+    /**
+     * From CTE subquery "subquery_3_for_column_deleted_identifiers_count"
+     *
+     * column: `✨.subquery_3_for_column_deleted_identifiers_count.deleted_identifiers_count`, not null: `true`, regtype: `bigint`
+     */
+    deleted_identifiers_count: number
+
+    owner: string
     repo: string
   }
 }

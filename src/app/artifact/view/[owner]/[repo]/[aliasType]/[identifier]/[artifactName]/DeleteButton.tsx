@@ -12,9 +12,11 @@ export const DeleteButton = (params: {artifactId: string; className?: string}) =
 }
 
 function DeleteButtonInner(params: {artifactId: string; className?: string}) {
-  const mutation = trpc.deleteArtifact.useMutation()
+  const mutation = trpc.deleteEntries.useMutation({
+    onSuccess: () => (window.location.href = window.location.pathname + `?reload=true`),
+  })
   return (
-    <button className={params.className} onClick={() => mutation.mutate(params)}>
+    <button disabled={!mutation.isIdle} className={params.className} onClick={() => mutation.mutate(params)}>
       Delete
     </button>
   )
