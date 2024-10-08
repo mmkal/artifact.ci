@@ -1,8 +1,16 @@
 /** @type {import('eslint-plugin-mmkal').CodegenPreset} */
 module.exports.generateReadme = ({dependencies: {fs}}) => {
-  const websiteIndexMd = fs.readFileSync('src/pages/index.md', 'utf8')
-  const readmeMd = websiteIndexMd
+  const websiteIndexMd = fs.readFileSync('src/pages/index.mdx', 'utf8')
+  let readmeMd = websiteIndexMd
     .replaceAll(/\(\/(\S*)\)/g, `(https://www.artifact.ci/$1)`)
     .replaceAll('codegen:start', 'codegen:disabled')
+  const customComponentsStart = readmeMd.indexOf('import')
+  const customComponentsEnd = readmeMd.indexOf('## Why')
+
+  readmeMd =
+    readmeMd.slice(0, customComponentsStart) +
+    `Docs and install instructions on [artifact.ci](https://artifact.ci).\n\n` +
+    readmeMd.slice(customComponentsEnd)
+
   return readmeMd
 }

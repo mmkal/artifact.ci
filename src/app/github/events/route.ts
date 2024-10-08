@@ -4,7 +4,7 @@ import {AppWebhookEvent, WorkflowJobCompleted} from './types'
 import {getInstallationOctokit, validateGithubWebhook} from '~/auth'
 import {client, sql} from '~/db'
 import {ARTIFACT_BLOB_PREFIX} from '~/routing'
-import {emoji, productionUrl} from '~/site-config'
+import {productionUrl} from '~/site-config'
 import {logger} from '~/tag-logger'
 
 export async function POST(request: NextRequest) {

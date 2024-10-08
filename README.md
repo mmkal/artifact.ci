@@ -5,15 +5,15 @@
 
 A GitHub App that provides browsable links for artifacts uploaded during GitHub Actions workflow runs.
 
-[Click here to install on GitHub](https://github.com/apps/artifact-ci/installations/new/permissions?target_id=71831023)
+To use it, all you need to do is install the app. Then use `actions/upload-artifact` as normal in your workflow. It will add a link to view any artifacts uploaded via GitHub checks.
 
-Once installed, the app adds a link to view your artifacts in a browser:
-
-![playwright report](https://www.artifact.ci/reports/playwright.png)
+Docs and install instructions on [artifact.ci](https://artifact.ci).
 
 ## Why
 
 CI jobs often generate useful HTML reports (test results, coverage, etc.). GitHub Actions doesn't provide a way to view these directly. The existing option is to use `actions/upload-artifact`, then download it as a zip file, unzip it on your local machine, and then poke around at the files or run a local server. This app fills that gap, letting you view artifacts in your browser without downloading and unzipping.
+
+This _should_ really be a feature built into GitHub, and likely one day will be, but [for now it isn't](https://github.com/actions/upload-artifact/issues/14). (Note: it is built into some other CI providers like CircleCI).
 
 ## Usage
 
