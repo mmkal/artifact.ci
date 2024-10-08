@@ -6,29 +6,6 @@ import {client, sql} from '~/db'
 import {ARTIFACT_BLOB_PREFIX} from '~/routing'
 import {logger} from '~/tag-logger'
 
-/** either the preview origin (for this repo) or null if another repo/for the default branch */
-const getPreviewOrigin = (request: NextRequest, event: WorkflowJobCompleted) => {
-  const {hostname} = new URL(request.url)
-  const headBranch = event.workflow_job.head_branch
-  const repo = event.repository.full_name
-
-  if (hostname !== 'artifact.ci') return null
-  if (repo !== 'mmkal/artifact.ci') return null
-  if (headBranch === 'main') return null
-
-  return getPreviewUrl(headBranch)
-}
-
-/** either the preview origin (for this repo) or the same origin as from the request */
-const getOrigin = (request: NextRequest, event: WorkflowJobCompleted) => {
-  return getPreviewOrigin(request, event) || new URL(request.url).origin
-}
-
-const getPreviewUrl = (branch: string) => {
-  const branchSlug = branch.replaceAll(/\W/g, '-')
-  return `https://artifactci-git-${branchSlug}-mmkals-projects.vercel.app`
-}
-
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as {}
   logger.debug('event received', request.url, body)
@@ -170,6 +147,29 @@ async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
     return NextResponse.json({ok: true, total: data.total_count, artifacts})
   }
   return logger.run(`job=${event.workflow_job.name}`, doit)
+}
+
+/** either the preview origin (for this repo) or null if another repo/for the default branch */
+const getPreviewOrigin = (request: NextRequest, event: WorkflowJobCompleted) => {
+  const {hostname} = new URL(request.url)
+  const headBranch = event.workflow_job.head_branch
+  const repo = event.repository.full_name
+
+  if (hostname !== 'artifact.ci') return null
+  if (repo !== 'mmkal/artifact.ci') return null
+  if (headBranch === 'main') return null
+
+  return getPreviewUrl(headBranch)
+}
+
+/** either the preview origin (for this repo) or the same origin as from the request */
+const getOrigin = (request: NextRequest, event: WorkflowJobCompleted) => {
+  return getPreviewOrigin(request, event) || new URL(request.url).origin
+}
+
+const getPreviewUrl = (branch: string) => {
+  const branchSlug = branch.replaceAll(/\W/g, '-')
+  return `https://artifactci-git-${branchSlug}-mmkals-projects.vercel.app`
 }
 
 export declare namespace queries {

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import React from 'react'
 import {toBreadcrumbs, type PathParams} from './params'
+import {emoji, productionUrl} from '~/site-config'
 
 export const Header = ({params}: {params: Partial<PathParams>}) => {
   const breadcrumbs = toBreadcrumbs(params)
@@ -8,7 +9,7 @@ export const Header = ({params}: {params: Partial<PathParams>}) => {
     <header className="mb-6 border-b-2 border-amber-300/50 pb-2">
       <div className="flex items-center justify-between mb-4">
         <Link href="/" className="text-2xl font-bold hover:text-amber-300 transition-colors">
-          🗿 artifact.ci
+          {emoji} {productionUrl.hostname}
         </Link>
       </div>
       <nav aria-label="Breadcrumb">
@@ -38,7 +39,7 @@ export const Header = ({params}: {params: Partial<PathParams>}) => {
 export const Footer = () => {
   return (
     <footer className="mt-8 pt-4 border-t-2 border-amber-300/50 text-sm text-amber-200/60">
-      <p>artifact.ci</p>
+      <p>{productionUrl.hostname}</p>
     </footer>
   )
 }
