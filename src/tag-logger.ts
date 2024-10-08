@@ -5,7 +5,7 @@ export namespace TagLogger {
   export type Context = {
     level: TagLogger.Level
     tags: string[]
-    logs: Array<{level: TagLogger.Level; prefix: string[]; args: unknown[]}>
+    logs: Array<{level: TagLogger.Level; timestamp: Date; prefix: string[]; args: unknown[]}>
   }
 }
 
@@ -56,7 +56,7 @@ export class TagLogger {
   }
 
   _log({level, args, forget}: {level: TagLogger.Level; args: unknown[]; forget?: boolean}) {
-    if (!forget) this.context.logs.push({level, prefix: this.prefix, args})
+    if (!forget) this.context.logs.push({level, timestamp: new Date(), prefix: this.prefix, args})
 
     if (this.levelNumber > TagLogger.levels[level]) return
     this._implementation[level](...this.prefix, ...args)
@@ -79,7 +79,7 @@ export class TagLogger {
   }
 
   memories() {
-    return this.context.logs.map(log => [log.level, ...log.prefix, ...log.args])
+    return this.context.logs.map(log => [log.timestamp.toISOString(), log.level, ...log.prefix, ...log.args])
   }
 
   /** Like `.run(...)`, but if there is an error, it will log the "memories" of its context, including all log levels, even debug */

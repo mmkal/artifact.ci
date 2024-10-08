@@ -42,5 +42,11 @@ async function ArtifactPageInner({params, searchParams}: ArtifactPage.Params) {
   }
   artifact.outcome satisfies '2xx'
 
-  return <FileList names={artifact.artifactInfo.entries || []} params={params} />
+  return (
+    <FileList
+      names={artifact.artifactInfo.entries || []}
+      params={params}
+      artifactId={artifact.artifactInfo.artifact_id}
+    />
+  )
 }

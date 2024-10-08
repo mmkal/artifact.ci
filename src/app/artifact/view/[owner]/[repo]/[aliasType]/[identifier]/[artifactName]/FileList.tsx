@@ -1,13 +1,15 @@
 import React from 'react'
+import {DeleteButton} from './DeleteButton'
 import {getEntrypoints} from './entrypoints'
 import {type PathParams} from '~/app/artifact/view/params'
 
 interface FileListProps {
   names: string[]
   params: PathParams
+  artifactId: string
 }
 
-export function FileList({names, params}: FileListProps) {
+export function FileList({names, params, artifactId}: FileListProps) {
   const {entrypoints} = getEntrypoints(names)
 
   return (
@@ -51,6 +53,17 @@ export function FileList({names, params}: FileListProps) {
             ))}
           </div>
         </>
+      )}
+
+      {false && (
+        <div className="mt-8">
+          <DeleteButton
+            artifactId={artifactId}
+            className="w-full border border-red-400/30 p-3 rounded-md hover:bg-red-900/15 transition-colors text-red-200/80 hover:text-red-100 font-bold text-left"
+          >
+            {'>'} Delete Entries
+          </DeleteButton>
+        </div>
       )}
     </>
   )
