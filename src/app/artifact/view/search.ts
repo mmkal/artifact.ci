@@ -1,6 +1,7 @@
 import {type PathParams} from './params'
-import {auth, getCollaborationLevel, getInstallationOctokit} from '~/auth'
+import {auth, checkCanAccess, getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
+import {logger} from '~/tag-logger'
 
 export const searchArtifacts = async (params: Partial<PathParams>, {offset = 0, limit = 100} = {}) => {
   const session = await auth()
@@ -40,8 +41,15 @@ export const searchArtifacts = async (params: Partial<PathParams>, {offset = 0, 
 
   const dedupedRepos = Object.values(Object.fromEntries(artifacts.map(r => [`${r.owner}/${r.repo}`, r])))
   for (const repo of dedupedRepos) {
-    const permission = await getCollaborationLevel(octokit, {...repo, username: session.user.github_login})
-    if (permission === 'none') return []
+    const canAccess = await checkCanAccess(octokit, {
+      ...repo,
+      username: session.user.github_login,
+      artifactId: repo.artifact_id,
+    })
+    if (!canAccess.result) {
+      logger.warn({canAccess}, 'searchArtifacts: checkCanAccess failed')
+      return []
+    }
   }
 
   return artifacts.map(a => {

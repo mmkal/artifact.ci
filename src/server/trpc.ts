@@ -5,7 +5,7 @@ import pMap from 'p-suite/p-map'
 import {z} from 'zod'
 import {client, Id, sql} from '../db'
 import {getEntrypoints} from '~/app/artifact/view/[owner]/[repo]/[aliasType]/[identifier]/[artifactName]/entrypoints'
-import {getCollaborationLevel, getInstallationOctokit} from '~/auth'
+import {checkCanAccess, getInstallationOctokit} from '~/auth'
 import {supabaseStorageServiceRoleClient} from '~/storage/supabase'
 import {logger} from '~/tag-logger'
 
@@ -17,14 +17,6 @@ const t = initTRPC.context<TrpcContext>().create()
 
 export const router = t.router
 export const publicProcedure = t.procedure
-
-// todo: do a better authz check
-// things to do first:
-// - otherwise check if they have a repo_access_permission entry
-// - otherwise use github api to check if user has access to repo
-// - create a repo_access_permission entry if they have a usage credit
-// - maybe separately, check that the user has a credit for this service (as opposed to allowed to see the repo artifacts)
-// - might someday want to *allow* users to see repo artifacts even if they don't have a usage credit, for example if the repo is public or if the repo owner allows it
 
 export const artifactAccessProcedure = t.procedure
   .input(
@@ -46,12 +38,18 @@ export const artifactAccessProcedure = t.procedure
     `)
     const octokit = await getInstallationOctokit(artifact.installation_github_id)
 
-    const permission = await getCollaborationLevel(octokit, {...artifact, username: githubLogin})
-    if (permission === 'none') {
+    const canAccess = await checkCanAccess(octokit, {
+      ...artifact,
+      username: githubLogin,
+      artifactId: input.artifactId,
+    })
+    if (!canAccess.result) {
       throw new TRPCError({
         code: 'UNAUTHORIZED',
         message: `user ${githubLogin} is not authorized to access artifact ${input.artifactId}`,
-        cause: new Error(`user:${githubLogin}, permission:${permission} repo:${artifact.owner}/${artifact.repo}`),
+        cause: new Error(
+          `user:${githubLogin}, no access reason:${canAccess.reason} repo:${artifact.owner}/${artifact.repo}`,
+        ),
       })
     }
 
@@ -159,7 +157,7 @@ export const appRouter = router({
       }
     }),
   deleteEntries: artifactAccessProcedure.mutation(async ({input}) => {
-    const deleted = await client.maybeOne(sql<queries.DeletedArtifact>`
+    const deleted = await client.maybeOne(sql<queries.Deleted>`
       with deleted_entries as (
         delete from artifact_entries where artifact_id = ${input.artifactId}
         returning *
@@ -228,6 +226,9 @@ export declare namespace queries {
     /** column: `public.artifacts.installation_id`, not null: `true`, regtype: `prefixed_ksuid` */
     installation_id: string
 
+    /** column: `public.artifacts.visibility`, not null: `true`, regtype: `text` */
+    visibility: string
+
     /** column: `public.github_installations.github_id`, not null: `true`, regtype: `bigint` */
     installation_github_id: number
 
@@ -238,86 +239,53 @@ export declare namespace queries {
     repo: string
   }
 
-  /** - query: `with deleted_entries as ( delete from ar... [truncated] ..._identifiers_count from deleted_artifact` */
-  export interface DeletedArtifact {
-    /**
-     * From CTE subquery "deleted_artifact", column source: public.artifacts.id
-     *
-     * column: `✨.deleted_artifact.id`, not null: `true`, regtype: `prefixed_ksuid`
-     */
-    id: import('~/db').Id<'deleted_artifact'>
+  /** - query: `with deleted_entries as ( delete from ar... [truncated] ...rtifacts.repo_id where artifacts.id = $2` */
+  export interface Deleted {
+    /** column: `public.artifacts.id`, not null: `true`, regtype: `prefixed_ksuid` */
+    id: import('~/db').Id<'artifacts'>
 
-    /**
-     * From CTE subquery "deleted_artifact", column source: public.artifacts.repo_id
-     *
-     * column: `✨.deleted_artifact.repo_id`, not null: `true`, regtype: `prefixed_ksuid`
-     */
+    /** column: `public.artifacts.repo_id`, not null: `true`, regtype: `prefixed_ksuid` */
     repo_id: string
 
-    /**
-     * From CTE subquery "deleted_artifact", column source: public.artifacts.name
-     *
-     * column: `✨.deleted_artifact.name`, not null: `true`, regtype: `text`
-     */
+    /** column: `public.artifacts.name`, not null: `true`, regtype: `text` */
     name: string
 
-    /**
-     * From CTE subquery "deleted_artifact", column source: public.artifacts.created_at
-     *
-     * column: `✨.deleted_artifact.created_at`, not null: `true`, regtype: `timestamp with time zone`
-     */
+    /** column: `public.artifacts.created_at`, not null: `true`, regtype: `timestamp with time zone` */
     created_at: Date
 
-    /**
-     * From CTE subquery "deleted_artifact", column source: public.artifacts.updated_at
-     *
-     * column: `✨.deleted_artifact.updated_at`, not null: `true`, regtype: `timestamp with time zone`
-     */
+    /** column: `public.artifacts.updated_at`, not null: `true`, regtype: `timestamp with time zone` */
     updated_at: Date
 
-    /**
-     * From CTE subquery "deleted_artifact", column source: public.artifacts.download_url
-     *
-     * column: `✨.deleted_artifact.download_url`, not null: `true`, regtype: `text`
-     */
+    /** column: `public.artifacts.download_url`, not null: `true`, regtype: `text` */
     download_url: string
 
-    /**
-     * From CTE subquery "deleted_artifact", column source: public.artifacts.github_id
-     *
-     * column: `✨.deleted_artifact.github_id`, not null: `true`, regtype: `bigint`
-     */
+    /** column: `public.artifacts.github_id`, not null: `true`, regtype: `bigint` */
     github_id: number
 
-    /**
-     * From CTE subquery "deleted_artifact", column source: public.artifacts.installation_id
-     *
-     * column: `✨.deleted_artifact.installation_id`, not null: `true`, regtype: `prefixed_ksuid`
-     */
+    /** column: `public.artifacts.installation_id`, not null: `true`, regtype: `prefixed_ksuid` */
     installation_id: string
 
+    /** column: `public.artifacts.visibility`, not null: `true`, regtype: `text` */
+    visibility: string
+
+    /** column: `public.repos.owner`, not null: `true`, regtype: `text` */
+    owner: string
+
+    /** column: `public.repos.name`, not null: `true`, regtype: `text` */
+    repo: string
+
     /**
-     * From CTE subquery "subquery_1_for_column_object_names"
+     * From CTE subquery "subquery_3_for_column_object_names"
      *
-     * column: `✨.subquery_1_for_column_object_names.object_names`, regtype: `text[]`
+     * column: `✨.subquery_3_for_column_object_names.object_names`, regtype: `text[]`
      */
     object_names: string[] | null
 
     /**
-     * From CTE subquery "subquery_2_for_column_deleted_entries_count"
+     * From CTE subquery "subquery_4_for_column_deleted_entries_count"
      *
-     * column: `✨.subquery_2_for_column_deleted_entries_count.deleted_entries_count`, not null: `true`, regtype: `bigint`
+     * column: `✨.subquery_4_for_column_deleted_entries_count.deleted_entries_count`, not null: `true`, regtype: `bigint`
      */
     deleted_entries_count: number
-
-    /**
-     * From CTE subquery "subquery_3_for_column_deleted_identifiers_count"
-     *
-     * column: `✨.subquery_3_for_column_deleted_identifiers_count.deleted_identifiers_count`, not null: `true`, regtype: `bigint`
-     */
-    deleted_identifiers_count: number
-
-    owner: string
-    repo: string
   }
 }

@@ -113,6 +113,7 @@ create table artifacts (
 	github_id int8 not null,
 	download_url text not null,
 	installation_id prefixed_ksuid not null references github_installations(id),
+	visibility text not null default 'private', -- public, private, internal
 	created_at timestamp with time zone not null default current_timestamp,
 	updated_at timestamp with time zone not null default current_timestamp,
 	unique(repo_id, name, github_id)

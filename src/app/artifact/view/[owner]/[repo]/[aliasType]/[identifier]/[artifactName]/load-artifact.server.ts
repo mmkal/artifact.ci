@@ -2,7 +2,7 @@ import {lookup as mimeTypeLookup} from 'mime-types'
 import * as path from 'path'
 import {type ArtifactLoader} from './loader'
 import {type PathParams} from '~/app/artifact/view/params'
-import {getCollaborationLevel, getInstallationOctokit} from '~/auth'
+import {checkCanAccess, getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
 import {supabaseStorageServiceRoleClient} from '~/storage/supabase'
 import {logger} from '~/tag-logger'
@@ -40,11 +40,16 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
   }
 
   const octokit = await getInstallationOctokit(artifactInfo.installation_github_id)
-  const permission = await getCollaborationLevel(octokit, {owner, repo, username: githubLogin})
+  const canAccess = await checkCanAccess(octokit, {
+    owner,
+    repo,
+    username: githubLogin,
+    artifactId: artifactInfo.artifact_id,
+  })
 
-  if (permission === 'none') {
+  if (!canAccess.result) {
     const message = `Not authorized to access artifact ${artifactName}`
-    return ResponseHelpers.json({message, params, githubLogin, permission}, {status: 403})
+    return ResponseHelpers.json({message, params, githubLogin, canAccess}, {status: 403})
   }
 
   const loaderParams: ArtifactLoader.Params = {
