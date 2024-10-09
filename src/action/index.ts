@@ -83,17 +83,17 @@ async function main() {
     excludeHiddenFiles: !inputs.includeHiddenFiles,
   })
   const files = await globber.glob()
-  const uploadResult = await client.uploadArtifact(inputs.name, files, '.', {
+  const uploadResponse = await client.uploadArtifact(inputs.name, files, '.', {
     retentionDays: inputs.retentionDays,
     compressionLevel: inputs.compressionLevel,
   })
-  logger.debug({uploadResult})
+  logger.debug({uploadResult: uploadResponse})
 
   const [owner, repo] = env.GITHUB_REPOSITORY.split('/')
   const uploadRequest = UploadRequest.parse({
     owner,
     repo,
-    artifact: {id: uploadResult.id!},
+    artifact: {id: uploadResponse.id!},
     job: {
       head_branch: env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME,
       head_sha: env.GITHUB_SHA,
@@ -116,7 +116,7 @@ async function main() {
   if (resp.message.statusCode === 200) {
     const result = UploadResponse.parse(JSON.parse(body))
     console.log('✅ Upload done.')
-    setOutput('artifact-id', uploadResult.id)
+    setOutput('artifact-id', uploadResponse.id)
     const repository = github.context.repo
     const artifactURL = `${github.context.serverUrl}/${repository.owner}/${repository.repo}/actions/runs/${github.context.runId}/artifacts/${uploadResponse.id}`
     setOutput('artifact-url', artifactURL)
