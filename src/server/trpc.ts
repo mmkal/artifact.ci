@@ -217,8 +217,8 @@ export declare namespace queries {
     /** column: `public.artifacts.updated_at`, not null: `true`, regtype: `timestamp with time zone` */
     updated_at: Date
 
-    /** column: `public.artifacts.download_url`, not null: `true`, regtype: `text` */
-    download_url: string
+    /** column: `public.artifacts.download_url`, regtype: `text` */
+    download_url: string | null
 
     /** column: `public.artifacts.github_id`, not null: `true`, regtype: `bigint` */
     github_id: number
@@ -256,8 +256,8 @@ export declare namespace queries {
     /** column: `public.artifacts.updated_at`, not null: `true`, regtype: `timestamp with time zone` */
     updated_at: Date
 
-    /** column: `public.artifacts.download_url`, not null: `true`, regtype: `text` */
-    download_url: string
+    /** column: `public.artifacts.download_url`, regtype: `text` */
+    download_url: string | null
 
     /** column: `public.artifacts.github_id`, not null: `true`, regtype: `bigint` */
     github_id: number

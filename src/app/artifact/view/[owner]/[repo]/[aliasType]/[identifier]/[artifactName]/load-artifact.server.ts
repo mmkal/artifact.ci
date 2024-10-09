@@ -19,7 +19,6 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
     select
       i.github_id as installation_github_id,
       a.id as artifact_id,
-      a.download_url,
       (select array_agg(entry_name) from artifact_entries ae where ae.artifact_id = a.id) entries
     from artifacts a
     join artifact_identifiers aid on aid.artifact_id = a.id
@@ -144,8 +143,8 @@ export declare namespace queries {
     /** column: `public.artifacts.id`, not null: `true`, regtype: `prefixed_ksuid` */
     artifact_id: import('~/db').Id<'artifacts'>
 
-    /** column: `public.artifacts.download_url`, not null: `true`, regtype: `text` */
-    download_url: string
+    /** column: `public.artifacts.download_url`, regtype: `text` */
+    download_url: string | null
 
     /**
      * From CTE subquery "subquery_3_for_column_entries"

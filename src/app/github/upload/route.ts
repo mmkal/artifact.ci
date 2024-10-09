@@ -1,6 +1,6 @@
 import {NextRequest, NextResponse} from 'next/server'
 import {fromError} from 'zod-validation-error'
-import {UploadRequest} from './types'
+import {UploadRequest, UploadResponse} from './types'
 import {toPath} from '~/app/artifact/view/params'
 import {getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
     logger.error({readable, body: rawBody})
     return NextResponse.json({success: false, error: readable.message}, {status: 400})
   }
+
   const {owner, repo, ...event} = parsed.data
 
   const installation = await client.maybeOne(sql<queries.Installation>`
@@ -52,12 +53,14 @@ export async function POST(request: NextRequest) {
   const insertResult = await insertArtifactRecord({...parsed.data, artifact, installation})
 
   const origin = getOrigin(request, {repo: `${owner}/${repo}`, branch: event.job.head_branch})
-  return NextResponse.json({
+  const responseBody = UploadResponse.parse({
     success: true,
     urls: insertResult.dbIdentifiers.map(({type: aliasType, value: identifier}) => {
-      return origin + toPath({owner, repo, aliasType, identifier, artifactName: artifact.name})
+      const url = origin + toPath({owner, repo, aliasType, identifier, artifactName: artifact.name})
+      return {aliasType, url}
     }),
-  })
+  } satisfies UploadResponse)
+  return NextResponse.json(responseBody)
 }
 
 type InsertParams = UploadRequest & {
@@ -88,7 +91,7 @@ export const insertArtifactRecord = async ({owner, repo, job, artifact: a, insta
         ${JSON.stringify([
           {artifact_id: dbArtifact.id, type: 'run', value: `${job.run_id}.${job.run_attempt}`},
           {artifact_id: dbArtifact.id, type: 'sha', value: job.head_sha},
-          {artifact_id: dbArtifact.id, type: 'branch', value: job.head_branch},
+          {artifact_id: dbArtifact.id, type: 'branch', value: job.head_branch.replaceAll('/', '__')},
         ])}
       )
       on conflict (artifact_id, type, value)

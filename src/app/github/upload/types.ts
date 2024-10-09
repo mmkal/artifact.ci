@@ -12,3 +12,9 @@ export const UploadRequest = z.object({
   artifact: z.object({id: z.number().int()}),
 })
 export type UploadRequest = z.infer<typeof UploadRequest>
+
+export const UploadResponse = z.object({
+  success: z.literal(true),
+  urls: z.array(z.object({aliasType: z.string(), url: z.string()})),
+})
+export type UploadResponse = z.infer<typeof UploadResponse>
