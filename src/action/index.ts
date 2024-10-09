@@ -1,5 +1,6 @@
 import {DefaultArtifactClient} from '@actions/artifact'
 import {getInput, isDebug as isDebugCore, setFailed, setOutput} from '@actions/core'
+import * as github from '@actions/github'
 import * as glob from '@actions/glob'
 import {HttpClient} from '@actions/http-client'
 import {readFile} from 'fs/promises'
@@ -115,10 +116,13 @@ async function main() {
   if (resp.message.statusCode === 200) {
     const result = UploadResponse.parse(JSON.parse(body))
     console.log('✅ Upload done.')
-    setOutput('artifact_uploaded', true)
+    setOutput('artifact-id', uploadResult.id)
+    const repository = github.context.repo
+    const artifactURL = `${github.context.serverUrl}/${repository.owner}/${repository.repo}/actions/runs/${github.context.runId}/artifacts/${uploadResponse.id}`
+    setOutput('artifact-url', artifactURL)
     result.urls.forEach(({aliasType, url}) => {
       console.log(`🔗 ${aliasType}: ${url}`)
-      setOutput(`${aliasType}_url`, url)
+      setOutput(`artifactci_${aliasType}_url`, url)
     })
   } else {
     logger.error(resp.message.statusCode, body)
