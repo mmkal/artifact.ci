@@ -66,10 +66,19 @@ check (value ~ '^[a-z0-9_]+_[0-9A-Za-z]{27}$');
 -- #endregion KSUID Setup
 
 -- #region core tables
+create table github_installations (
+	id prefixed_ksuid primary key default generate_prefixed_ksuid('github_installation'),
+	github_id int8 not null,
+	created_at timestamp with time zone not null default current_timestamp,
+	updated_at timestamp with time zone not null default current_timestamp,
+	unique(github_id)
+);
+
 create table repos (
   id prefixed_ksuid primary key default generate_prefixed_ksuid('repo'),
   owner text not null,
   name text not null,
+  installation_id prefixed_ksuid not null references github_installations(id),
   created_at timestamp with time zone not null default current_timestamp,
   updated_at timestamp with time zone not null default current_timestamp,
   unique(owner, name)
@@ -98,20 +107,12 @@ create table usage_credits (
 	unique(github_login, reason)
 );
 
-create table github_installations (
-	id prefixed_ksuid primary key default generate_prefixed_ksuid('github_installation'),
-	github_id int8 not null,
-	created_at timestamp with time zone not null default current_timestamp,
-	updated_at timestamp with time zone not null default current_timestamp,
-	unique(github_id)
-);
-
 create table artifacts (
 	id prefixed_ksuid primary key default generate_prefixed_ksuid('artifact'),
 	repo_id prefixed_ksuid not null references repos(id),
 	name text not null,
 	github_id int8 not null,
-	download_url text not null,
+	download_url text,
 	installation_id prefixed_ksuid not null references github_installations(id),
 	visibility text not null default 'private', -- public, private, internal
 	created_at timestamp with time zone not null default current_timestamp,

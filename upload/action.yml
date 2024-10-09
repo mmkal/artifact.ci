@@ -35,9 +35,6 @@ inputs:
   artifactci-origin:
     description: The origin of the server to upload the artifact to. Defaults to https://www.artifact.ci
     required: false
-  artifactci-github-token:
-    description: The GitHub token to use for the upload. If not set, the backend will look for the job via GitHub.com - so this is required for private repositories.
-    required: false
 runs:
   using: node20
   main: action.min.js # relative to this action.yml file, not repo root

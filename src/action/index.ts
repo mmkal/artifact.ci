@@ -2,11 +2,10 @@ import {DefaultArtifactClient} from '@actions/artifact'
 import {getInput, isDebug as isDebugCore, setFailed, setOutput} from '@actions/core'
 import * as glob from '@actions/glob'
 import {HttpClient} from '@actions/http-client'
-import * as cheerio from 'cheerio'
 import {readFile} from 'fs/promises'
 import {z} from 'zod'
+import {UploadRequest} from '~/app/github/upload/types'
 import {logger} from '~/tag-logger'
-import {BulkRequest} from '~/types'
 
 async function main() {
   setOutput('artifacts_uploaded', false)
@@ -16,20 +15,18 @@ async function main() {
   function isDebug() {
     if (isDebugCore()) return true
     if (event.repository.full_name === 'mmkal/artifact.ci' && event.ref !== 'refs/heads/main') return true
-    if (Math.random()) return true // todo remove
     return false
-    // const artifactCiDebugKeyword = event.repository === 'mmkal/artifact.ci' ? 'debug' : 'artifactci_debug'
-    // return '${{ github.event.head_commit.message }}'.includes(`${artifactCiDebugKeyword}=${context.job}`)
   }
   if (isDebug()) {
     logger.level = 'debug'
   }
 
-  // const logger = getLogger({debug: isDebug()})
   logger.debug('event', JSON.stringify(event, null, 2))
   logger.debug('getInput(artifactci-origin)', getInput('artifactci-origin'))
 
   const StringyBoolean = z.boolean().or(z.enum(['true', 'false']).transform(s => s === 'true'))
+
+  /** camelCase version of the inputs in action.yml */
   const Inputs = z.object({
     path: z.string(),
     name: z.string(),
@@ -45,12 +42,14 @@ async function main() {
           ? `https://artifactci-git-${event.ref.replace('refs/heads/', '').replaceAll(/\W/g, '-')}-mmkals-projects.vercel.app`
           : 'https://www.artifact.ci',
       ),
-    artifactciGithubToken: z.string().optional(),
   })
+
   const coercedInput = Object.fromEntries(
     Object.entries(Inputs.shape).map(([camelKey]) => {
       const kebabKey = camelKey.replaceAll(/([A-Z])/g, '-$1').toLowerCase()
-      return [camelKey, getInput(kebabKey, {trimWhitespace: true}) || undefined]
+      const value = getInput(kebabKey, {trimWhitespace: true}) || undefined
+      logger.debug({camelKey, kebabKey, value})
+      return [camelKey, value]
     }),
   ) as {}
   logger.debug({coercedInput}, process.env.GITHUB_RETENTION_DAYS)
@@ -73,40 +72,46 @@ async function main() {
     compressionLevel: inputs.compressionLevel,
   })
   logger.debug({uploadResult})
-  const url = `${inputs.artifactciOrigin}/github/events?mode=test`
-  const bulkRequest = BulkRequest.parse({
-    type: 'bulk',
-    callbackUrl: `${inputs.artifactciOrigin}/artifact/upload/signed-url`,
-    clientPayload: {
-      githubToken: null,
-      context: {
-        ref: event.ref,
-        sha: event.head_commit.id,
-        runId: Number(process.env.GITHUB_RUN_ID),
-        job: process.env.GITHUB_JOB!,
-        runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
-        repository: process.env.GITHUB_REPOSITORY!,
-        githubOrigin: process.env.GITHUB_SERVER_URL!,
-        githubApiUrl: process.env.GITHUB_API_URL!,
-        githubRetentionDays: inputs.retentionDays,
-      },
-    },
-    files: [],
-  } satisfies BulkRequest)
+  const Env = z.object({
+    GITHUB_REPOSITORY: z.string(),
+    GITHUB_RUN_ID: z.string().transform(Number).pipe(z.number().int()),
+    GITHUB_RUN_ATTEMPT: z.string().transform(Number).pipe(z.number().int()),
+    GITHUB_JOB: z.string(),
+    GITHUB_SHA: z.string().regex(/^[\da-f]{40}$/),
+    GITHUB_REF_NAME: z.string(), // for PRs, this is `1234/merge`
+    GITHUB_HEAD_REF: z.string().optional(), // for PRs, this is the head branch
+  })
+  const env = Env.parse(process.env)
 
-  logger.debug({url, bulkRequest})
+  const [owner, repo] = env.GITHUB_REPOSITORY.split('/')
+  const uploadRequest = UploadRequest.parse({
+    owner,
+    repo,
+    artifact: {id: uploadResult.id!},
+    job: {
+      head_branch: env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME,
+      head_sha: env.GITHUB_SHA,
+      run_id: env.GITHUB_RUN_ID,
+      run_attempt: env.GITHUB_RUN_ATTEMPT,
+    },
+  } satisfies UploadRequest)
+
+  const url = `${inputs.artifactciOrigin}/github/upload`
+  logger.debug({url, uploadRequest})
+
   const http = new HttpClient('artifact.ci/action/v0')
-  const resp = await http.post(url, JSON.stringify(bulkRequest), {
+  const resp = await http.post(url, JSON.stringify(uploadRequest), {
+    'content-type': 'application/json',
     'artifactci-debug': isDebug() ? 'true' : 'false',
   })
+
   const body = await resp.readBody()
   logger.debug({statusCode: resp.message.statusCode, body: body.slice(0, 100)})
   if (resp.message.statusCode === 200) {
     console.log('✅ Upload done.')
-    setOutput('artifacts_uploaded', true)
+    setOutput('artifact_uploaded', true)
   } else {
-    const printable = body.toLowerCase().includes('<!doctype html>') ? cheerio.load(body).text() : body
-    console.log(resp.message.statusCode, printable)
+    logger.error(resp.message.statusCode, body)
     setFailed(body)
   }
 }

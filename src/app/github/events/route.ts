@@ -1,6 +1,7 @@
 import {NextRequest, NextResponse} from 'next/server'
 import {fromError} from 'zod-validation-error'
-import {AppWebhookEvent, WorkflowJobCompleted} from './types'
+import {getOrigin, getPreviewOrigin, insertArtifactRecord} from '../upload/route'
+import {AppWebhookEvent} from './types'
 import {toPath} from '~/app/artifact/view/params'
 import {getInstallationOctokit, validateGithubWebhook} from '~/auth'
 import {client, sql} from '~/db'
@@ -47,7 +48,10 @@ async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
   }
 
   return logger.run(`job=${event.workflow_job.name}`, async () => {
-    const previewOrigin = getPreviewOrigin(request, event)
+    const previewOrigin = getPreviewOrigin(request, {
+      repo: event.repository.full_name,
+      branch: event.workflow_job.head_branch,
+    })
     if (previewOrigin) {
       const url = new URL(request.url)
       const previewUrl = url.toString().replace(url.origin, previewOrigin)
@@ -75,56 +79,31 @@ async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
     const artifacts = await Promise.all(
       dedupedArtifacts.map(async a => {
         return logger.run(`artifact=${a.name}`, async () => {
-          await client.query(sql`
-            --typegen-ignore
-            insert into repos (owner, name)
-            values (${owner}, ${repo})
-            on conflict (owner, name) do nothing;
-
+          await client.query(sql<queries._void>`
             insert into github_installations (github_id)
             select ${event.installation.id}
-            on conflict (github_id) do nothing;
+            on conflict (github_id) do nothing
           `)
-          const txResult = await client.transaction(async tx => {
-            const dbArtifact = await tx.one(sql<queries.Artifact>`
-              insert into artifacts (repo_id, name, github_id, download_url, installation_id)
-              select
-                (select id from repos where owner = ${owner} and name = ${repo}) as repo_id,
-                ${a.name} as name,
-                ${a.id} as github_id,
-                ${a.archive_download_url} as download_url,
-                (select id from github_installations where github_id = ${event.installation.id}) as installation_id
-              on conflict (repo_id, name, github_id)
-                do update set
-                  updated_at = current_timestamp
-              returning *
-            `)
+          await client.query(sql<queries._void>`
+            insert into repos (owner, name, installation_id)
+            values (
+              ${owner},
+              ${repo},
+              (select id from github_installations where github_id = ${event.installation.id})
+            )
+            on conflict (owner, name) do nothing;
+          `)
 
-            const dbIdentifiers = await tx.many(sql<queries.ArtifactIdentifier>`
-              insert into artifact_identifiers (artifact_id, type, value)
-              select artifact_id, type, value
-              from jsonb_populate_recordset(
-                null::artifact_identifiers,
-                ${JSON.stringify([
-                  {artifact_id: dbArtifact.id, type: 'run', value: `${job.run_id}.${job.run_attempt}`},
-                  {artifact_id: dbArtifact.id, type: 'sha', value: event.workflow_job.head_sha},
-                  {artifact_id: dbArtifact.id, type: 'branch', value: event.workflow_job.head_branch},
-                ])}
-              )
-              on conflict (artifact_id, type, value)
-              do update set updated_at = current_timestamp
-              returning *
-            `)
-            return {dbArtifact, dbIdentifiers}
-          })
+          const txResult = await insertArtifactRecord({owner, repo, job, artifact: a, installation: event.installation})
 
+          const origin = getOrigin(request, {repo: event.repository.full_name, branch: job.head_branch})
           return {
             name: a.name,
             artifactId: txResult.dbArtifact.id,
             links: txResult.dbIdentifiers.map(({type: aliasType, value: identifier}) => {
               return {
                 aliasType,
-                url: getOrigin(request, event) + toPath({owner, repo, aliasType, identifier, artifactName: a.name}),
+                url: origin + toPath({owner, repo, aliasType, identifier, artifactName: a.name}),
               }
             }),
           }
@@ -164,77 +143,13 @@ async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
   })
 }
 
-/** either the preview origin (for this repo) or null if another repo/for the default branch */
-const getPreviewOrigin = (request: NextRequest, event: WorkflowJobCompleted) => {
-  const {hostname} = new URL(request.url)
-  const headBranch = event.workflow_job.head_branch
-  const repo = event.repository.full_name
-
-  if (hostname !== 'artifact.ci') return null
-  if (repo !== 'mmkal/artifact.ci') return null
-  if (headBranch === 'main') return null
-
-  return getPreviewUrl(headBranch)
-}
-
-/** either the preview origin (for this repo) or the same origin as from the request */
-const getOrigin = (request: NextRequest, event: WorkflowJobCompleted) => {
-  return getPreviewOrigin(request, event) || new URL(request.url).origin
-}
-
-const getPreviewUrl = (branch: string) => {
-  const branchSlug = branch.replaceAll(/\W/g, '-')
-  return `https://artifactci-git-${branchSlug}-mmkals-projects.vercel.app`
-}
-
 export declare namespace queries {
   // Generated by @pgkit/typegen
 
-  /** - query: `insert into artifacts (repo_id, name, gi... [truncated] ...dated_at = current_timestamp returning *` */
-  export interface Artifact {
-    /** column: `public.artifacts.id`, not null: `true`, regtype: `prefixed_ksuid` */
-    id: import('~/db').Id<'artifacts'>
-
-    /** column: `public.artifacts.repo_id`, not null: `true`, regtype: `prefixed_ksuid` */
-    repo_id: string
-
-    /** column: `public.artifacts.name`, not null: `true`, regtype: `text` */
-    name: string
-
-    /** column: `public.artifacts.created_at`, not null: `true`, regtype: `timestamp with time zone` */
-    created_at: Date
-
-    /** column: `public.artifacts.updated_at`, not null: `true`, regtype: `timestamp with time zone` */
-    updated_at: Date
-
-    /** column: `public.artifacts.download_url`, not null: `true`, regtype: `text` */
-    download_url: string
-
-    /** column: `public.artifacts.github_id`, not null: `true`, regtype: `bigint` */
-    github_id: number
-
-    /** column: `public.artifacts.installation_id`, not null: `true`, regtype: `prefixed_ksuid` */
-    installation_id: string
-  }
-
-  /** - query: `insert into artifact_identifiers (artifa... [truncated] ...dated_at = current_timestamp returning *` */
-  export interface ArtifactIdentifier {
-    /** column: `public.artifact_identifiers.id`, not null: `true`, regtype: `prefixed_ksuid` */
-    id: import('~/db').Id<'artifact_identifiers'>
-
-    /** column: `public.artifact_identifiers.artifact_id`, not null: `true`, regtype: `prefixed_ksuid` */
-    artifact_id: string
-
-    /** column: `public.artifact_identifiers.type`, not null: `true`, regtype: `text` */
-    type: string
-
-    /** column: `public.artifact_identifiers.value`, not null: `true`, regtype: `text` */
-    value: string
-
-    /** column: `public.artifact_identifiers.created_at`, not null: `true`, regtype: `timestamp with time zone` */
-    created_at: Date
-
-    /** column: `public.artifact_identifiers.updated_at`, not null: `true`, regtype: `timestamp with time zone` */
-    updated_at: Date
-  }
+  /**
+   * queries:
+   * - `insert into github_installations (github_id) select $1 on conflict (github_id) do nothing`
+   * - `insert into repos (owner, name, installa... [truncated] ... ) on conflict (owner, name) do nothing;`
+   */
+  export type _void = {}
 }

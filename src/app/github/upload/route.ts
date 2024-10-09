@@ -1,48 +1,182 @@
 import {NextRequest, NextResponse} from 'next/server'
-import {App} from 'octokit'
-import {z} from 'zod'
 import {fromError} from 'zod-validation-error'
+import {UploadRequest} from './types'
+import {toPath} from '~/app/artifact/view/params'
+import {getInstallationOctokit} from '~/auth'
+import {client, sql} from '~/db'
 import {logger} from '~/tag-logger'
-import {BulkRequest} from '~/types'
-
-export const UploadRequest = z.object({})
 
 export async function POST(request: NextRequest) {
   const rawBody = (await request.json()) as {}
-  const parsed = BulkRequest.safeParse(rawBody)
+
+  const parsed = UploadRequest.safeParse(rawBody)
   if (!parsed.success) {
     const readable = fromError(parsed.error)
     logger.error({readable, body: rawBody})
-    return NextResponse.json({error: readable.message}, {status: 400})
+    return NextResponse.json({success: false, error: readable.message}, {status: 400})
   }
-  const body = parsed.data
-  const {context} = body.clientPayload
-  const [owner, _repo] = context.repository.split('/')
-  logger.debug({body})
+  const {owner, repo, ...event} = parsed.data
 
-  const env = Env.parse(process.env)
-  const app = new App({
-    appId: env.GITHUB_APP_ID,
-    privateKey: env.GITHUB_APP_PRIVATE_KEY,
+  const installation = await client.maybeOne(sql<queries.Installation>`
+    select github_id id
+    from github_installations
+    join repos on github_installations.id = repos.installation_id
+    where repos.owner = ${owner} and repos.name = ${repo}
+    limit 1
+  `)
+
+  if (!installation) {
+    logger.warn({owner, repo}, `github installation not found`)
+    return NextResponse.json({success: false, error: `not found`}, {status: 404})
+  }
+
+  const octokit = await getInstallationOctokit(installation.id)
+
+  const {data: workflowRun} = await octokit.rest.actions.getWorkflowRun({
+    owner,
+    repo,
+    run_id: event.job.run_id,
   })
 
-  // is there really no way to get an installation by repo name?
-  const {data: allInstallations} = await app.octokit.rest.apps.listInstallations()
-  const installation = allInstallations.find(i => i.account?.login === owner)
-  if (!installation) {
-    return NextResponse.json({error: 'installation not found'}, {status: 404})
+  if (workflowRun.status !== 'in_progress') {
+    logger.warn({workflowRun}, `workflow run is not in progress`)
+    return NextResponse.json({error: `not in progress`}, {status: 400})
   }
 
-  const octokit = await app.getInstallationOctokit(installation.id)
-  const {data: _repos} = await octokit.rest.apps.listReposAccessibleToInstallation()
+  const {data: artifact} = await octokit.rest.actions.getArtifact({
+    owner,
+    repo,
+    artifact_id: event.artifact.id,
+  })
 
-  // todo: get a token for the github app like this does: https://github.com/actions/create-github-app-token
-  // docs which ref that: https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/making-authenticated-api-requests-with-a-github-app-in-a-github-actions-workflow
+  const insertResult = await insertArtifactRecord({...parsed.data, artifact, installation})
 
-  return NextResponse.json({a: 1})
+  const origin = getOrigin(request, {repo: `${owner}/${repo}`, branch: event.job.head_branch})
+  return NextResponse.json({
+    success: true,
+    urls: insertResult.dbIdentifiers.map(({type: aliasType, value: identifier}) => {
+      return origin + toPath({owner, repo, aliasType, identifier, artifactName: artifact.name})
+    }),
+  })
 }
 
-const Env = z.object({
-  GITHUB_APP_ID: z.string(),
-  GITHUB_APP_PRIVATE_KEY: z.string(),
-})
+type InsertParams = UploadRequest & {
+  artifact: {name: string}
+  installation: {id: number}
+}
+
+export const insertArtifactRecord = async ({owner, repo, job, artifact: a, installation}: InsertParams) => {
+  return client.transaction(async tx => {
+    const dbArtifact = await tx.one(sql<queries.Artifact>`
+      insert into artifacts (repo_id, name, github_id, installation_id)
+      select
+        (select id from repos where owner = ${owner} and name = ${repo}) as repo_id,
+        ${a.name} as name,
+        ${a.id} as github_id,
+        (select id from github_installations where github_id = ${installation.id}) as installation_id
+      on conflict (repo_id, name, github_id)
+        do update set
+          updated_at = current_timestamp
+      returning *
+    `)
+
+    const dbIdentifiers = await tx.many(sql<queries.ArtifactIdentifier>`
+      insert into artifact_identifiers (artifact_id, type, value)
+      select artifact_id, type, value
+      from jsonb_populate_recordset(
+        null::artifact_identifiers,
+        ${JSON.stringify([
+          {artifact_id: dbArtifact.id, type: 'run', value: `${job.run_id}.${job.run_attempt}`},
+          {artifact_id: dbArtifact.id, type: 'sha', value: job.head_sha},
+          {artifact_id: dbArtifact.id, type: 'branch', value: job.head_branch},
+        ])}
+      )
+      on conflict (artifact_id, type, value)
+      do update set updated_at = current_timestamp
+      returning *
+    `)
+    return {dbArtifact, dbIdentifiers}
+  })
+}
+
+/** either the preview origin (for this repo) or null if another repo/for the default branch */
+export const getPreviewOrigin = (request: NextRequest, params: {repo: string; branch: string}) => {
+  const {hostname} = new URL(request.url)
+
+  if (hostname !== 'artifact.ci') return null
+  if (params.repo !== 'mmkal/artifact.ci') return null
+  if (params.branch === 'main') return null
+
+  return getPreviewUrl(params.branch)
+}
+
+/** either the preview origin (for this repo) or the same origin as from the request */
+export const getOrigin = (request: NextRequest, params: {repo: string; branch: string}) => {
+  return getPreviewOrigin(request, params) || new URL(request.url).origin
+}
+
+export const getPreviewUrl = (branch: string) => {
+  const branchSlug = branch.replaceAll(/\W/g, '-')
+  return `https://artifactci-git-${branchSlug}-mmkals-projects.vercel.app`
+}
+
+export declare namespace queries {
+  // Generated by @pgkit/typegen
+
+  /** - query: `select github_id id from github_installa... [truncated] ...s.owner = $1 and repos.name = $2 limit 1` */
+  export interface Installation {
+    /** column: `public.github_installations.github_id`, not null: `true`, regtype: `bigint` */
+    id: number
+  }
+
+  /** - query: `insert into artifacts (repo_id, name, gi... [truncated] ...dated_at = current_timestamp returning *` */
+  export interface Artifact {
+    /** column: `public.artifacts.id`, not null: `true`, regtype: `prefixed_ksuid` */
+    id: import('~/db').Id<'artifacts'>
+
+    /** column: `public.artifacts.repo_id`, not null: `true`, regtype: `prefixed_ksuid` */
+    repo_id: string
+
+    /** column: `public.artifacts.name`, not null: `true`, regtype: `text` */
+    name: string
+
+    /** column: `public.artifacts.created_at`, not null: `true`, regtype: `timestamp with time zone` */
+    created_at: Date
+
+    /** column: `public.artifacts.updated_at`, not null: `true`, regtype: `timestamp with time zone` */
+    updated_at: Date
+
+    /** column: `public.artifacts.download_url`, regtype: `text` */
+    download_url: string | null
+
+    /** column: `public.artifacts.github_id`, not null: `true`, regtype: `bigint` */
+    github_id: number
+
+    /** column: `public.artifacts.installation_id`, not null: `true`, regtype: `prefixed_ksuid` */
+    installation_id: string
+
+    /** column: `public.artifacts.visibility`, not null: `true`, regtype: `text` */
+    visibility: string
+  }
+
+  /** - query: `insert into artifact_identifiers (artifa... [truncated] ...dated_at = current_timestamp returning *` */
+  export interface ArtifactIdentifier {
+    /** column: `public.artifact_identifiers.id`, not null: `true`, regtype: `prefixed_ksuid` */
+    id: import('~/db').Id<'artifact_identifiers'>
+
+    /** column: `public.artifact_identifiers.artifact_id`, not null: `true`, regtype: `prefixed_ksuid` */
+    artifact_id: string
+
+    /** column: `public.artifact_identifiers.type`, not null: `true`, regtype: `text` */
+    type: string
+
+    /** column: `public.artifact_identifiers.value`, not null: `true`, regtype: `text` */
+    value: string
+
+    /** column: `public.artifact_identifiers.created_at`, not null: `true`, regtype: `timestamp with time zone` */
+    created_at: Date
+
+    /** column: `public.artifact_identifiers.updated_at`, not null: `true`, regtype: `timestamp with time zone` */
+    updated_at: Date
+  }
+}
