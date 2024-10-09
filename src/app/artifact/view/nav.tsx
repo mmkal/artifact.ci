@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import React from 'react'
+import {MyAccount} from './MyAccount'
 import {toBreadcrumbs, type PathParams} from './params'
 import {emoji, productionUrl} from '~/site-config'
 
@@ -13,6 +14,7 @@ export const Header = ({params}: {params: Partial<PathParams>}) => {
         <Link href="/" className="text-2xl font-bold hover:text-amber-300 transition-colors">
           {emoji} {productionUrl.hostname}
         </Link>
+        <MyAccount session={null} />
       </div>
       <nav aria-label="Breadcrumb">
         <ol className="flex flex-wrap items-center space-x-2 text-sm">
