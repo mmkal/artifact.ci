@@ -4,9 +4,9 @@ import NextAuth, {type DefaultSession} from 'next-auth'
 import DefaultGithub from 'next-auth/providers/github'
 import {App, Octokit} from 'octokit'
 import {z} from 'zod'
+import {captureServerEvent} from './analytics/posthog-server'
 import {client, sql} from './db'
 import {logger} from './tag-logger'
-import {captureServerEvent} from './analytics/posthog-server'
 
 declare module 'next-auth' {
   /** Augmented - see https://authjs.dev/getting-started/typescript */
