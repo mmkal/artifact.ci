@@ -8,6 +8,7 @@ import {captureServerEvent, checkContext} from '~/analytics/posthog-server'
 import {ArtifactViewPageTemplate} from '~/app/artifact/view/nav'
 import {toFullUrl, type PathParams} from '~/app/artifact/view/params'
 import {auth} from '~/auth'
+import {productionUrl} from '~/site-config'
 import {logger} from '~/tag-logger'
 
 export declare namespace ArtifactPage {
@@ -43,6 +44,26 @@ async function ArtifactPageInner({params, searchParams}: ArtifactPage.Params) {
       $current_url: toFullUrl(params, searchParams),
     },
   })
+
+  if (artifact.outcome === '4xx' && artifact.body.code === 'no_credit') {
+    return (
+      <>
+        <h2>No credit!</h2>
+        <p>
+          {`Artifacts don't grow on trees. You've run out of free credits. `}
+          <a
+            href="https://github.com/sponsors/mmkal"
+            target="_blank"
+            className="inline-block bg-amber-700/30 hover:bg-amber-600/20 text-amber-100 font-bold py-1 px-3 rounded border border-amber-400/50 transition duration-300 ease-in-out"
+            rel="noreferrer"
+          >
+            Sponsor me
+          </a>
+          {` to keep using ${productionUrl.hostname}.`}
+        </p>
+      </>
+    )
+  }
 
   if (artifact.outcome === '4xx') {
     return <pre>{JSON.stringify(artifact, null, 2)}</pre>

@@ -35,7 +35,7 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
 
   if (!artifactInfo) {
     const message = `Artifact ${artifactName} not found`
-    return ResponseHelpers.json({message, params, githubUser: githubLogin}, {status: 404})
+    return ResponseHelpers.json({message, params, githubLogin, code: 'artifact_not_found'}, {status: 404})
   }
 
   const octokit = await getInstallationOctokit(artifactInfo.installation_github_id)
@@ -46,9 +46,9 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
     artifactId: artifactInfo.artifact_id,
   })
 
-  if (!canAccess.result) {
+  if (!canAccess.canAccess) {
     const message = `Not authorized to access artifact ${artifactName}`
-    return ResponseHelpers.json({message, params, githubLogin, canAccess}, {status: 403})
+    return ResponseHelpers.json({message, params, githubLogin, ...canAccess}, {status: 403})
   }
 
   const loaderParams: ArtifactLoader.Params = {
@@ -79,7 +79,10 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
   `)
 
   if (!dbFile || !dbFile.storage_pathname) {
-    return ResponseHelpers.json({dbFile, message: `Upload not found`, params, githubLogin, artifactInfo}, {status: 404})
+    return ResponseHelpers.json(
+      {dbFile, message: `Upload not found`, params, githubLogin, artifactInfo, code: 'upload_not_found'},
+      {status: 404},
+    )
   }
 
   return {outcome: '2xx', storagePathname: dbFile.storage_pathname, artifactInfo, loaderParams} as const

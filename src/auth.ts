@@ -134,26 +134,31 @@ export const checkCreditStatus = async (params: CheckCreditStatusParams) => {
         },
       })
       return {
-        result: true,
+        canAccess: true,
+        code: 'created_free_trial_credit',
         reason: `created free trial credit: ${freeTrial.reason} (#${freeTrial.prior_free_trial_count + 1})`,
       } as const
     }
-    return {result: false, reason: 'no credit'} as const
+    return {canAccess: false, code: 'no_credit', reason: 'no_credit'} as const
   }
 
-  return {result: true, reason: credits.map(c => c.reason).join(';')} as const
+  return {canAccess: true, code: 'has_credit', reason: credits.map(c => c.reason).join(';')} as const
 }
 
 export const checkCanAccess = async (octokit: Octokit, params: CheckCreditStatusParams) => {
   const creditStatus = await checkCreditStatus(params)
-  if (!creditStatus.result) return creditStatus
+  if (!creditStatus.canAccess) return creditStatus
 
   const level = await getCollaborationLevel(octokit, params)
   if (level === 'none') {
-    return {result: false, reason: `github access level: ${level}`} as const
+    return {canAccess: false, code: 'no_github_access', reason: `github access level: ${level}`} as const
   }
 
-  return {result: true, reason: `credit status: ${creditStatus.reason}. github access level: ${level}`} as const
+  return {
+    canAccess: true,
+    code: 'can_access',
+    reason: `credit status: ${creditStatus.reason}. github access level: ${level}`,
+  } as const
 }
 
 /** Returns the JSON body of a GitHub webhook payload if the signature is valid, null otherwise. */
