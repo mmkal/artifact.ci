@@ -32,6 +32,6 @@ export const toPath = (params: Partial<PathParams>) => {
   return toBreadcrumbs(params).at(-1)!.path
 }
 
-export const toFullUrl = (params: Partial<PathParams>) => {
-  return `${globalServerOrigin()}${toPath(params)}`
+export const toFullUrl = (params: Partial<PathParams>, searchParams?: {}) => {
+  return `${globalServerOrigin()}${toPath(params)}?${new URLSearchParams(searchParams)}`.replace(/[/?]+$/, '')
 }

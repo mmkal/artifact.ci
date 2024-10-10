@@ -1,3 +1,4 @@
+import {waitUntil} from '@vercel/functions'
 import {PostHog} from 'posthog-node'
 import {z} from 'zod'
 
@@ -8,39 +9,50 @@ const PostHogEnv = z.object({
 
 export const createPosthog = () => {
   const env = PostHogEnv.parse(process.env)
-  const posthog = new PostHog(env.POSTHOG_PROJECT_API_KEY, {
+  return new PostHog(env.POSTHOG_PROJECT_API_KEY, {
     host: env.POSTHOG_HOST,
-  })
-  return Object.assign(posthog, {
-    captureAsync: async (...args: Parameters<typeof posthog.capture>) => {
-      checkContext('captureAsync')
-      posthog.capture(...args)
-      await posthog.shutdown(25_000)
-    },
   })
 }
 
-/* eslint-disable */
+export const captureServerEvent: PostHog['capture'] = (...args) => {
+  const posthog = createPosthog()
+  posthog.capture(...args)
+  waitUntil(posthog.shutdown(25_000))
+}
+
 // waitUntil trust issues: https://github.com/vercel/next.js/issues/50522#issuecomment-2405676723
 const SYMBOL_FOR_REQ_CONTEXT = Symbol.for('@vercel/request-context')
 const warned = {} as Record<string, boolean>
-export function checkContext(key: string) {
+
+export type VercelRequestContext = {
+  waitUntil?: (promise: Promise<unknown>) => void
+  url: string
+  flags: {
+    getValue: (flag: string) => string | undefined
+    reportValue: (flag: string, value: string) => void
+  }
+  headers: Record<string, string>
+}
+
+/* eslint-disable */
+export function vercelRequestContext(): VercelRequestContext {
   const fromSymbol = globalThis as any
-  const reqCtx = (fromSymbol[SYMBOL_FOR_REQ_CONTEXT]?.get?.()) ?? {}
+  return fromSymbol[SYMBOL_FOR_REQ_CONTEXT]?.get?.() ?? {}
+}
+/* eslint-enable */
+
+export function checkContext(key: string) {
+  const reqCtx = vercelRequestContext()
 
   if (!warned[key]) {
     const debugInfo = {
       reqCtx,
       SYMBOL_FOR_REQ_CONTEXT: SYMBOL_FOR_REQ_CONTEXT.toString(),
-      [`globalThis.${SYMBOL_FOR_REQ_CONTEXT.toString()}`]: fromSymbol[SYMBOL_FOR_REQ_CONTEXT] || 'undefined',
       waitUntil: reqCtx?.waitUntil,
     }
-    if (debugInfo.waitUntil) {
-      console.warn(key, 'waitUntil EXISTS', debugInfo)
-    } else {
+    if (!debugInfo.waitUntil && process.env.NODE_ENV !== 'development') {
       console.error(key, 'waitUntil MISSING', debugInfo)
     }
-
     warned[key] = true
   }
   return reqCtx

@@ -4,7 +4,7 @@ import {FileList} from './FileList'
 import {TrpcProvider} from './TrpcProvider'
 import {loadArtifact} from './load-artifact.server'
 import {PostHogProvider} from '~/analytics/posthog-client'
-import {checkContext, createPosthog} from '~/analytics/posthog-server'
+import {captureServerEvent, checkContext} from '~/analytics/posthog-server'
 import {ArtifactViewPageTemplate} from '~/app/artifact/view/nav'
 import {toFullUrl, type PathParams} from '~/app/artifact/view/params'
 import {auth} from '~/auth'
@@ -28,8 +28,6 @@ async function ArtifactPageInner({params, searchParams}: ArtifactPage.Params) {
 
   const githubLogin = session?.user?.github_login
 
-  const posthog = createPosthog()
-
   if (!githubLogin) {
     const callbackUrl = `/artifact/view/${params.owner}/${params.repo}/${params.aliasType}/${params.identifier}/${params.artifactName}`
     return redirect(`/api/auth/signin?${new URLSearchParams({callbackUrl})}`)
@@ -37,12 +35,12 @@ async function ArtifactPageInner({params, searchParams}: ArtifactPage.Params) {
 
   const artifact = await logger.try('pageLoad', () => loadArtifact(githubLogin, {params}))
 
-  await posthog.captureAsync({
+  captureServerEvent({
     distinctId: githubLogin,
     event: `artifact_load.${artifact.outcome}`,
     properties: {
       ...artifact,
-      $current_url: toFullUrl(params),
+      $current_url: toFullUrl(params, searchParams),
     },
   })
 

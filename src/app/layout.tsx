@@ -6,6 +6,7 @@ import {Suspense} from 'react'
 import {emoji, productionUrl} from '../site-config'
 import {PostHogPageview} from '~/analytics/posthog-client'
 
+// https://github.com/vercel/next.js/blob/f6afb0e09e3d149d0b3216cb199f14994698df21/packages/next/src/compiled/node-fetch/index.js requires `punycode` which is deprecated
 const inter = Inter({subsets: ['latin']})
 
 export const metadata: Metadata = {
