@@ -2,6 +2,7 @@ import Link from 'next/link'
 import React from 'react'
 import {MyAccount} from './MyAccount'
 import {toBreadcrumbs, type PathParams} from './params'
+import {auth} from '~/auth'
 import {emoji, productionUrl} from '~/site-config'
 
 // don't put these in a layout because layout is cached between routes. so it won't show the right breadcrumbs for child pages
@@ -14,7 +15,7 @@ export const Header = ({params}: {params: Partial<PathParams>}) => {
         <Link href="/" className="text-2xl font-bold hover:text-amber-300 transition-colors">
           {emoji} {productionUrl.hostname}
         </Link>
-        <MyAccount session={null} />
+        <MyAccountAsync params={params} />
       </div>
       <nav aria-label="Breadcrumb">
         <ol className="flex flex-wrap items-center space-x-2 text-sm">
@@ -38,6 +39,11 @@ export const Header = ({params}: {params: Partial<PathParams>}) => {
       </nav>
     </header>
   )
+}
+
+const MyAccountAsync = async ({params}: {params: Partial<PathParams>}) => {
+  const session = await auth()
+  return <MyAccount session={session} params={params} />
 }
 
 export const Footer = () => {

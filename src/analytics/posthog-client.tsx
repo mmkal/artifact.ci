@@ -19,12 +19,15 @@ export function PostHogPageview(): null {
   return null
 }
 
-function posthogInit() {
+export function posthogInit() {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
     api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
     session_recording: {
       maskAllInputs: false,
       maskInputOptions: {password: true},
+    },
+    loaded: ph => {
+      if (process.env.NODE_ENV === 'development') ph.debug()
     },
   })
 }
