@@ -6,6 +6,7 @@ import {App, Octokit} from 'octokit'
 import {z} from 'zod'
 import {client, sql} from './db'
 import {logger} from './tag-logger'
+import {captureServerEvent} from './analytics/posthog-server'
 
 declare module 'next-auth' {
   /** Augmented - see https://authjs.dev/getting-started/typescript */
@@ -96,8 +97,9 @@ export const checkCreditStatus = async (params: CheckCreditStatusParams) => {
       a.visibility
     from usage_credits
     full outer join artifacts a on a.id = ${params.artifactId} and a.visibility = 'public'
-    where github_login = ${params.username.toLowerCase()} or github_login = ${params.owner.toLowerCase()}
-    and expiry > now()
+    where
+      (github_login = ${params.username.toLowerCase()} or github_login = ${params.owner.toLowerCase()})
+      and expiry > now()
   `)
   if (credits.length > 1) logger.warn({credits, params}, 'checkCanAccess: multiple credits')
 
@@ -122,6 +124,15 @@ export const checkCreditStatus = async (params: CheckCreditStatusParams) => {
     `)
     logger.warn({freeTrial}, 'checkCanAccess: free trial credits')
     if (freeTrial) {
+      captureServerEvent({
+        distinctId: params.username,
+        event: 'free_trial_credit_created',
+        properties: {
+          artifact_id: params.artifactId,
+          expiry: freeTrial.expiry,
+          count: freeTrial.prior_free_trial_count + 1,
+        },
+      })
       return {
         result: true,
         reason: `created free trial credit: ${freeTrial.reason} (#${freeTrial.prior_free_trial_count + 1})`,

@@ -104,7 +104,7 @@ create table usage_credits (
 	reason text not null, -- e.g. "sponsor" or "i like them"
 	created_at timestamp with time zone not null default current_timestamp,
 	updated_at timestamp with time zone not null default current_timestamp,
-	unique(github_login, reason)
+	unique(github_login, reason, expiry)
 );
 
 create table artifacts (
