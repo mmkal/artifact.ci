@@ -1,10 +1,10 @@
+import '../styles/globals.css'
+
 import type {Metadata} from 'next'
 import {Inter} from 'next/font/google'
-import {emoji, productionUrl} from '../site-config'
-
-import '../styles/globals.css'
-import {PostHogPageview} from '~/analytics/posthog-client'
 import {Suspense} from 'react'
+import {emoji, productionUrl} from '../site-config'
+import {PostHogPageview} from '~/analytics/posthog-client'
 
 const inter = Inter({subsets: ['latin']})
 

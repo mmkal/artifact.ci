@@ -28,12 +28,18 @@ export function checkContext(key: string) {
   const fromSymbol = globalThis as any
   const reqCtx = (fromSymbol[SYMBOL_FOR_REQ_CONTEXT]?.get?.()) ?? {}
 
-  if (!warned[key] && !reqCtx?.waitUntil) {
+  if (!warned[key]) {
     const debugInfo = {
       reqCtx,
+      SYMBOL_FOR_REQ_CONTEXT: SYMBOL_FOR_REQ_CONTEXT.toString(),
       [`globalThis.${SYMBOL_FOR_REQ_CONTEXT.toString()}`]: fromSymbol[SYMBOL_FOR_REQ_CONTEXT] || 'undefined',
+      waitUntil: reqCtx?.waitUntil,
     }
-    console.warn(`[${key}] ${JSON.stringify(debugInfo, null, 2)} - it's missing waitUntil, so waitUntil would be a no-op`)
+    if (debugInfo.waitUntil) {
+      console.warn('waitUntil exists', debugInfo)
+    } else {
+      console.error('waitUntil MISSING', debugInfo)
+    }
 
     warned[key] = true
   }
