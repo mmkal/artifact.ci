@@ -51,17 +51,17 @@ test('supabase-storage', async () => {
     json: {prefixes: ['a', 'b']},
   })
 
-  const res = await authed.bucket.bucketId('abc').empty.post()
-  expectTypeOf(res.json).toEqualTypeOf<{message?: string}>()
+  const res = await authed.bucket.bucketId('abc').empty.post({
+    acceptStatus: ['200', '4XX'],
+  })
 
-  const maybe = res.matchStatus('200', '4XX')
-  if (maybe.match === '200') {
-    expectTypeOf(maybe.json).toEqualTypeOf<{message?: string}>()
-    expectTypeOf(maybe.headers).toEqualTypeOf<{[name: string]: unknown} & Headers>()
-  } else if (maybe.match === '4XX') {
-    expectTypeOf(maybe.json).toEqualTypeOf<{error: string; statusCode: string; message: string}>()
+  if (res.statusMatch === '200') {
+    expectTypeOf(res.json).toEqualTypeOf<{message?: string}>()
+    expectTypeOf(res.headers).toEqualTypeOf<{[name: string]: unknown} & Headers>()
+  } else if (res.statusMatch === '4XX') {
+    expectTypeOf(res.json).toEqualTypeOf<{error: string; statusCode: string; message: string}>()
   } else {
-    expectTypeOf(maybe).toBeNever()
+    expectTypeOf(res).toBeNever()
   }
 })
 

@@ -6,6 +6,7 @@ import {useSearchParams} from 'next/navigation'
 import React, {Suspense} from 'react'
 import {FileList} from './FileList'
 import {clientUpload} from './client-upload'
+import {posthog} from '~/analytics/posthog-client'
 import {type PathParams} from '~/app/artifact/view/params'
 
 type Update = {stage: string; message: string; onClick?: () => void}
@@ -28,6 +29,7 @@ export function ArtifactLoader(params: ArtifactLoader.Params) {
 
 function ArtifactLoaderInner(params: ArtifactLoader.Params) {
   const searchParams = useSearchParams()
+  posthog.identify(params.githubLogin)
   const reload = searchParams?.get('reload') === 'true'
   const initialUpdates: Update[] = [{stage: 'welcome', message: 'Welcome, ' + params.githubLogin} as Update].concat(
     reload ? [{stage: 'trigger', message: 'Load artifact', onClick: () => mutation.mutate(params)}] : [],
@@ -45,6 +47,7 @@ function ArtifactLoaderInner(params: ArtifactLoader.Params) {
 
   const mutation = useMutation({
     mutationFn: (input: {artifactId: string}) => {
+      posthog.capture('artifact_load_start', {...params})
       setUpdates(initialUpdates)
       return clientUpload({...input, onProgress})
     },

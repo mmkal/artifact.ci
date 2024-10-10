@@ -3,8 +3,10 @@ import {ArtifactLoader} from './ArtifactLoader'
 import {FileList} from './FileList'
 import {TrpcProvider} from './TrpcProvider'
 import {loadArtifact} from './load-artifact.server'
+import {PostHogProvider} from '~/analytics/posthog-client'
+import {checkContext, createPosthog} from '~/analytics/posthog-server'
 import {ArtifactViewPageTemplate} from '~/app/artifact/view/nav'
-import {type PathParams} from '~/app/artifact/view/params'
+import {toFullUrl, type PathParams} from '~/app/artifact/view/params'
 import {auth} from '~/auth'
 import {logger} from '~/tag-logger'
 
@@ -22,21 +24,37 @@ export default async function ArtifactPage({params, searchParams}: ArtifactPage.
 
 async function ArtifactPageInner({params, searchParams}: ArtifactPage.Params) {
   const session = await auth()
+  checkContext('ArtifactPageInner')
 
   const githubLogin = session?.user?.github_login
+
+  const posthog = createPosthog()
+
   if (!githubLogin) {
     const callbackUrl = `/artifact/view/${params.owner}/${params.repo}/${params.aliasType}/${params.identifier}/${params.artifactName}`
     return redirect(`/api/auth/signin?${new URLSearchParams({callbackUrl})}`)
   }
 
   const artifact = await logger.try('pageLoad', () => loadArtifact(githubLogin, {params}))
+
+  await posthog.captureAsync({
+    distinctId: githubLogin,
+    event: `artifact_load.${artifact.outcome}`,
+    properties: {
+      ...artifact,
+      $current_url: toFullUrl(params),
+    },
+  })
+
   if (artifact.outcome === '4xx') {
     return <pre>{JSON.stringify(artifact, null, 2)}</pre>
   }
   if (artifact.outcome === 'not_uploaded_yet' || searchParams.reload === 'true') {
     return (
       <TrpcProvider>
-        <ArtifactLoader {...artifact.loaderParams} />
+        <PostHogProvider>
+          <ArtifactLoader {...artifact.loaderParams} />
+        </PostHogProvider>
       </TrpcProvider>
     )
   }

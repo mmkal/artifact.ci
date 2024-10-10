@@ -1,0 +1,41 @@
+import {PostHog} from 'posthog-node'
+import {z} from 'zod'
+
+const PostHogEnv = z.object({
+  POSTHOG_PROJECT_API_KEY: z.string().regex(/^phc_/),
+  POSTHOG_HOST: z.string().url().default('https://us.i.posthog.com'),
+})
+
+export const createPosthog = () => {
+  const env = PostHogEnv.parse(process.env)
+  const posthog = new PostHog(env.POSTHOG_PROJECT_API_KEY, {
+    host: env.POSTHOG_HOST,
+  })
+  return Object.assign(posthog, {
+    captureAsync: async (...args: Parameters<typeof posthog.capture>) => {
+      checkContext('captureAsync')
+      posthog.capture(...args)
+      await posthog.shutdown(25_000)
+    },
+  })
+}
+
+/* eslint-disable */
+// waitUntil trust issues: https://github.com/vercel/next.js/issues/50522#issuecomment-2405676723
+const SYMBOL_FOR_REQ_CONTEXT = Symbol.for('@vercel/request-context')
+const warned = {} as Record<string, boolean>
+export function checkContext(key: string) {
+  const fromSymbol = globalThis as any
+  const reqCtx = (fromSymbol[SYMBOL_FOR_REQ_CONTEXT]?.get?.()) ?? {}
+
+  if (!warned[key] && !reqCtx?.waitUntil) {
+    const debugInfo = {
+      reqCtx,
+      [`globalThis.${SYMBOL_FOR_REQ_CONTEXT.toString()}`]: fromSymbol[SYMBOL_FOR_REQ_CONTEXT] || 'undefined',
+    }
+    console.warn(`[${key}] ${JSON.stringify(debugInfo, null, 2)} - it's missing waitUntil, so waitUntil would be a no-op`)
+
+    warned[key] = true
+  }
+  return reqCtx
+}

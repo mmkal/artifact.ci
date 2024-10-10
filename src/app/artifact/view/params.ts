@@ -1,4 +1,5 @@
 import {z} from 'zod'
+import {globalServerOrigin} from '~/analytics/origin.server'
 
 export const PathParams = z.object({
   owner: z.string(),
@@ -29,4 +30,8 @@ export const toBreadcrumbs = (params: Partial<PathParams>) => {
 
 export const toPath = (params: Partial<PathParams>) => {
   return toBreadcrumbs(params).at(-1)!.path
+}
+
+export const toFullUrl = (params: Partial<PathParams>) => {
+  return `${globalServerOrigin()}${toPath(params)}`
 }
