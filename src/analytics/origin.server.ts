@@ -7,8 +7,6 @@ const VercelEnv = z.object({
   VERCEL_ENV: z.enum(['development', 'preview', 'production']),
   /** e.g. https://mywebsite.com */
   VERCEL_URL: z.string(),
-  /** e.g. https://mywebsite.com */
-  VERCEL_PRODUCTION_URL: z.string(),
   /** e.g. https://mywebsite-git-mybranch-myusername.vercel.app */
   VERCEL_BRANCH_URL: z.string().optional(),
 })
@@ -26,9 +24,6 @@ export const globalServerOrigin = () => {
 
   const env = VercelEnv.parse(process.env)
   if (env.VERCEL_ENV === 'production') {
-    if (!productionUrl.origin.endsWith(env.VERCEL_PRODUCTION_URL)) {
-      logger.warn('productionUrl.origin does not end with VERCEL_PRODUCTION_URL', {productionUrl, env})
-    }
     return (cachedOrigin = productionUrl.origin)
   }
 
