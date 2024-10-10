@@ -36,9 +36,9 @@ export function checkContext(key: string) {
       waitUntil: reqCtx?.waitUntil,
     }
     if (debugInfo.waitUntil) {
-      console.warn('waitUntil exists', debugInfo)
+      console.warn(key, 'waitUntil EXISTS', debugInfo)
     } else {
-      console.error('waitUntil MISSING', debugInfo)
+      console.error(key, 'waitUntil MISSING', debugInfo)
     }
 
     warned[key] = true
