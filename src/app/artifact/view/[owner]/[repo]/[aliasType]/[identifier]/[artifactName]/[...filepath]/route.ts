@@ -1,11 +1,13 @@
 import {NextResponse} from 'next/server'
 import {loadArtifact, loadFile} from '../load-artifact.server'
+import {checkContext} from '~/analytics/posthog-server'
 import {PathParams} from '~/app/artifact/view/params'
 import {auth} from '~/auth'
 import {logger} from '~/tag-logger'
 
 // sample: http://localhost:3000/artifact/view/mmkal/artifact.ci/11020882214/mocha/output.html
 export const GET = auth(async (request, {params}) => {
+  checkContext('loadArtifactRouteHandler')
   const githubLogin = request?.auth?.user?.github_login
   if (!githubLogin) {
     const redirectTo = new URL('/api/auth/signin', request.nextUrl.origin)

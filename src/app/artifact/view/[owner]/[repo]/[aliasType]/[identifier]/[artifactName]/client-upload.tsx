@@ -32,19 +32,23 @@ export async function clientUpload({artifactId, onProgress = () => {}}: clientUp
   const storage = createProxyClient<paths>().configure({baseUrl: supabaseUrl}) // note: no auth here, we rely on signed urls
 
   onProgress('uploaded_file', `Uploaded 0 of ${uploads.length} files`)
+  let uploaded = 0
   await pMap(
-    uploads.entries(),
-    async ([index, item]) => {
-      if (item.token) {
-        await storage.object.upload.sign
-          .bucketName('artifact_files')
-          .wildcard(item.artifactFullPath)
-          .put({
-            query: {token: item.token},
-            content: {[item.contentType]: await entries[item.entry].blob()},
-          })
+    uploads,
+    async item => {
+      const message = () => `Uploaded ${++uploaded} of ${uploads.length} files: ${item.entry.split('/').pop()}`
+      if (!item.token) {
+        onProgress('uploaded_file', message() + ' (already uploaded)')
+        return
       }
-      onProgress('uploaded_file', `Uploaded ${index + 1} of ${uploads.length} files: ${item.entry.split('/').pop()}`)
+      await storage.object.upload.sign
+        .bucketName('artifact_files')
+        .wildcard(item.artifactFullPath)
+        .put({
+          query: {token: item.token},
+          content: {[item.contentType]: await entries[item.entry].blob()},
+        })
+      onProgress('uploaded_file', message())
     },
     {concurrency: 10},
   )

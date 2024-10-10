@@ -46,14 +46,16 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
 
     const res = await fetch(url, {method: methodName, headers, body})
     const acceptStatus = input.acceptStatus || options.acceptStatus || ['2XX']
+
+    let text: string | undefined = undefined
     const statusMatch = await matchStatuses(acceptStatus)
-    const text = await res.clone().text()
+    text = await res.clone().text()
+
     const partial = {
       response: res,
-      $types: {} as any,
+      $def: {} as any,
       $params: input,
       statusMatch,
-      rawStatus: res.status,
       headers: res.headers,
     } satisfies Partial<ResponseHelpers<any, any, any>>
 
@@ -69,7 +71,7 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
         )
       })
       if (!match) {
-        const message = `status code ${res.status} does not match any of the allowed status codes: ${matches.join(', ')}. text: ${await res.clone().text()}`
+        const message = `status code ${res.status} does not match any of the allowed status codes: ${matches.join(', ')}. text: ${text ?? (await res.clone().text())}`
         throw new Error(message, {cause: res})
       }
       return match
@@ -85,6 +87,10 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
               if (contentTypeFromHeader !== contentType) {
                 throw new Error(`content-type header is ${contentTypeFromHeader}, so can't parse as ${contentType}`)
               }
+              if (text === undefined) {
+                throw new Error('text is undefined. did you override the fetch implementation?')
+              }
+
               return serializer.parse(text)
             },
           })
@@ -179,11 +185,11 @@ type RequestBodyParameters<Def, M extends Method, RO extends RequestOptions> = D
   : {}
 type CookieParameters<Def, _RO extends RequestOptions> = Get<Def, ['parameters', 'cookie'], Record<string, string>>
 
-type Get<T, Path extends (string | number)[], Default = undefined> = Path extends []
+type Get<T, Path extends Array<string | number>, Default = undefined> = Path extends []
   ? T
-  : Path extends [infer First, ...infer Rest]
-    ? First extends keyof T
-      ? Get<T[First], Extract<Rest, (string | number)[]>, Default>
+  : Path extends [infer First extends string | number, ...infer Rest extends Array<string | number>]
+    ? T extends {[K in First]: infer V}
+      ? Get<V, Rest, Default>
       : Default
     : Default
 
@@ -256,7 +262,7 @@ type RequestBodyInput<RB, M extends Method, Options extends RequestOptions> = M 
               : AnyRequestBody)
     : AnyRequestBody
 
-type ResponseHeaders<R> = R extends {headers: infer H} ? H & Headers : never
+type ResponseHeaders<R> = R extends {headers: infer H} ? H & Headers : 'no R does not extend header: infer R'
 
 type Digit = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 type PositiveDigit = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
@@ -290,12 +296,11 @@ type ResponseHelpers<Def, BaseRequestOptions extends RequestOptions, Params> = {
     // @ts-expect-error trust me bro
     [K in keyof GetRequestOptionSerializersByKey<BaseRequestOptions>]: Def['responses'][Extract<S, `${keyof Def['responses']}`>]['content'][GetRequestOptionSerializersByKey<BaseRequestOptions>[K]['contentType']]
   } & {
-    headers: ResponseHeaders<Def>
+    headers: ResponseHeaders<Get<Def, ['responses', S], {headers: unknown}>>
     statusMatch: S
-    rawStatus: number
     /** The raw `fetch` response object */
     response: Response
-    $types: Def
+    $def: Def
     $params: Params
   }
 }[AcceptedStatus<BaseRequestOptions, Params>]

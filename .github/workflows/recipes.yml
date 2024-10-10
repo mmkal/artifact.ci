@@ -183,8 +183,8 @@ jobs:
           def test_add_badly():
             assert addBad(1, 1) == 2
           ' >> test.py
-          pip install pytest
-          pip install pytest-html
+          pip install pytest --break-system-packages
+          pip install pytest-html --break-system-packages
       - name: run tests
         run: pytest test.py --html report/index.html || echo failed
       - uses: actions/upload-artifact@v4

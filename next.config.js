@@ -20,6 +20,16 @@ const baseConfig = {
       bodySizeLimit: '100mb',
     },
   },
+  rewrites: async () => [
+    {
+      source: '/ingest/static/:path*',
+      destination: 'https://us-assets.i.posthog.com/static/:path*',
+    },
+    {
+      source: '/ingest/:path*',
+      destination: 'https://us.i.posthog.com/:path*',
+    },
+  ],
   // unfortunately, rewrites won't work for now - vercel storage doesn't let you view html/other browser-renderable content inline: https://vercel.com/docs/storage/vercel-blob#security
   // rewrites: async () => {
   //   return [
