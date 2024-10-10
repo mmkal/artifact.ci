@@ -1,5 +1,5 @@
-const nextra = require('nextra')
-const {z} = require('zod')
+import nextra from 'nextra'
+import {z} from 'zod'
 
 const Env = z.object({
   STORAGE_ORIGIN: z.string().url(),
@@ -46,4 +46,4 @@ const withNextra = nextra({
   themeConfig: './theme.config.tsx',
 })
 
-module.exports = withNextra(baseConfig)
+export default withNextra(baseConfig)

@@ -1,4 +1,4 @@
-{
+export default {
     "vitest": "Vitest",
     "playwright": "Playwright",
     "jest": "Jest",

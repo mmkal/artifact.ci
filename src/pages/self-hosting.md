@@ -1,6 +1,6 @@
 # Self-hosting
 
-The code is open-source, so you can self-host it if you want to (e.g. to run on a private network, or to use it without sponsoring me, or to use a different blob storage provider, or to add extra features etc.). Here's how:
+The code is open-source, so you can self-host it if you want to (e.g. to run on a private network, or to use it without [sponsoring me](https://github.com/sponsors/mmkal), or to use a different blob storage provider, or to add extra features etc.). Here's how:
 
 - Clone the repository
 - Deploy to Vercel - which will automatically detect how to build and deploy the server. You should also be able to use any other platform that supports Next.js.

@@ -1,4 +1,4 @@
-{
+export default {
     "index": "Home",
     "recipes": "Recipes",
     "not": "What this isn't",

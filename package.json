@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "",
   "packageManager": "pnpm@9.7.1",
-  "main": "index.js",
   "scripts": {
     "pgkit-link": "npx link ../pgkit/packages/pgkit",
     "pgkit": "node node_modules/pgkit/dist/cli.js",
@@ -39,8 +38,8 @@
     "mime-types": "^2.1.35",
     "next": "^14.2.15",
     "next-auth": "5.0.0-beta.20",
-    "nextra": "^2.12.3",
-    "nextra-theme-docs": "^2.12.3",
+    "nextra": "^3.0.8",
+    "nextra-theme-docs": "^3.0.8",
     "octokit": "^4.0.2",
     "p-all": "^5.0.0",
     "p-map": "^7.0.2",
