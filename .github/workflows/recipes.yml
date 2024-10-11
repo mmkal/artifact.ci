@@ -40,10 +40,10 @@ jobs:
         with:
           name: vitest-coverage
           path: coverage
-      - uses: actions/upload-artifact@v4
-        with:
-          name: vitest-report
-          path: html
+      # - uses: actions/upload-artifact@v4
+      #   with:
+      #     name: vitest-report
+      #     path: html
   playwright:
     needs: html
     if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
