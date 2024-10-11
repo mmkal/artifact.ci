@@ -46,7 +46,7 @@ export const searchArtifacts = async (params: Partial<PathParams>, {offset = 0, 
       username: session.user.github_login,
       artifactId: repo.artifact_id,
     })
-    if (!canAccess.result) {
+    if (!canAccess.canAccess) {
       logger.warn({canAccess}, 'searchArtifacts: checkCanAccess failed')
       return []
     }

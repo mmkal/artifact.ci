@@ -43,7 +43,7 @@ export const artifactAccessProcedure = t.procedure
       username: githubLogin,
       artifactId: input.artifactId,
     })
-    if (!canAccess.result) {
+    if (!canAccess.canAccess) {
       throw new TRPCError({
         code: 'UNAUTHORIZED',
         message: `user ${githubLogin} is not authorized to access artifact ${input.artifactId}`,
