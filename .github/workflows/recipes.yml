@@ -25,7 +25,7 @@ jobs:
           rm -rf node_modules
           rm -rf test && mkdir test
           npm init -y
-          npm install vitest @vitest/ui @types/node@^20.0.0 --save-dev
+          npm install vitest @vitest/ui @vitest/coverage-v8 @types/node@^20.0.0 --save-dev
           cat package.json
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + 1' >> calc.ts
@@ -35,11 +35,15 @@ jobs:
           echo 'test("add well", () => expect(add(1, 1)).toEqual(2))' >> test/adding.test.ts
           echo 'test("add badly", () => expect(addBad(1, 1)).toEqual(2))' >> test/adding.test.ts
       - name: run tests
-        run: npx vitest --reporter html || echo failed
+        run: npx vitest --reporter html --coverage || echo failed
       - uses: actions/upload-artifact@v4
         with:
-          name: vitest
+          name: vitest-report
           path: html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vitest-coverage
+          path: coverage
   playwright:
     needs: html
     if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
@@ -137,8 +141,12 @@ jobs:
         run: npx jest --coverage || echo failed
       - uses: actions/upload-artifact@v4
         with:
-          name: jest
+          name: jest-report
           path: report
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jest-coverage
+          path: coverage
   ava:
     needs: html
     if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
