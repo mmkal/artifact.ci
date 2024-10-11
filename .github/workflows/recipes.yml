@@ -139,10 +139,10 @@ jobs:
           npm install jest jest-html-reporters --save-dev
       - name: run tests
         run: npx jest --coverage || echo failed
-      - uses: actions/upload-artifact@v4
-        with:
-          name: jest-report
-          path: report
+      # - uses: actions/upload-artifact@v4
+      #   with:
+      #     name: jest-report
+      #     path: report
       - uses: actions/upload-artifact@v4
         with:
           name: jest-coverage
