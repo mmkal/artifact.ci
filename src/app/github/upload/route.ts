@@ -90,7 +90,7 @@ export const insertArtifactRecord = async ({owner, repo, job, artifact: a, insta
         null::artifact_identifiers,
         ${JSON.stringify([
           {artifact_id: dbArtifact.id, type: 'run', value: `${job.run_id}.${job.run_attempt}`},
-          {artifact_id: dbArtifact.id, type: 'sha', value: job.head_sha},
+          {artifact_id: dbArtifact.id, type: 'sha', value: job.head_sha.slice(0, 7)},
           {artifact_id: dbArtifact.id, type: 'branch', value: job.head_branch.replaceAll('/', '__')},
         ])}
       )
