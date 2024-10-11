@@ -116,13 +116,13 @@ export const checkCreditStatus = async (params: CheckCreditStatusParams) => {
         insert into usage_credits (github_login, reason, expiry)
         select ${params.username.toLowerCase()}, 'free_trial', now() + interval '24 hours'
         from prior_free_trial_credits
-        where prior_free_trial_count < 5
+        where prior_free_trial_count < 10
         returning *
       )
-      select * from new_free_trial_credit
+      select *
       join prior_free_trial_credits on true
     `)
-    logger.warn({freeTrial}, 'checkCanAccess: free trial credits')
+    logger.warn(`checkCanAccess: ${freeTrial?.prior_free_trial_count} prior free trial credits`, freeTrial)
     if (freeTrial) {
       captureServerEvent({
         distinctId: params.username,
