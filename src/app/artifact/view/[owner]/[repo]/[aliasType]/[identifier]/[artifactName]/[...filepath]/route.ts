@@ -1,7 +1,7 @@
 import {NextResponse} from 'next/server'
 import {loadArtifact, loadFile} from '../load-artifact.server'
 import {checkContext} from '~/analytics/posthog-server'
-import {PathParams} from '~/app/artifact/view/params'
+import {PathParams, toPath} from '~/app/artifact/view/params'
 import {auth} from '~/auth'
 import {logger} from '~/tag-logger'
 
@@ -17,6 +17,11 @@ export const GET = auth(async (request, {params}) => {
   return logger
     .try('loadArtifact', async () => {
       const pathParams = PathParams.parse(params)
+      if (pathParams.aliasType === 'sha' && pathParams.identifier.length > 7) {
+        const fixedPath = toPath({...pathParams, identifier: pathParams.identifier.slice(0, 7)})
+        const redirectTo = new URL(fixedPath + request.nextUrl.search, request.nextUrl.origin)
+        return NextResponse.redirect(redirectTo)
+      }
       const artifact = await loadArtifact(githubLogin, {params: pathParams})
       if (artifact.outcome === '4xx') {
         return NextResponse.json(artifact, {status: 404})

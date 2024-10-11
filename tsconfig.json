@@ -40,6 +40,7 @@
     "upload/*"
   ],
   "exclude": [
+    "zignoreme",
     "node_modules"
   ]
 }

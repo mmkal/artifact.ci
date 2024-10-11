@@ -34,7 +34,7 @@ const config: DocsThemeConfig = {
     />
   ),
   footer: {
-    text: productionUrl.hostname,
+    component: () => <div>{productionUrl.hostname}</div>,
   },
 }
 
