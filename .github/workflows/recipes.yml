@@ -126,7 +126,7 @@ jobs:
           mkdir -p test
           echo 'const {add, addBadly} = require("../calc")' >> test/adding.test.js
           echo 'test("add well", () => expect(add(1, 1)).toEqual(2))' >> test/adding.test.js
-          echo 'test("add badly", () => expect(addBaddly(1, 1)).toEqual(2))' >> test/adding.test.js
+          echo 'test("add badly", () => expect(addBadly(1, 1)).toEqual(2))' >> test/adding.test.js
           echo 'const {add} = require("../calc")' >> test/snaps.test.js
           echo 'test("bad snapshot", () => expect({foo: add(1, 1)}).toMatchInlineSnapshot(`{"foo": 3}`))' >> test/snaps.test.js
           echo 'module.exports = {
