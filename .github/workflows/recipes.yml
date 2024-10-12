@@ -40,16 +40,8 @@ jobs:
           ls -R
       - uses: actions/upload-artifact@v4
         with:
-          name: vitest-coverage
-          path: coverage
-      - uses: actions/upload-artifact@v4
-        with:
-          name: vitest-report
-          path: html
-      - uses: actions/upload-artifact@v4
-        with:
-          name: vitest-all
-          path: |
+          name: vitest
+          path:
             html
             coverage
   playwright:
@@ -111,13 +103,12 @@ jobs:
           echo "module.exports = require('eslint-plugin-mmkal').recommendedFlatConfigs" >> eslint.config.js
       - name: build eslint inspection report
         run: |
-          BASE_PATH="/artifact/view/$GITHUB_REPOSITORY/run/$GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT/eslint"
-          npx @eslint/config-inspector build --base $BASE_PATH
+          BASE_PATH="/artifact/view/$GITHUB_REPOSITORY/run/$GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT/eslint/config-inspector"
+          npx @eslint/config-inspector build --base $BASE_PATH --outDir dist/config-inspector
       - uses: actions/upload-artifact@v4
         with:
           name: eslint
-          path: .eslint-config-inspector
-          include-hidden-files: true
+          path: dist
           if-no-files-found: error
 
   jest:
