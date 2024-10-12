@@ -103,12 +103,13 @@ jobs:
           echo "module.exports = require('eslint-plugin-mmkal').recommendedFlatConfigs" >> eslint.config.js
       - name: build eslint inspection report
         run: |
-          BASE_PATH="/artifact/view/$GITHUB_REPOSITORY/run/$GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT/eslint/config-inspector"
-          npx @eslint/config-inspector build --base $BASE_PATH --outDir dist/config-inspector
+          BASE_PATH="/artifact/view/$GITHUB_REPOSITORY/run/$GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT/eslint"
+          npx @eslint/config-inspector build --base $BASE_PATH
       - uses: actions/upload-artifact@v4
         with:
           name: eslint
-          path: dist
+          path: .eslint-config-inspector
+          include-hidden-files: true
           if-no-files-found: error
 
   jest:
