@@ -46,6 +46,12 @@ jobs:
         with:
           name: vitest-report
           path: html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vitest-all
+          path: |
+            html
+            coverage
   playwright:
     needs: html
     if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
