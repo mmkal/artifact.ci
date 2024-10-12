@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
   if (workflowRun.status !== 'in_progress') {
     logger.warn({workflowRun}, `workflow run is not in progress`)
-    return NextResponse.json({error: `not in progress`}, {status: 400})
+    return NextResponse.json({error: `not in progress`, status: workflowRun.status}, {status: 400})
   }
 
   const {data: artifact} = await octokit.rest.actions.getArtifact({
