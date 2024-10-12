@@ -36,7 +36,7 @@ jobs:
           echo 'test("add badly", () => expect(addBad(1, 1)).toEqual(2))' >> test/adding.test.ts
       - name: run tests
         run: |
-          npx vitest --coverage --reporter html run || echo failed
+          npx vitest --coverage --coverage.reportOnFailure --reporter html run || echo failed
           ls -R
       - uses: actions/upload-artifact@v4
         with:
