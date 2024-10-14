@@ -25,7 +25,7 @@ jobs:
           rm -rf node_modules
           rm -rf test && mkdir test
           npm init -y
-          npm install vitest @vitest/ui @types/node@^20.0.0 --save-dev
+          npm install vitest @vitest/ui @vitest/coverage-v8 @types/node@^20.0.0 --save-dev
           cat package.json
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + 1' >> calc.ts
@@ -35,11 +35,15 @@ jobs:
           echo 'test("add well", () => expect(add(1, 1)).toEqual(2))' >> test/adding.test.ts
           echo 'test("add badly", () => expect(addBad(1, 1)).toEqual(2))' >> test/adding.test.ts
       - name: run tests
-        run: npx vitest --reporter html || echo failed
+        run: |
+          npx vitest --coverage --coverage.reportOnFailure --reporter html run || echo failed
+          ls -R
       - uses: actions/upload-artifact@v4
         with:
           name: vitest
-          path: html
+          path:
+            html
+            coverage
   playwright:
     needs: html
     if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
@@ -122,7 +126,7 @@ jobs:
           mkdir -p test
           echo 'const {add, addBadly} = require("../calc")' >> test/adding.test.js
           echo 'test("add well", () => expect(add(1, 1)).toEqual(2))' >> test/adding.test.js
-          echo 'test("add badly", () => expect(addBaddly(1, 1)).toEqual(2))' >> test/adding.test.js
+          echo 'test("add badly", () => expect(addBadly(1, 1)).toEqual(2))' >> test/adding.test.js
           echo 'const {add} = require("../calc")' >> test/snaps.test.js
           echo 'test("bad snapshot", () => expect({foo: add(1, 1)}).toMatchInlineSnapshot(`{"foo": 3}`))' >> test/snaps.test.js
           echo 'module.exports = {
@@ -138,7 +142,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: jest
-          path: report
+          path: |
+            report
+            coverage
   ava:
     needs: html
     if: ${{ !contains(github.event.head_commit.message, 'debug=html') }}
