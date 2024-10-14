@@ -5,6 +5,8 @@
 
 A GitHub App that provides browsable links for artifacts uploaded during GitHub Actions workflow runs.
 
+It's a small tool which solves a [specific shortcoming of GitHub Actions](https://github.com/actions/upload-artifact/issues/14).
+
 To use it, all you need to do is install the app. Then use `actions/upload-artifact` as normal in your workflow. It will add a link to view any artifacts uploaded via GitHub checks.
 
 Docs and install instructions on [artifact.ci](https://artifact.ci).
