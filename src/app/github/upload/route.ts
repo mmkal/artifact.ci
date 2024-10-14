@@ -64,19 +64,22 @@ export async function POST(request: NextRequest) {
 }
 
 type InsertParams = UploadRequest & {
-  artifact: {name: string}
+  artifact: {name: string; visibility?: string}
   installation: {id: number}
 }
 
 export const insertArtifactRecord = async ({owner, repo, job, artifact: a, installation}: InsertParams) => {
   return client.transaction(async tx => {
     const dbArtifact = await tx.one(sql<queries.Artifact>`
-      insert into artifacts (repo_id, name, github_id, installation_id)
+      with repo as (select * from repos where owner = ${owner} and name = ${repo})
+      insert into artifacts (repo_id, name, github_id, installation_id, visibility)
       select
-        (select id from repos where owner = ${owner} and name = ${repo}) as repo_id,
+        repo.id as repo_id,
         ${a.name} as name,
         ${a.id} as github_id,
-        (select id from github_installations where github_id = ${installation.id}) as installation_id
+        (select id from github_installations where github_id = ${installation.id}) as installation_id,
+        coalesce(${a.visibility || null}, repo.default_visibility) as visibility
+      from repo
       on conflict (repo_id, name, github_id)
         do update set
           updated_at = current_timestamp
@@ -132,7 +135,7 @@ export declare namespace queries {
     id: number
   }
 
-  /** - query: `insert into artifacts (repo_id, name, gi... [truncated] ...dated_at = current_timestamp returning *` */
+  /** - query: `with repo as (select * from repos where ... [truncated] ...dated_at = current_timestamp returning *` */
   export interface Artifact {
     /** column: `public.artifacts.id`, not null: `true`, regtype: `prefixed_ksuid` */
     id: import('~/db').Id<'artifacts'>

@@ -79,6 +79,7 @@ create table repos (
   owner text not null,
   name text not null,
   installation_id prefixed_ksuid not null references github_installations(id),
+  default_visibility text not null default 'private', -- public, private, internal
   created_at timestamp with time zone not null default current_timestamp,
   updated_at timestamp with time zone not null default current_timestamp,
   unique(owner, name)

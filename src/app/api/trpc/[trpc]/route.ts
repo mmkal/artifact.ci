@@ -10,9 +10,7 @@ const handler = auth(request => {
       req: request,
       endpoint: '/api/trpc',
       createContext: async (): Promise<TrpcContext> => ({session: request.auth}),
-      onError({error, path}) {
-        logger.tag(`path=${path}`).error(error)
-      },
+      onError: ({error, path}) => logger.tag(`path=${path}`).error(error),
     })
   })
 })
