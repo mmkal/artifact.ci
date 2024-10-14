@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     run_id: event.job.run_id,
   })
 
-  if (workflowRun.status !== 'in_progress') {
+  if (workflowRun.status !== 'in_progress' && workflowRun.status !== 'queued') {
     logger.warn({workflowRun}, `workflow run is not in progress`)
     return NextResponse.json({error: `not in progress`, status: workflowRun.status}, {status: 400})
   }
