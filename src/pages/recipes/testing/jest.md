@@ -37,3 +37,23 @@ Jest has a built-in coverage reporter which outputs HTML - if you're paying for 
       name: jest
       path: coverage
 ```
+
+Or you can combine the HTML output with the coverage report:
+
+```js
+// jest.config.js
+module.exports = {
+  reporters: ["default", ["jest-html-reporters", {publicPath: "./report"}]],
+}
+```
+
+```yaml
+- run: npx vitest --coverage --reporter html
+- uses: actions/upload-artifact@v4
+  if: always()
+  with:
+      name: jest
+      path: |
+        coverage
+        report
+```
