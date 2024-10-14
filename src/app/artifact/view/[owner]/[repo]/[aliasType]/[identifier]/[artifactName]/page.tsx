@@ -34,7 +34,7 @@ async function ArtifactPageInner({params, searchParams}: ArtifactPage.Params) {
     return redirect(`/api/auth/signin?${new URLSearchParams({callbackUrl})}`)
   }
 
-  const arti = await logger.try('pageLoad', () => loadArtifact(githubLogin, {params}))
+  const arti = await logger.try('loadArtifact', () => loadArtifact(githubLogin, {params}))
 
   captureServerEvent({
     distinctId: githubLogin,
