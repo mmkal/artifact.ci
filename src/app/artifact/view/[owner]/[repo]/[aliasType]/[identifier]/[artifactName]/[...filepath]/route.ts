@@ -9,11 +9,6 @@ import {logger} from '~/tag-logger'
 export const GET = auth(async (request, {params}) => {
   checkContext('loadArtifactRouteHandler')
   const githubLogin = request?.auth?.user?.github_login
-  if (!githubLogin) {
-    const redirectTo = new URL('/api/auth/signin', request.nextUrl.origin)
-    redirectTo.searchParams.set('callbackUrl', request.nextUrl.toString().replace(request.nextUrl.origin, ''))
-    return NextResponse.redirect(redirectTo)
-  }
   return logger
     .try('loadArtifact', async () => {
       const pathParams = PathParams.parse(params)
@@ -26,6 +21,11 @@ export const GET = auth(async (request, {params}) => {
       }
 
       const res = await loadArtifact(githubLogin, {params: pathParams})
+      if (res.code === 'not_authorized' && !githubLogin) {
+        const redirectTo = new URL('/api/auth/signin', request.nextUrl.origin)
+        redirectTo.searchParams.set('callbackUrl', request.nextUrl.toString().replace(request.nextUrl.origin, ''))
+        return NextResponse.redirect(redirectTo)
+      }
       if (res.code === 'not_uploaded_yet' || res.code === 'upload_not_found' || res.code === 'artifact_not_found') {
         return NextResponse.json(res, {status: 404})
       }

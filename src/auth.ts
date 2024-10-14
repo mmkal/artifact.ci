@@ -76,10 +76,14 @@ export const getInstallationOctokit = async (installationId: number) => {
   return app.getInstallationOctokit(installationId)
 }
 
-export type GetCollaborationLevelParams = {owner: string; repo: string; username: string}
+export type GetCollaborationLevelParams = {owner: string; repo: string; username: string | undefined}
 export const getCollaborationLevel = async (octokit: Octokit, params: GetCollaborationLevelParams) => {
   if (params.username === params.owner) return 'admin'
-  const {data: collaboration} = await octokit.rest.repos.getCollaboratorPermissionLevel(params)
+  if (!params.username) return 'none'
+  const {data: collaboration} = await octokit.rest.repos.getCollaboratorPermissionLevel({
+    ...params,
+    username: params.username,
+  })
   const parsed = z.object({permission: z.enum(['none', 'read', 'write', 'admin'])}).safeParse(collaboration)
   if (!parsed.success) logger.error({collaboration}, 'getCollaborationLevel: failed to parse collaboration')
   return parsed.success ? parsed.data.permission : 'none'
@@ -87,6 +91,7 @@ export const getCollaborationLevel = async (octokit: Octokit, params: GetCollabo
 
 export type CheckCreditStatusParams = GetCollaborationLevelParams & {artifactId: string}
 export const checkCreditStatus = async (params: CheckCreditStatusParams) => {
+  const githubLogin = params.username?.toLowerCase() ?? null
   // todo: pgkit: the type isn't quite right. it's a full outer join so everything should be nullable
   const credits = await client.any(sql<queries.Credit>`
     select
@@ -98,23 +103,24 @@ export const checkCreditStatus = async (params: CheckCreditStatusParams) => {
     from usage_credits
     full outer join artifacts a on a.id = ${params.artifactId} and a.visibility = 'public'
     where
-      (github_login = ${params.username.toLowerCase()} or github_login = ${params.owner.toLowerCase()})
+      (github_login = ${githubLogin} or github_login = ${params.owner.toLowerCase()})
       and expiry > now()
   `)
   if (credits.length > 1) logger.warn({credits, params}, 'checkCanAccess: multiple credits')
 
   if (credits.length === 0) {
+    // todo: pgkit: AST parsing is failing on this query, might need to bump the parser, fix the templating algorithm, or make it more fault tolerant
     const freeTrial = await client.maybeOne(sql<queries.FreeTrial>`
       with prior_free_trial_credits as (
         select count(*) as prior_free_trial_count
         from usage_credits
-        where github_login = ${params.username.toLowerCase()}
+        where github_login = ${githubLogin}
         and expiry < now()
         and reason = 'free_trial'
       ),
       new_free_trial_credit as (
         insert into usage_credits (github_login, reason, expiry)
-        select ${params.username.toLowerCase()}, 'free_trial', now() + interval '24 hours'
+        select ${githubLogin}, 'free_trial', now() + interval '24 hours'
         from prior_free_trial_credits
         where prior_free_trial_count < 10
         returning *
@@ -125,7 +131,7 @@ export const checkCreditStatus = async (params: CheckCreditStatusParams) => {
     logger.warn(`checkCanAccess: ${freeTrial?.prior_free_trial_count} prior free trial credits`, freeTrial)
     if (freeTrial) {
       captureServerEvent({
-        distinctId: params.username,
+        distinctId: githubLogin || 'anonymous',
         event: 'free_trial_credit_created',
         properties: {
           artifact_id: params.artifactId,
@@ -142,12 +148,15 @@ export const checkCreditStatus = async (params: CheckCreditStatusParams) => {
     return {canAccess: false, code: 'no_credit', reason: 'no_credit'} as const
   }
 
-  return {canAccess: true, code: 'has_credit', reason: credits.map(c => c.reason).join(';')} as const
+  const isPublic = credits.some(c => c.visibility === 'public')
+  return {canAccess: true, code: 'has_credit', reason: credits.map(c => c.reason).join(';'), isPublic} as const
 }
 
 export const checkCanAccess = async (octokit: Octokit, params: CheckCreditStatusParams) => {
   const creditStatus = await checkCreditStatus(params)
   if (!creditStatus.canAccess) return creditStatus
+
+  if (creditStatus.isPublic) return creditStatus
 
   const level = await getCollaborationLevel(octokit, params)
   if (level === 'none') {

@@ -7,7 +7,8 @@ import {client, sql} from '~/db'
 import {supabaseStorageServiceRoleClient} from '~/storage/supabase'
 import {logger} from '~/tag-logger'
 
-export const loadArtifact = async (githubLogin: string, {params}: {params: PathParams}) => {
+export const loadArtifact = async (login: string | null | undefined, {params}: {params: PathParams}) => {
+  const githubLogin = login || undefined
   logger.tag('params').debug(params)
   const {owner, repo, aliasType, identifier, artifactName, filepath = []} = params
 
@@ -15,6 +16,7 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
     select
       i.github_id as installation_github_id,
       a.id as artifact_id,
+      a.visibility,
       (select array_agg(entry_name) from artifact_entries ae where ae.artifact_id = a.id) entries
     from artifacts a
     join artifact_identifiers aid on aid.artifact_id = a.id
@@ -146,8 +148,8 @@ export declare namespace queries {
     /** column: `public.artifacts.id`, not null: `true`, regtype: `prefixed_ksuid` */
     artifact_id: import('~/db').Id<'artifacts'>
 
-    /** column: `public.artifacts.download_url`, regtype: `text` */
-    download_url: string | null
+    /** column: `public.artifacts.visibility`, not null: `true`, regtype: `text` */
+    visibility: string
 
     /**
      * From CTE subquery "subquery_3_for_column_entries"

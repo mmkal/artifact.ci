@@ -29,15 +29,15 @@ async function ArtifactPageInner({params, searchParams}: ArtifactPage.Params) {
 
   const githubLogin = session?.user?.github_login
 
-  if (!githubLogin) {
+  const arti = await logger.try('loadArtifact', () => loadArtifact(githubLogin, {params}))
+
+  if (arti.code === 'not_authorized' && !githubLogin) {
     const callbackUrl = `/artifact/view/${params.owner}/${params.repo}/${params.aliasType}/${params.identifier}/${params.artifactName}`
     return redirect(`/api/auth/signin?${new URLSearchParams({callbackUrl})}`)
   }
 
-  const arti = await logger.try('loadArtifact', () => loadArtifact(githubLogin, {params}))
-
   captureServerEvent({
-    distinctId: githubLogin,
+    distinctId: githubLogin || 'anonymous',
     event: `artifact_load.${arti.code}`,
     properties: {
       ...arti,

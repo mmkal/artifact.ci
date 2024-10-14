@@ -14,7 +14,7 @@ type Update = {stage: string; message: string; onClick?: () => void}
 export namespace ArtifactLoader {
   export type Params = PathParams & {
     artifactId: string
-    githubLogin: string
+    githubLogin: string | undefined
     entry: string | null
   }
 }
