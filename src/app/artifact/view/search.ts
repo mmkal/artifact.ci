@@ -5,7 +5,7 @@ import {logger} from '~/tag-logger'
 
 export const searchArtifacts = async (params: Partial<PathParams>, {offset = 0, limit = 100} = {}) => {
   const session = await auth()
-  if (!session?.user.github_login) return []
+  if (!session?.user.github_login) return Object.assign([], {code: 'not_logged_in'} as const)
   const owner = params.owner || session?.user.github_login
 
   const artifacts = await client.any(sql<queries.Artifact>`

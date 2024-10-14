@@ -11,7 +11,9 @@ export function SearchUI({results}: SearchUI.Props) {
     <div className="space-y-4">
       <h2 className="text-2xl font-semibold mb-4">Artifacts</h2>
       <div className="space-y-2 max-h-[70vh] overflow-y-auto scroll-smooth snap-y snap-mandatory pr-5">
-        {results.length === 0 ? (
+        {results.length === 0 && 'code' in results && results.code === 'not_logged_in' ? (
+          <div className="p-3 rounded-md hover:bg-gray-900">Not logged in</div>
+        ) : results.length === 0 ? (
           <div className="p-3 rounded-md hover:bg-gray-900">No artifacts found</div>
         ) : (
           results.map(({pathParams, label, name}, index) => (
