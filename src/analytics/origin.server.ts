@@ -18,7 +18,7 @@ export const globalServerOrigin = () => {
   if (cachedOrigin) return cachedOrigin
 
   if (!process.env.VERCEL_ENV) {
-    logger.warn('VERCEL_ENV is not set')
+    if (process.env.NODE_ENV !== 'development') logger.warn('VERCEL_ENV is not set')
     return (cachedOrigin = productionUrl.origin)
   }
 
