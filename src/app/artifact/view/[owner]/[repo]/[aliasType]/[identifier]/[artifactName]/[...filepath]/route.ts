@@ -17,29 +17,32 @@ export const GET = auth(async (request, {params}) => {
   return logger
     .try('loadArtifact', async () => {
       const pathParams = PathParams.parse(params)
+
       if (pathParams.aliasType === 'sha' && pathParams.identifier.length > 7) {
+        // redirect to the short sha - could probably just remove this actually
         const fixedPath = toPath({...pathParams, identifier: pathParams.identifier.slice(0, 7)})
         const redirectTo = new URL(fixedPath + request.nextUrl.search, request.nextUrl.origin)
         return NextResponse.redirect(redirectTo)
       }
-      const artifact = await loadArtifact(githubLogin, {params: pathParams})
-      if (artifact.outcome === '4xx') {
-        return NextResponse.json(artifact, {status: 404})
+
+      const res = await loadArtifact(githubLogin, {params: pathParams})
+      if (res.code === 'not_uploaded_yet' || res.code === 'upload_not_found' || res.code === 'artifact_not_found') {
+        return NextResponse.json(res, {status: 404})
       }
-      if (artifact.outcome === 'not_uploaded_yet') {
-        return NextResponse.json(artifact, {status: 404})
+      if (res.code === 'not_authorized') {
+        return NextResponse.json(res, {status: 403})
       }
-      if (artifact.outcome !== '2xx') {
-        artifact satisfies never // this ensures typescript believes we've handled all cases
-        throw new Error('Unexpected outcome', {cause: artifact})
+      if (res.code !== '2xx') {
+        res satisfies never // ensure typescript thinks we've handled all cases
+        throw new Error('Unexpected outcome', {cause: res})
       }
-      if (!artifact.storagePathname) {
+      if (!res.storagePathname) {
         return NextResponse.redirect(
           new URL('/artifact/view/[owner]/[repo]/[aliasType]/[identifier]/[artifactName]', request.nextUrl.origin),
         )
       }
 
-      return loadFile(artifact.storagePathname, pathParams)
+      return loadFile(res.storagePathname, pathParams)
     })
     .catch(error => {
       logger.error(error)

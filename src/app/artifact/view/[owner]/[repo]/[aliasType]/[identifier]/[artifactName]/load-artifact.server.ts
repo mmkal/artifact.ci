@@ -7,10 +7,6 @@ import {client, sql} from '~/db'
 import {supabaseStorageServiceRoleClient} from '~/storage/supabase'
 import {logger} from '~/tag-logger'
 
-const ResponseHelpers = {
-  json: <const T>(body: T, options: {status: 400 | 401 | 403 | 404}) => ({outcome: '4xx', body, options}) as const,
-}
-
 export const loadArtifact = async (githubLogin: string, {params}: {params: PathParams}) => {
   logger.tag('params').debug(params)
   const {owner, repo, aliasType, identifier, artifactName, filepath = []} = params
@@ -35,20 +31,20 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
 
   if (!artifactInfo) {
     const message = `Artifact ${artifactName} not found`
-    return ResponseHelpers.json({message, params, githubLogin, code: 'artifact_not_found'}, {status: 404})
+    return {code: 'artifact_not_found', message, githubLogin, artifactInfo} as const
   }
 
   const octokit = await getInstallationOctokit(artifactInfo.installation_github_id)
-  const canAccess = await checkCanAccess(octokit, {
+  const accessResult = await checkCanAccess(octokit, {
     owner,
     repo,
     username: githubLogin,
     artifactId: artifactInfo.artifact_id,
   })
 
-  if (!canAccess.canAccess) {
+  if (!accessResult.canAccess) {
     const message = `Not authorized to access artifact ${artifactName}`
-    return ResponseHelpers.json({message, params, githubLogin, ...canAccess}, {status: 403})
+    return {code: 'not_authorized', message, params, githubLogin, access: accessResult} as const
   }
 
   const loaderParams: ArtifactLoader.Params = {
@@ -59,11 +55,11 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
   }
 
   if (!artifactInfo.entries?.length) {
-    return {outcome: 'not_uploaded_yet', loaderParams, artifactInfo} as const
+    return {code: 'not_uploaded_yet', loaderParams, artifactInfo} as const
   }
 
   if (filepath.length === 0) {
-    return {outcome: '2xx', storagePathname: null, artifactInfo, loaderParams} as const
+    return {code: '2xx', storagePathname: null, artifactInfo, loaderParams} as const
   }
 
   const dbFile = await client.maybeOne(sql<queries.DbFile>`
@@ -79,13 +75,10 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
   `)
 
   if (!dbFile || !dbFile.storage_pathname) {
-    return ResponseHelpers.json(
-      {dbFile, message: `Upload not found`, params, githubLogin, artifactInfo, code: 'upload_not_found'},
-      {status: 404},
-    )
+    return {code: 'upload_not_found', message: `Upload not found`, params, githubLogin, artifactInfo} as const
   }
 
-  return {outcome: '2xx', storagePathname: dbFile.storage_pathname, artifactInfo, loaderParams} as const
+  return {code: '2xx', storagePathname: dbFile.storage_pathname, artifactInfo, loaderParams} as const
 }
 
 export async function loadFile(storagePathname: string, params: PathParams) {

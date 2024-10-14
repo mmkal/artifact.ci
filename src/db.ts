@@ -12,7 +12,7 @@ export const client = createClient(config.client.connectionString, {
   wrapQueryFn: queryFn => {
     return async query => {
       const result = await queryFn(query)
-      logger.debug('queryResult', query.name, {rowCount: result.rowCount})
+      logger.debug('queryResult', {query, result})
       return result
     }
   },
