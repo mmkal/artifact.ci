@@ -34,18 +34,18 @@ async function ArtifactPageInner({params, searchParams}: ArtifactPage.Params) {
     return redirect(`/api/auth/signin?${new URLSearchParams({callbackUrl})}`)
   }
 
-  const artifact = await logger.try('pageLoad', () => loadArtifact(githubLogin, {params}))
+  const arti = await logger.try('pageLoad', () => loadArtifact(githubLogin, {params}))
 
   captureServerEvent({
     distinctId: githubLogin,
-    event: `artifact_load.${artifact.outcome}`,
+    event: `artifact_load.${arti.code}`,
     properties: {
-      ...artifact,
+      ...arti,
       $current_url: toFullUrl(params, searchParams),
     },
   })
 
-  if (artifact.outcome === '4xx' && artifact.body.code === 'no_credit') {
+  if (arti.code === 'not_authorized' && !arti.access.canAccess && arti.access.code === 'no_credit') {
     return (
       <>
         <h2>No credit!</h2>
@@ -74,25 +74,20 @@ async function ArtifactPageInner({params, searchParams}: ArtifactPage.Params) {
     )
   }
 
-  if (artifact.outcome === '4xx') {
-    return <pre>{JSON.stringify(artifact, null, 2)}</pre>
+  if (arti.code === 'not_authorized' || arti.code === 'upload_not_found' || arti.code === 'artifact_not_found') {
+    return <pre>{JSON.stringify(arti, null, 2)}</pre>
   }
-  if (artifact.outcome === 'not_uploaded_yet' || searchParams.reload === 'true') {
+
+  if (arti.code === 'not_uploaded_yet' || searchParams.reload === 'true') {
     return (
       <TrpcProvider>
         <PostHogProvider>
-          <ArtifactLoader {...artifact.loaderParams} />
+          <ArtifactLoader {...arti.loaderParams} />
         </PostHogProvider>
       </TrpcProvider>
     )
   }
-  artifact.outcome satisfies '2xx'
 
-  return (
-    <FileList
-      names={artifact.artifactInfo.entries || []}
-      params={params}
-      artifactId={artifact.artifactInfo.artifact_id}
-    />
-  )
+  arti.code satisfies '2xx'
+  return <FileList names={arti.artifactInfo.entries || []} params={params} artifactId={arti.artifactInfo.artifact_id} />
 }

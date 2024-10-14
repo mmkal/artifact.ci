@@ -28,6 +28,7 @@ export function ArtifactLoader(params: ArtifactLoader.Params) {
 }
 
 function ArtifactLoaderInner(params: ArtifactLoader.Params) {
+  console.log('ArtifactLoaderInner', params)
   const searchParams = useSearchParams()
   posthog.identify(params.githubLogin)
   const reload = searchParams?.get('reload') === 'true'

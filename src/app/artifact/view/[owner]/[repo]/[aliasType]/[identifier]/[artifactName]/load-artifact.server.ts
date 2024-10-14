@@ -75,7 +75,14 @@ export const loadArtifact = async (githubLogin: string, {params}: {params: PathP
   `)
 
   if (!dbFile || !dbFile.storage_pathname) {
-    return {code: 'upload_not_found', message: `Upload not found`, params, githubLogin, artifactInfo} as const
+    return {
+      code: 'upload_not_found',
+      message: `Upload not found`,
+      params,
+      githubLogin,
+      artifactInfo,
+      loaderParams,
+    } as const
   }
 
   return {code: '2xx', storagePathname: dbFile.storage_pathname, artifactInfo, loaderParams} as const
