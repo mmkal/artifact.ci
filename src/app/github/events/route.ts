@@ -57,19 +57,15 @@ async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
         installation_id = excluded.installation_id
       returning *
     `)
-    for (const repo of createdRepos) {
-      captureServerEvent({
-        distinctId: `${repo.owner}/${repo.name}`,
-        event: 'repo_created',
-        properties: {
-          githubInstallationId: event.installation.id,
-          dbInstallationId: repo.installation_id,
-          repoId: repo.id,
-          owner: repo.owner,
-          name: repo.name,
-        },
-      })
-    }
+    captureServerEvent({
+      distinctId: event.installation.id.toString(),
+      event: 'installation_created',
+      properties: {
+        githubInstallationId: event.installation.id,
+        dbInstallationId: createdRepos[0].installation_id,
+        repos: event.installation.repositories_added.map(r => r.full_name).join(','),
+      },
+    })
     return NextResponse.json({ok: true, action: event.action, eventType: event.eventType, createdRepos})
   }
   if (event.eventType === 'installation_removed') {
@@ -79,20 +75,15 @@ async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
       where github_id = ${event.installation.id}
       returning *
     `)
-    for (const repo of event.installation.repositories_removed) {
-      const [owner, name] = repo.full_name.split('/')
-      captureServerEvent({
-        distinctId: repo.full_name,
-        event: 'repo_removed',
-        properties: {
-          githubInstallationId: event.installation.id,
-          dbInstallationId: removedInstallation.id,
-          repoId: removedInstallation.id,
-          owner,
-          name,
-        },
-      })
-    }
+    captureServerEvent({
+      distinctId: event.installation.id.toString(),
+      event: 'installation_removed',
+      properties: {
+        githubInstallationId: event.installation.id,
+        dbInstallationId: removedInstallation.id,
+        repos: event.installation.repositories_removed.map(r => r.full_name).join(','),
+      },
+    })
     return NextResponse.json({ok: true, action: event.action, eventType: event.eventType, removedInstallation})
   }
   if (event.eventType === 'workflow_job_not_completed' || event.eventType === 'unknown_action') {
