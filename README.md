@@ -1,13 +1,15 @@
 <!-- codegen:start {preset: custom, source: ./scripts/codegen.js, export: generateReadme} -->
 # artifact.ci
 
-## What is this?
+View your GitHub artifacts in the browser.
 
-A GitHub App that provides browsable links for artifacts uploaded during GitHub Actions workflow runs.
+## How
 
-It's a small tool which solves a [specific shortcoming of GitHub Actions](https://github.com/actions/upload-artifact/issues/14).
+artifact.ci is a GitHub App that provides browsable links for artifacts uploaded during GitHub Actions workflow runs.
 
-To use it, all you need to do is install the app. Then use `actions/upload-artifact` as normal in your workflow. It will add a link to view any artifacts uploaded via GitHub checks.
+View test reports, code coverage, PDFs, images, and more, directly in your browser. No more downloading and unzipping.
+
+It's a small tool which solves a specific, hopefully temporary, [shortcoming of GitHub Actions](https://github.com/actions/upload-artifact/issues/14). To use it, all you need to do is install the app. Then use `actions/upload-artifact` as normal in your workflow. It will add a link to view any artifacts uploaded via GitHub checks.
 
 Docs and install instructions on [artifact.ci](https://artifact.ci).
 
@@ -53,9 +55,9 @@ This is [my](https://x.com/mmkalmmkal) side project, something I built initially
 
 The actual service doesn't have a paywall for now, and usage is free to start out with. Access may be limited to my [GitHub sponsors](https://github.com/sponsors/mmkal) due to storage costs. I'm giving some users and organizations free access - this is based on how much I use them myself, but if you would like to use this without sponsorship, [contact me](https://x.com/mmkalmmkal).
 
-## Availability
+## Usage and Availability
 
-There's no API surface right now. Just install the app and it should "just work" - it'll find your artifacts automatically. Options may be added in future to customise how the artifact is stored (for example, defining content-disposition headers, or making access to certain files public rather tha private). Usage limits may be introduced in future, or a proper payments setup.
+There's no API surface right now. Just install the app and it should "just work" - it'll find your artifacts automatically. There are a small number of options that can be customised, see [advanced usage docs](https://www.artifact.ci/advanced). Usage limits may be introduced in future, or a proper payments setup.
 
 Note that the GitHub team have mentioned a built-in solution is on their radar, so hopefully this will only be necessary for a short while.
 <!-- codegen:end -->
