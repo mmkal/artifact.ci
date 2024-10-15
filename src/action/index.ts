@@ -58,6 +58,7 @@ async function main() {
           ? `https://artifactci-git-${branchName.replaceAll(/\W/g, '-')}-mmkals-projects.vercel.app`
           : 'https://www.artifact.ci',
       ),
+    artifactciVisibility: z.enum(['private', 'public']).optional(),
   })
 
   const coercedInput = Object.fromEntries(
@@ -93,7 +94,7 @@ async function main() {
   const uploadRequest = UploadRequest.parse({
     owner,
     repo,
-    artifact: {id: uploadResponse.id!},
+    artifact: {id: uploadResponse.id!, visibility: inputs.artifactciVisibility},
     job: {
       head_branch: env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME,
       head_sha: env.GITHUB_SHA,

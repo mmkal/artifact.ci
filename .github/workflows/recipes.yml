@@ -337,3 +337,4 @@ jobs:
         with:
           name: custom_action
           path: index.html
+          artifactci-visibility: private

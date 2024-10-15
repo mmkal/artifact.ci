@@ -35,6 +35,9 @@ inputs:
   artifactci-origin:
     description: The origin of the server to upload the artifact to. Defaults to https://www.artifact.ci
     required: false
+  artifactci-visibility:
+    description: The visibility of the artifact to upload. Options are "private" or "public". Defaults to repository default visibility (private unless explicitly set otherwise previously).
+    required: false
 runs:
   using: node20
   main: action.min.js # relative to this action.yml file, not repo root

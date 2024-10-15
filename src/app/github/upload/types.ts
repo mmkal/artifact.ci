@@ -9,7 +9,10 @@ export const UploadRequest = z.object({
     run_id: z.number().int(),
     run_attempt: z.number().int(),
   }),
-  artifact: z.object({id: z.number().int()}),
+  artifact: z.object({
+    id: z.number().int(),
+    visibility: z.enum(['private', 'public']).optional(),
+  }),
 })
 export type UploadRequest = z.infer<typeof UploadRequest>
 

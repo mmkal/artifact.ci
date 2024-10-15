@@ -50,7 +50,11 @@ export async function POST(request: NextRequest) {
     artifact_id: event.artifact.id,
   })
 
-  const insertResult = await insertArtifactRecord({...parsed.data, artifact, installation})
+  const insertResult = await insertArtifactRecord({
+    ...parsed.data,
+    artifact: {...artifact, visibility: event.artifact.visibility},
+    installation,
+  })
 
   const origin = getOrigin(request, {repo: `${owner}/${repo}`, branch: event.job.head_branch})
   const responseBody = UploadResponse.parse({
@@ -64,7 +68,7 @@ export async function POST(request: NextRequest) {
 }
 
 type InsertParams = UploadRequest & {
-  artifact: {name: string; visibility?: string}
+  artifact: {name: string; visibility?: 'private' | 'public'}
   installation: {id: number}
 }
 
