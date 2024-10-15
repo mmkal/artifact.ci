@@ -55,6 +55,7 @@ jobs:
           git ls-files | xargs rm && echo '*' >> .gitignore
           rm -rf test rm playwright.config.ts && mkdir test
           npm install @playwright/test --save-dev
+          echo 'export default {testDir: "test"}' > playwright.config.ts
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + 1' >> calc.ts
           echo 'export const sub = (a: number, b: number) => a - b' >> calc.ts
