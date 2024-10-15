@@ -1,0 +1,39 @@
+name: Recipes
+on: [push, pull_request]
+
+jobs:
+  status_badge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: create svg
+        run: |
+          echo '
+            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="136" height="20" viewBox="0 0 136 20">
+            <linearGradient id="b" x2="0" y2="100%">
+                <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+                <stop offset="1" stop-opacity=".1"/>
+            </linearGradient>
+            <clipPath id="a">
+                <rect width="136" height="20" rx="3" fill="#fff"/>
+            </clipPath>
+            <g clip-path="url(#a)">
+                <path fill="#555" d="M0 0h69v20H0z"/>
+                <path fill="#4c1" d="M69 0h67v20H69z"/>
+                <path fill="url(#b)" d="M0 0h136v20H0z"/>
+            </g>
+            <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
+                <text x="34.5" y="15" fill="#010101" fill-opacity=".3">build</text>
+                <text x="34.5" y="14">build</text>
+                <text x="101.5" y="15" fill="#010101" fill-opacity=".3">passing</text>
+                <text x="101.5" y="14">passing</text>
+            </g>
+            <path fill="#4c1" d="M11 4c-3.868 0-7 3.132-7 7 0 3.867 3.132 7 7 7 3.867 0 7-3.133 7-7 0-3.868-3.133-7-7-7zm3.907 5.846l-4.622 4.622a.695.695 0 0 1-.984 0L7.094 12.26a.695.695 0 0 1 0-.984.695.695 0 0 1 .984 0l1.715 1.715 4.13-4.13a.695.695 0 0 1 .984 0 .695.695 0 0 1 0 .985z"/>
+            </svg>
+          ' > status.svg
+      - uses: ./upload
+        with:
+          name: badge
+          path: status.svg
+          artifactci-visibility: public
+          artifactci-mode: eager

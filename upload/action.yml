@@ -42,6 +42,12 @@ inputs:
     description: |
       A comma separated list of alias types to add to the artifact. Options are "run", "sha" and "branch".
     default: "run,sha,branch"
+  artifactci-mode:
+    description: |
+      The mode of the artifact to upload. Options are "eager" or "lazy". Defaults to "lazy".
+      Eager mode will upload the artifact to the server immediately after the action is run.
+      Lazy mode will upload the artifact to the server when a logged-in user visits the artifact URL.
+    default: "lazy"
 runs:
   using: node20
   main: action.min.js # relative to this action.yml file, not repo root

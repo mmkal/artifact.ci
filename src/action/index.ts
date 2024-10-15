@@ -3,10 +3,13 @@ import {getInput, isDebug as isDebugCore, setFailed, setOutput} from '@actions/c
 import * as github from '@actions/github'
 import * as glob from '@actions/glob'
 import {HttpClient} from '@actions/http-client'
+import {createTRPCClient, httpLink} from '@trpc/client'
 import {readFile} from 'fs/promises'
 import {z} from 'zod'
 import {EventType} from './types'
+import {clientUpload} from '~/app/artifact/view/[owner]/[repo]/[aliasType]/[identifier]/[artifactName]/client-upload'
 import {UploadRequest, UploadResponse} from '~/app/github/upload/types'
+import {AppRouter} from '~/server/trpc'
 import {logger} from '~/tag-logger'
 
 async function main() {
@@ -42,7 +45,7 @@ async function main() {
 
   const StringyBoolean = z.boolean().or(z.enum(['true', 'false']).transform(s => s === 'true'))
 
-  /** camelCase version of the inputs in action.yml */
+  /** camelCase version of the inputs in action.yml. Note that *most* don't have defaults because the defaults are defined in action.yml */
   const Inputs = z.object({
     path: z.string(),
     name: z.string(),
@@ -63,6 +66,7 @@ async function main() {
       .string()
       .transform(s => s.split(','))
       .pipe(z.array(z.enum(['run', 'sha', 'branch']))),
+    artifactciMode: z.enum(['lazy', 'eager']),
   })
 
   const coercedInput = Object.fromEntries(
@@ -129,6 +133,23 @@ async function main() {
     const repository = github.context.repo
     const artifactURL = `${github.context.serverUrl}/${repository.owner}/${repository.repo}/actions/runs/${github.context.runId}/artifacts/${uploadResponse.id}`
     setOutput('artifact-url', artifactURL)
+
+    if (inputs.artifactciMode === 'eager') {
+      await clientUpload({
+        artifactId: result.artifactId,
+        onProgress(stage, message) {
+          logger.info(`${stage}: ${message}`)
+        },
+        trpcClient: createTRPCClient<AppRouter>({
+          links: [
+            httpLink({
+              url: inputs.artifactciOrigin + '/api/trpc',
+              headers: {'artifactci-upload-token': result.uploadToken},
+            }),
+          ],
+        }),
+      })
+    }
     result.urls.forEach(({aliasType, url}) => {
       console.log(`🔗 ${aliasType}: ${url}`)
       setOutput(`artifactci_${aliasType}_url`, url)

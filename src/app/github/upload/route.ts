@@ -57,12 +57,19 @@ export async function POST(request: NextRequest) {
   })
 
   const origin = getOrigin(request, {repo: `${owner}/${repo}`, branch: event.job.head_branch})
+  const uploadToken = await client.one(sql<queries.Secret>`
+    insert into vault.secrets (secret)
+    values (${owner})
+    returning secret
+  `)
   const responseBody = UploadResponse.parse({
     success: true,
     urls: insertResult.dbIdentifiers.map(({type: aliasType, value: identifier}) => {
       const url = origin + toPath({owner, repo, aliasType, identifier, artifactName: githubArtifact.name})
       return {aliasType, url}
     }),
+    artifactId: insertResult.dbArtifact.id,
+    uploadToken: uploadToken.secret!,
   } satisfies UploadResponse)
   return NextResponse.json(responseBody)
 }
@@ -142,6 +149,12 @@ export declare namespace queries {
   export interface Installation {
     /** column: `public.github_installations.github_id`, not null: `true`, regtype: `bigint` */
     id: number
+  }
+
+  /** - query: `insert into vault.secrets (secret) values ($1) returning secret` */
+  export interface Secret {
+    /** regtype: `text` */
+    secret: string | null
   }
 
   /** - query: `with repo as (select * from repos where ... [truncated] ...ted_at = excluded.updated_at returning *` */
