@@ -52,8 +52,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: setup
         run: |
+          echo starting
+          ls
           git ls-files | xargs rm && echo '*' >> .gitignore
+          ls
           rm -rf test rm playwright.config.ts && mkdir test
+          ls
+          ls -A
           npm install @playwright/test --save-dev
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + 1' >> calc.ts
