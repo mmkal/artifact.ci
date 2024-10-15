@@ -1,6 +1,8 @@
 # Data Retention
 
-artifact.ci is intended only as a temporary storage for the sake of viewing artifacts - the source of truth is GitHub. So, when you view an artifact, is it pulled from GitHub and uploaded to our storage service (supabase). But stored files will be periodically deleted from Supabase. Old artifacts can still be viewed, but they will need to be pulled from GitHub and uploaded again (this process is automatic, it usually just means waiting a few seconds to view your artifact again).
+artifact.ci is intended only as a temporary storage for the sake of viewing artifacts - the source of truth is GitHub. So, when you view an artifact, is it pulled from GitHub and uploaded to our storage service (supabase).
+
+Stored files will be periodically deleted from the storage service. Old artifacts can still be viewed, but they will need to be pulled from GitHub and uploaded again (this process is automatic, it usually just means waiting a few seconds to view your artifact again).
 
 This cleanup happen regularly, but no files newer than 24 hours old will be cleaned up. If you need a retention policy shorter than 24 hours, please get in touch.
 
