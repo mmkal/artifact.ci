@@ -143,7 +143,13 @@ async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
             on conflict (owner, name) do nothing;
           `)
 
-          const txResult = await insertArtifactRecord({owner, repo, job, artifact: a, installation: event.installation})
+          const txResult = await insertArtifactRecord({
+            owner,
+            repo,
+            job,
+            artifact: {...a, aliasTypes: ['run', 'sha', 'branch']},
+            installation: event.installation,
+          })
 
           const origin = getOrigin(request, {repo: event.repository.full_name, branch: job.head_branch})
           return {

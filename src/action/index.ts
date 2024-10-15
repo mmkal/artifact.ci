@@ -59,6 +59,10 @@ async function main() {
           : 'https://www.artifact.ci',
       ),
     artifactciVisibility: z.enum(['private', 'public']).optional(),
+    artifactciAliasTypes: z
+      .string()
+      .transform(s => s.split(','))
+      .pipe(z.array(z.enum(['run', 'sha', 'branch']))),
   })
 
   const coercedInput = Object.fromEntries(
@@ -94,7 +98,11 @@ async function main() {
   const uploadRequest = UploadRequest.parse({
     owner,
     repo,
-    artifact: {id: uploadResponse.id!, visibility: inputs.artifactciVisibility},
+    artifact: {
+      id: uploadResponse.id!,
+      visibility: inputs.artifactciVisibility,
+      aliasTypes: inputs.artifactciAliasTypes,
+    },
     job: {
       head_branch: env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME,
       head_sha: env.GITHUB_SHA,

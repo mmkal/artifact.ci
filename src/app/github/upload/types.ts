@@ -1,5 +1,7 @@
 import {z} from 'zod'
 
+export const AliasType = z.enum(['run', 'sha', 'branch'])
+export type AliasType = z.infer<typeof AliasType>
 export const UploadRequest = z.object({
   owner: z.string(),
   repo: z.string(),
@@ -12,6 +14,7 @@ export const UploadRequest = z.object({
   artifact: z.object({
     id: z.number().int(),
     visibility: z.enum(['private', 'public']).optional(),
+    aliasTypes: z.array(AliasType).min(1),
   }),
 })
 export type UploadRequest = z.infer<typeof UploadRequest>

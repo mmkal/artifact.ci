@@ -1,6 +1,6 @@
 import {NextRequest, NextResponse} from 'next/server'
 import {fromError} from 'zod-validation-error'
-import {UploadRequest, UploadResponse} from './types'
+import {AliasType, UploadRequest, UploadResponse} from './types'
 import {toPath} from '~/app/artifact/view/params'
 import {getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({error: `not in progress`, status: workflowRun.status}, {status: 400})
   }
 
-  const {data: artifact} = await octokit.rest.actions.getArtifact({
+  const {data: githubArtifact} = await octokit.rest.actions.getArtifact({
     owner,
     repo,
     artifact_id: event.artifact.id,
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 
   const insertResult = await insertArtifactRecord({
     ...parsed.data,
-    artifact: {...artifact, visibility: event.artifact.visibility},
+    artifact: {...event.artifact, ...githubArtifact},
     installation,
   })
 
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
   const responseBody = UploadResponse.parse({
     success: true,
     urls: insertResult.dbIdentifiers.map(({type: aliasType, value: identifier}) => {
-      const url = origin + toPath({owner, repo, aliasType, identifier, artifactName: artifact.name})
+      const url = origin + toPath({owner, repo, aliasType, identifier, artifactName: githubArtifact.name})
       return {aliasType, url}
     }),
   } satisfies UploadResponse)
@@ -98,11 +98,13 @@ export const insertArtifactRecord = async ({owner, repo, job, artifact: a, insta
       select artifact_id, type, value
       from jsonb_populate_recordset(
         null::artifact_identifiers,
-        ${JSON.stringify([
-          {artifact_id: dbArtifact.id, type: 'run', value: `${job.run_id}.${job.run_attempt}`},
-          {artifact_id: dbArtifact.id, type: 'sha', value: job.head_sha.slice(0, 7)},
-          {artifact_id: dbArtifact.id, type: 'branch', value: job.head_branch.replaceAll('/', '__')},
-        ])}
+        ${JSON.stringify(
+          [
+            {artifact_id: dbArtifact.id, type: 'run', value: `${job.run_id}.${job.run_attempt}`},
+            {artifact_id: dbArtifact.id, type: 'sha', value: job.head_sha.slice(0, 7)},
+            {artifact_id: dbArtifact.id, type: 'branch', value: job.head_branch.replaceAll('/', '__')},
+          ].filter(type => a.aliasTypes.includes(type.type as AliasType)),
+        )}
       )
       on conflict (artifact_id, type, value)
       do update set updated_at = current_timestamp

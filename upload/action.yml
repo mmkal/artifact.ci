@@ -38,6 +38,10 @@ inputs:
   artifactci-visibility:
     description: The visibility of the artifact to upload. Options are "private" or "public". Defaults to repository default visibility (private unless explicitly set otherwise previously).
     required: false
+  artifactci-alias-types:
+    description: |
+      A comma separated list of alias types to add to the artifact. Options are "run", "sha" and "branch".
+    default: "run,sha,branch"
 runs:
   using: node20
   main: action.min.js # relative to this action.yml file, not repo root
