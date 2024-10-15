@@ -9,26 +9,33 @@ jobs:
       - name: create svg
         run: |
           echo '
-            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="136" height="20" viewBox="0 0 136 20">
-            <linearGradient id="b" x2="0" y2="100%">
-                <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
-                <stop offset="1" stop-opacity=".1"/>
-            </linearGradient>
-            <clipPath id="a">
-                <rect width="136" height="20" rx="3" fill="#fff"/>
-            </clipPath>
-            <g clip-path="url(#a)">
-                <path fill="#555" d="M0 0h69v20H0z"/>
-                <path fill="#4c1" d="M69 0h67v20H69z"/>
-                <path fill="url(#b)" d="M0 0h136v20H0z"/>
-            </g>
-            <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
-                <text x="34.5" y="15" fill="#010101" fill-opacity=".3">build</text>
-                <text x="34.5" y="14">build</text>
-                <text x="101.5" y="15" fill="#010101" fill-opacity=".3">passing</text>
-                <text x="101.5" y="14">passing</text>
-            </g>
-            <path fill="#4c1" d="M11 4c-3.868 0-7 3.132-7 7 0 3.867 3.132 7 7 7 3.867 0 7-3.133 7-7 0-3.868-3.133-7-7-7zm3.907 5.846l-4.622 4.622a.695.695 0 0 1-.984 0L7.094 12.26a.695.695 0 0 1 0-.984.695.695 0 0 1 .984 0l1.715 1.715 4.13-4.13a.695.695 0 0 1 .984 0 .695.695 0 0 1 0 .985z"/>
+           <svg xmlns="http://www.w3.org/2000/svg" width="200" height="40" viewBox="0 0 200 40">
+            <defs>
+                <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#FF6B6B;stop-opacity:1" />
+                <stop offset="100%" style="stop-color:#4ECDC4;stop-opacity:1" />
+                </linearGradient>
+                <filter id="shadow">
+                <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#000" flood-opacity="0.3"/>
+                </filter>
+            </defs>
+            
+            <rect width="200" height="40" rx="20" ry="20" fill="url(#grad1)" filter="url(#shadow)"/>
+            
+            <circle cx="30" cy="20" r="15" fill="#FFF"/>
+            <path d="M30 10 L35 25 L25 25 Z" fill="#FF6B6B"/>
+            
+            <text x="60" y="25" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#FFF">BUILD</text>
+            
+            <rect x="140" y="5" width="55" height="30" rx="15" ry="15" fill="#4ECDC4"/>
+            <text x="167.5" y="25" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFF" text-anchor="middle">WOW</text>
+            
+            <circle cx="140" cy="20" r="3" fill="#FF6B6B">
+                <animate attributeName="r" values="3;5;3" dur="1s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="195" cy="20" r="3" fill="#FF6B6B">
+                <animate attributeName="r" values="3;5;3" dur="1s" repeatCount="indefinite"/>
+            </circle>
             </svg>
           ' > status.svg
       - uses: ./upload

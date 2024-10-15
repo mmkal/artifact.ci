@@ -134,8 +134,13 @@ async function main() {
     const artifactURL = `${github.context.serverUrl}/${repository.owner}/${repository.repo}/actions/runs/${github.context.runId}/artifacts/${uploadResponse.id}`
     setOutput('artifact-url', artifactURL)
 
+    result.urls.forEach(({aliasType, url}) => {
+      console.log(`🔗 ${aliasType}: ${url}`)
+      setOutput(`artifactci_${aliasType}_url`, url)
+    })
+
     if (inputs.artifactciMode === 'eager') {
-      await clientUpload({
+      const records = await clientUpload({
         artifactId: result.artifactId,
         onProgress(stage, message) {
           logger.info(`${stage}: ${message}`)
@@ -149,11 +154,14 @@ async function main() {
           ],
         }),
       })
+
+      const {entrypoints} = records.entrypoints
+      entrypoints.forEach((e, i) => {
+        const url = `${result.urls.at(-1)?.url}/${e.path}`
+        console.log(`🔗 ${e.shortened}: ${url}`)
+        setOutput(`artifactci_entrypoint_${i}`, url)
+      })
     }
-    result.urls.forEach(({aliasType, url}) => {
-      console.log(`🔗 ${aliasType}: ${url}`)
-      setOutput(`artifactci_${aliasType}_url`, url)
-    })
   } else {
     logger.error(resp.message.statusCode, body)
     setFailed(body)
