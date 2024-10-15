@@ -11,7 +11,7 @@ import {logger} from '~/tag-logger'
 
 export interface TrpcContext {
   session: Session | null
-  getHeader: (name: string) => string | undefined
+  getHeader: (name: string) => string | null | undefined
 }
 
 const t = initTRPC.context<TrpcContext>().create()
