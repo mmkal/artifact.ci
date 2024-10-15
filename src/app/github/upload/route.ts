@@ -86,7 +86,8 @@ export const insertArtifactRecord = async ({owner, repo, job, artifact: a, insta
       from repo
       on conflict (repo_id, name, github_id)
         do update set
-          visibility = excluded.visibility,
+          -- visibility is only updated if the new visibility is not null
+          visibility = coalesce(${a.visibility || null}, artifacts.visibility),
           installation_id = excluded.installation_id,
           updated_at = excluded.updated_at
       returning *
