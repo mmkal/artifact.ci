@@ -86,7 +86,9 @@ export const insertArtifactRecord = async ({owner, repo, job, artifact: a, insta
       from repo
       on conflict (repo_id, name, github_id)
         do update set
-          updated_at = current_timestamp
+          visibility = excluded.visibility,
+          installation_id = excluded.installation_id,
+          updated_at = excluded.updated_at
       returning *
     `)
 
@@ -139,7 +141,7 @@ export declare namespace queries {
     id: number
   }
 
-  /** - query: `with repo as (select * from repos where ... [truncated] ...dated_at = current_timestamp returning *` */
+  /** - query: `with repo as (select * from repos where ... [truncated] ...ted_at = excluded.updated_at returning *` */
   export interface Artifact {
     /** column: `public.artifacts.id`, not null: `true`, regtype: `prefixed_ksuid` */
     id: import('~/db').Id<'artifacts'>

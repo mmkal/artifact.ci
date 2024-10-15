@@ -52,7 +52,9 @@ async function handleEvent(request: NextRequest, event: AppWebhookEvent) {
         ${JSON.stringify(repos)}
       )
       join new_installation on true
-      on conflict (owner, name) do update set installation_id = excluded.installation_id
+      on conflict (owner, name) do update
+      set
+        installation_id = excluded.installation_id
       returning *
     `)
     for (const repo of createdRepos) {
