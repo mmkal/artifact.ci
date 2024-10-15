@@ -76,6 +76,10 @@ jobs:
           ls -A
           echo "sixssssssssssssssssssssssssssssssss"
           ls test
+          cat playwright.config.ts
+          npx playwright test --help
+          echo "sixpointfiveeeeeeeeeeeeeeeeeeeeeeee"
+          npx playwright test --list
           echo "sevennnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
           echo finished
       - name: run tests
