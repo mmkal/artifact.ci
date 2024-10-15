@@ -23,7 +23,7 @@ jobs:
             <rect width="200" height="40" rx="20" ry="20" fill="url(#grad1)" filter="url(#shadow)"/>
             
             <circle cx="30" cy="20" r="15" fill="#FFF"/>
-            <path d="M30 10 L35 25 L25 25 Z" fill="#FF6B6B"/>
+            <text x="30" y="28" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" fill="#FF6B6B">🗿</text>
             
             <text x="60" y="25" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#FFF">BUILD</text>
             
