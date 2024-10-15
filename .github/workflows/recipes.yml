@@ -326,15 +326,3 @@ jobs:
         with:
           name: go
           path: test_report.html
-  custom_action:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: create html
-        run: |
-          echo '<blink style="width: 100vw; height: 100vh; background: black; color: white">Hello, cruel world</blink>' > index.html
-      - uses: ./upload
-        with:
-          name: custom_action
-          path: index.html
-          artifactci-visibility: private
