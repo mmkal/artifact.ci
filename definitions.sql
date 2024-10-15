@@ -69,6 +69,7 @@ check (value ~ '^[a-z0-9_]+_[0-9A-Za-z]{27}$');
 create table github_installations (
 	id prefixed_ksuid primary key default generate_prefixed_ksuid('github_installation'),
 	github_id int8 not null,
+	removed_at timestamptz,
 	created_at timestamp with time zone not null default current_timestamp,
 	updated_at timestamp with time zone not null default current_timestamp,
 	unique(github_id)
