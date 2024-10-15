@@ -76,6 +76,8 @@ jobs:
           ls -A
           echo "sixssssssssssssssssssssssssssssssss"
           ls test
+          echo 'import { defineConfig, devices } from "@playwright/test"
+          export default defineConfig({testDir: "test"})' > playwright.config.ts
           cat playwright.config.ts
           npx playwright test --help
           echo "sixpointfiveeeeeeeeeeeeeeeeeeeeeeee"
