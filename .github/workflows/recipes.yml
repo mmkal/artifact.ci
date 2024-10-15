@@ -55,11 +55,16 @@ jobs:
           echo starting
           ls
           git ls-files | xargs rm && echo '*' >> .gitignore
+          echo oneeeeeeeeeeeee<<<<<<<<<<<<<<<<<<<
           ls
+          echo twooooooooooooo<<<<<<<<<<<<<<<<<<<
           rm -rf test rm playwright.config.ts && mkdir test
           ls
+          echo threeeeeeeeeeeeee<<<<<<<<<<<<<<<<<<<
           ls -A
+          echo fourrrrrrrrrrrrrrrrr<<<<<<<<<<<<<<<<<<<
           npm install @playwright/test --save-dev
+          echo fiveeeeeeeeeeeee<<<<<<<<<<<<<<<<<<<
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + 1' >> calc.ts
           echo 'export const sub = (a: number, b: number) => a - b' >> calc.ts
@@ -68,6 +73,8 @@ jobs:
           echo 'test("add well", () => expect(calc.add(1, 1)).toEqual(2))' >> test/adding.test.ts
           echo 'test("add badly", () => expect(calc.addBad(1, 1)).toEqual(2))' >> test/adding.test.ts
           echo 'test("add snapshot", () => expect(calc.add(1, 1)).toMatchSnapshot())' >> test/adding.test.ts
+          ls -A
+          echo finished
       - name: run tests
         run: npx playwright test test/adding.test.ts --reporter html || echo failed
       - uses: actions/upload-artifact@v4
