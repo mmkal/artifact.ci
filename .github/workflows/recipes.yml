@@ -55,16 +55,16 @@ jobs:
           echo starting
           ls
           git ls-files | xargs rm && echo '*' >> .gitignore
-          echo oneeeeeeeeeeeee<<<<<<<<<<<<<<<<<<<
+          echo "oneeeeeeeeeeeee<<<<<<<<<<<<<<<<<<<"
           ls
-          echo twooooooooooooo<<<<<<<<<<<<<<<<<<<
+          echo "twooooooooooooo<<<<<<<<<<<<<<<<<<<"
           rm -rf test rm playwright.config.ts && mkdir test
           ls
-          echo threeeeeeeeeeeeee<<<<<<<<<<<<<<<<<<<
+          echo "threeeeeeeeeeeeee<<<<<<<<<<<<<<<<<<<"
           ls -A
-          echo fourrrrrrrrrrrrrrrrr<<<<<<<<<<<<<<<<<<<
+          echo "fourrrrrrrrrrrrrrrrr<<<<<<<<<<<<<<<<<<<"
           npm install @playwright/test --save-dev
-          echo fiveeeeeeeeeeeee<<<<<<<<<<<<<<<<<<<
+          echo "fiveeeeeeeeeeeee<<<<<<<<<<<<<<<<<<<"
           echo 'export const add = (a: number, b: number) => a + b' >> calc.ts
           echo 'export const addBad = (a: number, b: number) => a + b + 1' >> calc.ts
           echo 'export const sub = (a: number, b: number) => a - b' >> calc.ts
