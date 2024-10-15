@@ -63,7 +63,6 @@ jobs:
           echo 'import * as calc from "../calc"' >> test/adding.test.ts
           echo 'test("add well", () => expect(calc.add(1, 1)).toEqual(2))' >> test/adding.test.ts
           echo 'test("add badly", () => expect(calc.addBad(1, 1)).toEqual(2))' >> test/adding.test.ts
-          echo 'test("add snapshot", () => expect(calc.add(1, 1)).toMatchSnapshot())' >> test/adding.test.ts
       - name: run tests
         run: npx playwright test test/adding.test.ts --reporter html || echo failed
       - uses: actions/upload-artifact@v4
