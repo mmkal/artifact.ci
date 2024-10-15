@@ -14,10 +14,10 @@ export declare namespace clientUpload {
 /** Pulls an artifact and uploads to a storage bucket. The server is used for auth, but the hard work (/most bandwidth usage 😈) is done by the client. */
 export async function clientUpload({artifactId, onProgress = () => {}}: clientUpload.Params) {
   onProgress('start', 'Getting artifact information')
-  const signedDownloadUrl = await trpcClient.getDownloadUrl.query({artifactId})
-  onProgress('downloading', 'Downloading archive')
+  const download = await trpcClient.getDownloadUrl.query({artifactId})
+  onProgress('downloading', 'Downloading archive ' + download.githubId)
 
-  const response = await fetch(signedDownloadUrl)
+  const response = await fetch(download.url)
 
   onProgress('extracting', 'Extracting archive')
   const {entries} = await unzip(await response.arrayBuffer())
