@@ -56,6 +56,8 @@ export function DemoVideo() {
 <br />
 <DemoVideo />
 
+Here's an example of what the GitHub App produces, on the [expect-type](https://github.com/mmkal/expect-type) repo: it's a simple link to the viewable artifact as a GitHub check: https://github.com/mmkal/expect-type/runs/31567129309
+
 ## Why
 
 CI jobs often generate useful HTML reports (test results, coverage, etc.). GitHub Actions doesn't provide a way to view these directly. The existing option is to use `actions/upload-artifact`, then download it as a zip file, unzip it on your local machine, and then poke around at the files or run a local server. This app fills that gap, letting you view artifacts in your browser without downloading and unzipping.

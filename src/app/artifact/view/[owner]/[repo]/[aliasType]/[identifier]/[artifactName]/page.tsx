@@ -33,7 +33,7 @@ async function ArtifactPageInner({params, searchParams}: ArtifactPage.Params) {
 
   if (arti.code === 'not_authorized' && !githubLogin) {
     const callbackUrl = `/artifact/view/${params.owner}/${params.repo}/${params.aliasType}/${params.identifier}/${params.artifactName}`
-    return redirect(`/api/auth/signin?${new URLSearchParams({callbackUrl})}`)
+    return redirect(`/api/auth/signin?${new URLSearchParams({callbackUrl, access: arti.access.reason})}`)
   }
 
   captureServerEvent({

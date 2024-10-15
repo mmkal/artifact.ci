@@ -34,7 +34,20 @@ const config: DocsThemeConfig = {
   ),
   head: Head,
   footer: {
-    component: () => <div>{productionUrl.hostname}</div>,
+    component: () => (
+      <footer style={{display: 'flex', flexDirection: 'row', width: '100%', gap: 40, padding: 40, background: 'clear'}}>
+        <div> © {new Date().getFullYear()} artifact.ci</div>
+        <a style={{textDecoration: 'underline'}} href="/legal/privacy">
+          Privacy Policy
+        </a>
+        <a style={{textDecoration: 'underline'}} href="/legal/data-retention">
+          Data Retention
+        </a>
+        <a style={{textDecoration: 'underline'}} href="/legal/contact">
+          Contact
+        </a>
+      </footer>
+    ),
   },
   project: {
     link: githubUrl.href,
