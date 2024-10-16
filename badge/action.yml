@@ -13,6 +13,10 @@ inputs:
     description: The message to display on the badge
     required: true
     type: string
+  color:
+    description: The color of the badge
+    required: false
+    type: string
   label:
     description: The label to display on the badge
     required: false

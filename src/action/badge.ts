@@ -53,7 +53,7 @@ async function main() {
           ? `https://artifactci-git-${branchName.replaceAll(/\W/g, '-')}-mmkals-projects.vercel.app`
           : 'https://www.artifact.ci',
       ),
-    name: z.string().default('badge'),
+    name: z.string().optional(),
     message: z.string(),
     label: z.string().optional(),
     /** see https://www.npmjs.com/package/badge-maker#colors */
@@ -93,7 +93,8 @@ async function main() {
     ),
   )
 
-  const uploadResponse = await artifactClient.uploadArtifact(inputs.name, [file], '.', {retentionDays: 1})
+  const artifactName = inputs.name || (inputs.label || inputs.message).replaceAll(/\W/g, '')
+  const uploadResponse = await artifactClient.uploadArtifact(artifactName, [file], '.', {retentionDays: 1})
   logger.debug({uploadResponse})
   const [owner, repo] = env.GITHUB_REPOSITORY.split('/')
   const uploadRequest = UploadRequest.parse({
