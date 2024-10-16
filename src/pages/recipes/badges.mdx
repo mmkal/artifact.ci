@@ -1,0 +1,23 @@
+## Badges
+
+artifact.ci also provides a `badge` action, a thin wrapper around the artifact upload action which uses the [badge-maker](https://github.com/badges/shields) library to generate badges.
+
+```yaml
+- uses: mmkal/artifact.ci/badge@main
+  with:
+    label: result
+    message: checkmate
+    logo: chess.com
+    color: brown
+    labelColor: lightgrey
+```
+
+The result will be a URL something like this:
+
+https://artifact.ci/artifact/view/github/mmkal/artifact.ci/branch/badge-action/custom-action/result/badge.svg
+
+It will render like this:
+
+![result checkmate](https://artifact.ci/artifact/view/github/mmkal/artifact.ci/branch/badge-action/custom-action/result/badge.svg)
+
+The advantage of using the badge action over, say, the shields.io API, is that the URL will be stable, but the badge itself will update when the workflow is run again.

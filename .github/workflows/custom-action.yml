@@ -2,16 +2,17 @@ name: Custom Action
 on: [push, pull_request]
 
 jobs:
-  badge:
+  chess-badge:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: ./badge
         with:
-          label: hello
-          message: cruel world
-          color: purple
-          logo: github
+          label: result
+          message: checkmate
+          logo: chess.com
+          color: brown
+          labelColor: lightgrey
   custom_action:
     runs-on: ubuntu-latest
     steps:
