@@ -8,8 +8,8 @@
     "pgkit": "node node_modules/pgkit/dist/cli.js",
     "build-supabase-client": "openapi-typescript --default-non-nullable=false https://supabase.github.io/storage/api.json -o src/openapi/generated/supabase-storage.ts",
     "generate": "pnpm /build-.+-action/",
-    "build-badge-action": "esbuild src/action/badge.ts --bundle --platform=node --target=node20 --outfile=badge/action.min.js --minify",
-    "build-upload-action": "esbuild src/action/upload.ts --bundle --platform=node --target=node20 --outfile=upload/action.min.js --minify",
+    "build-badge-action": "esbuild src/action/badge.ts --bundle --platform=node --target=node20 --outfile=bundled-action/badge.min.js --minify",
+    "build-upload-action": "esbuild src/action/upload.ts --bundle --platform=node --target=node20 --outfile=bundled-action/upload.min.js --minify",
     "dev": "next dev",
     "prepare": "simple-git-hooks",
     "build": "next build",
@@ -80,7 +80,7 @@
     "yaml": "^2.5.1"
   },
   "simple-git-hooks": {
-    "pre-commit": "git diff --quiet origin upload src/action || (node --run generate && git diff --quiet upload/action.min.js || git add upload/action.min.js)",
-    "pre-push": "git diff --quiet origin upload src/action || (node --run generate && git diff --quiet upload/action.min.js)"
+    "pre-commit": "git diff --quiet origin bundled-action src/action || (node --run generate && git diff --quiet bundled-action || git add bundled-action)",
+    "pre-push": "git diff --quiet origin bundled-action src/action || (node --run generate && git diff --quiet bundled-action)"
   }
 }

@@ -27,5 +27,4 @@ inputs:
     type: string
 runs:
   using: node20
-  main: action.min.js # relative to this action.yml file, not repo root
-
+  main: ../bundled-action/badge.min.js
