@@ -14,8 +14,6 @@ import {AppRouter} from '~/server/trpc'
 import {logger} from '~/tag-logger'
 
 async function main() {
-  setOutput('artifacts_uploaded', false)
-
   const event = JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH!, {encoding: 'utf8'})) as EventType
 
   function isDebug() {
@@ -142,11 +140,12 @@ async function main() {
     logger.debug('clientUpload done', records)
 
     const {entrypoints} = records.entrypoints
-    if (entrypoints.length !== 1) throw new Error(`expected 1 entrypoint, got ${entrypoints.length}`)
+    if (entrypoints.length === 0) throw new Error(`expected 1 entrypoint, got ${entrypoints.length}`)
+    if (entrypoints.length !== 1) logger.warn(`expected 1 entrypoint, got ${entrypoints.length}`)
     result.urls.forEach(u => {
       const e = entrypoints[0]
       const badgeUrl = `${u.url}/${e.path}`
-      const outputName = `badge_url_${u.aliasType}`
+      const outputName = `badge-url-${u.aliasType}`
       logger.info(outputName, badgeUrl)
       setOutput(outputName, badgeUrl)
     })

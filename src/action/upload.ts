@@ -13,8 +13,6 @@ import {AppRouter} from '~/server/trpc'
 import {logger} from '~/tag-logger'
 
 async function main() {
-  setOutput('artifacts_uploaded', false)
-
   const event = JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH!, {encoding: 'utf8'})) as EventType
 
   function isDebug() {
@@ -136,7 +134,7 @@ async function main() {
 
     result.urls.forEach(({aliasType, url}) => {
       logger.info(`🔗 ${aliasType}: ${url}`)
-      setOutput(`artifactci_${aliasType}_url`, url)
+      setOutput(`artifactci-${aliasType}-url`, url)
     })
 
     if (inputs.artifactciMode === 'eager') {
@@ -159,7 +157,7 @@ async function main() {
       entrypoints.forEach((e, i) => {
         const url = `${result.urls.at(-1)?.url}/${e.path}`
         logger.info(`🔗 ${e.shortened}: ${url}`)
-        setOutput(`artifactci_entrypoint_${i}`, url)
+        setOutput(`artifactci-entrypoint-${i}`, url)
       })
     }
   } else {
