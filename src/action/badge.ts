@@ -78,15 +78,20 @@ async function main() {
     }),
   ) as {}
   logger.debug({coercedInput}, process.env.GITHUB_RETENTION_DAYS)
-  const inputs = Inputs.transform(
-    val => Object.fromEntries(Object.entries(val).filter(([_, v]) => v !== undefined)) as typeof val,
-  ).parse(coercedInput)
+  const inputs = Inputs.parse(coercedInput)
   logger.debug({inputs})
 
   const artifactClient = new DefaultArtifactClient()
 
   const file = path.join(process.cwd(), 'badge.svg')
-  await fs.writeFile(file, makeBadge(inputs))
+  await fs.writeFile(
+    file,
+    makeBadge(
+      Object.fromEntries(
+        Object.entries(inputs).filter(([k, v]) => !k.startsWith('artifactci') && k !== 'name' && v !== undefined),
+      ) as typeof inputs,
+    ),
+  )
 
   const uploadResponse = await artifactClient.uploadArtifact(inputs.name, [file], '.', {retentionDays: 1})
   logger.debug({uploadResponse})
