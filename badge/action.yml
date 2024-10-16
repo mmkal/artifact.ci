@@ -1,0 +1,27 @@
+name: Badge action
+description: Drop in replacement for actions/upload-artifact which provides a browsable link to the artifact
+inputs:
+  artifactciOrigin:
+    description: The origin of the artifact.ci server
+    required: false
+    default: 'https://www.artifact.ci'
+  name:
+    description: The name of the artifact to upload
+    type: string
+    default: 'badge'
+  message:
+    description: The message to display on the badge
+    required: true
+    type: string
+  label:
+    description: The label to display on the badge
+    required: false
+    type: string
+  labelColor:
+    description: The color of the label
+    required: false
+    type: string
+runs:
+  using: node20
+  main: action.min.js # relative to this action.yml file, not repo root
+

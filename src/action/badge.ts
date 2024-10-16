@@ -1,10 +1,11 @@
 import {DefaultArtifactClient} from '@actions/artifact'
 import {getInput, isDebug as isDebugCore, setFailed, setOutput} from '@actions/core'
-import * as github from '@actions/github'
-import * as glob from '@actions/glob'
 import {HttpClient} from '@actions/http-client'
 import {createTRPCClient, httpLink} from '@trpc/client'
+import {makeBadge} from 'badge-maker'
+import * as fs from 'fs/promises'
 import {readFile} from 'fs/promises'
+import * as path from 'path'
 import {z} from 'zod'
 import {EventType} from './types'
 import {clientUpload} from '~/app/artifact/view/[owner]/[repo]/[aliasType]/[identifier]/[artifactName]/client-upload'
@@ -43,17 +44,8 @@ async function main() {
 
   logger.debug({env, branchName})
 
-  const StringyBoolean = z.boolean().or(z.enum(['true', 'false']).transform(s => s === 'true'))
-
   /** camelCase version of the inputs in action.yml. Note that *most* don't have defaults because the defaults are defined in action.yml */
   const Inputs = z.object({
-    path: z.string(),
-    name: z.string(),
-    ifNoFilesFound: z.enum(['warn', 'error', 'ignore']),
-    retentionDays: z.coerce.number().int().min(0).max(90).default(Number(process.env.GITHUB_RETENTION_DAYS)),
-    compressionLevel: z.coerce.number().int().min(0).max(9),
-    overwrite: StringyBoolean,
-    includeHiddenFiles: StringyBoolean,
     artifactciOrigin: z
       .string()
       .default(
@@ -61,12 +53,17 @@ async function main() {
           ? `https://artifactci-git-${branchName.replaceAll(/\W/g, '-')}-mmkals-projects.vercel.app`
           : 'https://www.artifact.ci',
       ),
-    artifactciVisibility: z.enum(['private', 'public']).optional(),
-    artifactciAliasTypes: z
-      .string()
-      .transform(s => s.split(','))
-      .pipe(z.array(z.enum(['run', 'sha', 'branch']))),
-    artifactciMode: z.enum(['lazy', 'eager']),
+    name: z.string().default('badge'),
+    message: z.string(),
+    label: z.string().optional(),
+    /** see https://www.npmjs.com/package/badge-maker#colors */
+    labelColor: z.string().optional(),
+    /** see https://www.npmjs.com/package/badge-maker#colors */
+    color: z.string().optional(),
+    logoBase64: z.string().optional(),
+    // links: z.array(z.string()).max(2),
+    style: z.enum(['plastic', 'flat', 'flat-square', 'for-the-badge', 'social']),
+    idSuffix: z.string().regex(/^[\w-]+$/),
   })
 
   const coercedInput = Object.fromEntries(
@@ -81,31 +78,21 @@ async function main() {
   const inputs = Inputs.parse(coercedInput)
   logger.debug({inputs})
 
-  if (isDebug()) {
-    console.log(event)
-  }
+  const artifactClient = new DefaultArtifactClient()
 
-  const client = new DefaultArtifactClient()
+  const file = path.join(process.cwd(), 'badge.svg')
+  await fs.writeFile(file, makeBadge(inputs))
 
-  const globber = await glob.create(inputs.path, {
-    matchDirectories: false,
-    excludeHiddenFiles: !inputs.includeHiddenFiles,
-  })
-  const files = await globber.glob()
-  const uploadResponse = await client.uploadArtifact(inputs.name, files, '.', {
-    retentionDays: inputs.retentionDays,
-    compressionLevel: inputs.compressionLevel,
-  })
-  logger.debug({uploadResult: uploadResponse})
-
+  const uploadResponse = await artifactClient.uploadArtifact(inputs.name, [file], '.', {retentionDays: 1})
+  logger.debug({uploadResponse})
   const [owner, repo] = env.GITHUB_REPOSITORY.split('/')
   const uploadRequest = UploadRequest.parse({
     owner,
     repo,
     artifact: {
       id: uploadResponse.id!,
-      visibility: inputs.artifactciVisibility,
-      aliasTypes: inputs.artifactciAliasTypes,
+      visibility: 'public',
+      aliasTypes: ['branch'],
     },
     job: {
       head_branch: env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME,
@@ -128,40 +115,27 @@ async function main() {
   logger.debug({statusCode: resp.message.statusCode, body: body.slice(0, 500)})
   if (resp.message.statusCode === 200) {
     const result = UploadResponse.parse(JSON.parse(body))
-    console.log('✅ Upload done.')
-    setOutput('artifact-id', uploadResponse.id)
-    const repository = github.context.repo
-    const artifactURL = `${github.context.serverUrl}/${repository.owner}/${repository.repo}/actions/runs/${github.context.runId}/artifacts/${uploadResponse.id}`
-    setOutput('artifact-url', artifactURL)
-
-    result.urls.forEach(({aliasType, url}) => {
-      console.log(`🔗 ${aliasType}: ${url}`)
-      setOutput(`artifactci_${aliasType}_url`, url)
+    if (result.urls.length !== 1) throw new Error(`expected 1 url, got ${result.urls.length}`)
+    logger.debug('✅ Upload done', result)
+    const records = await clientUpload({
+      artifactId: result.artifactId,
+      onProgress: (stage, message) => logger.debug(`${stage}: ${message}`),
+      trpcClient: createTRPCClient<AppRouter>({
+        links: [
+          httpLink({
+            url: inputs.artifactciOrigin + '/api/trpc',
+            headers: {'artifactci-upload-token': result.uploadToken},
+          }),
+        ],
+      }),
     })
+    logger.debug('clientUpload done', records)
 
-    if (inputs.artifactciMode === 'eager') {
-      const records = await clientUpload({
-        artifactId: result.artifactId,
-        onProgress(stage, message) {
-          logger.info(`${stage}: ${message}`)
-        },
-        trpcClient: createTRPCClient<AppRouter>({
-          links: [
-            httpLink({
-              url: inputs.artifactciOrigin + '/api/trpc',
-              headers: {'artifactci-upload-token': result.uploadToken},
-            }),
-          ],
-        }),
-      })
-
-      const {entrypoints} = records.entrypoints
-      entrypoints.forEach((e, i) => {
-        const url = `${result.urls.at(-1)?.url}/${e.path}`
-        console.log(`🔗 ${e.shortened}: ${url}`)
-        setOutput(`artifactci_entrypoint_${i}`, url)
-      })
-    }
+    const {entrypoints} = records.entrypoints
+    if (entrypoints.length !== 1) throw new Error(`expected 1 entrypoint, got ${entrypoints.length}`)
+    const {url: baseUrl} = result.urls[0]
+    const e = entrypoints[0]
+    setOutput('badge_url', `${baseUrl}/${e.path}`)
   } else {
     logger.error(resp.message.statusCode, body)
     setFailed(body)

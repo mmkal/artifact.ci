@@ -2,6 +2,15 @@ name: Custom Action
 on: [push, pull_request]
 
 jobs:
+  badge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./badge
+        with:
+          message: hello
+          label: cruel world
+          color: blue
   custom_action:
     runs-on: ubuntu-latest
     steps:
