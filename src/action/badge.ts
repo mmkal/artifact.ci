@@ -73,31 +73,27 @@ async function main() {
   })
 
   const coercedInput = Object.fromEntries(
-    Object.entries(Inputs.shape).map(([camelKey]) => {
+    Object.entries(Inputs.shape).flatMap(([camelKey]) => {
       const kebabKey = camelKey.replaceAll(/([A-Z])/g, '-$1').toLowerCase()
       const value = getInput(kebabKey, {trimWhitespace: true}) || undefined
       logger.debug({camelKey, kebabKey, value})
-      return [camelKey, value]
+
+      return value === undefined ? [] : [[camelKey, value] as const]
     }),
   ) as {}
 
   logger.debug({coercedInput})
-  const inputs = Inputs.parse(coercedInput)
-  logger.debug({inputs})
+  const {name, artifactciOrigin, ...badgeMakerInputs} = Inputs.parse(coercedInput)
+  logger.debug({name, artifactciOrigin, badgeMakerInputs})
 
   const artifactClient = new DefaultArtifactClient()
 
   const file = path.join(process.cwd(), 'badge.svg')
-  await fs.writeFile(
-    file,
-    makeBadge(
-      Object.fromEntries(
-        Object.entries(inputs).filter(([k, v]) => !k.startsWith('artifactci') && k !== 'name' && v !== undefined),
-      ) as typeof inputs,
-    ),
-  )
+  const svg = makeBadge(badgeMakerInputs)
+  logger.debug({file, svg})
+  await fs.writeFile(file, svg)
 
-  const artifactName = (inputs.name || inputs.label || inputs.message).replaceAll(/\W/g, '')
+  const artifactName = (name || badgeMakerInputs.label || badgeMakerInputs.message).replaceAll(/\W/g, '')
   const uploadResponse = await artifactClient.uploadArtifact(artifactName, [file], '.', {retentionDays: 1})
   logger.debug({uploadResponse})
   const [owner, repo] = env.GITHUB_REPOSITORY.split('/')
@@ -117,7 +113,7 @@ async function main() {
     },
   } satisfies UploadRequest)
 
-  const uploadUrl = `${inputs.artifactciOrigin}/github/upload`
+  const uploadUrl = `${badgeMakerInputs.artifactciOrigin}/github/upload`
   logger.debug({uploadUrl, uploadRequest})
 
   const http = new HttpClient('artifact.ci/action/v0')
@@ -130,7 +126,6 @@ async function main() {
   logger.debug({statusCode: resp.message.statusCode, body: body.slice(0, 500)})
   if (resp.message.statusCode === 200) {
     const result = UploadResponse.parse(JSON.parse(body))
-    if (result.urls.length !== 1) throw new Error(`expected 1 url, got ${result.urls.length}`)
     logger.debug('✅ Upload done', result)
     const records = await clientUpload({
       artifactId: result.artifactId,
@@ -138,7 +133,7 @@ async function main() {
       trpcClient: createTRPCClient<AppRouter>({
         links: [
           httpLink({
-            url: inputs.artifactciOrigin + '/api/trpc',
+            url: badgeMakerInputs.artifactciOrigin + '/api/trpc',
             headers: {'artifactci-upload-token': result.uploadToken},
           }),
         ],
@@ -148,11 +143,13 @@ async function main() {
 
     const {entrypoints} = records.entrypoints
     if (entrypoints.length !== 1) throw new Error(`expected 1 entrypoint, got ${entrypoints.length}`)
-    const {url: baseUrl} = result.urls[0]
-    const e = entrypoints[0]
-    const badgeUrl = `${baseUrl}/${e.path}`
-    logger.info('badge_url', badgeUrl)
-    setOutput('badge_url', badgeUrl)
+    result.urls.forEach(u => {
+      const e = entrypoints[0]
+      const badgeUrl = `${u.url}/${e.path}`
+      const outputName = `badge_url_${u.aliasType}`
+      logger.info(outputName, badgeUrl)
+      setOutput(outputName, badgeUrl)
+    })
   } else {
     logger.error(resp.message.statusCode, body)
     setFailed(body)
