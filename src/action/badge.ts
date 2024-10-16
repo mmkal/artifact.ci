@@ -78,7 +78,7 @@ async function main() {
     }),
   ) as {}
 
-  logger.debug({coercedInput}, process.env.GITHUB_RETENTION_DAYS)
+  logger.debug({coercedInput})
   const inputs = Inputs.parse(coercedInput)
   logger.debug({inputs})
 
