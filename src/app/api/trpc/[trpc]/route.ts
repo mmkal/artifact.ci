@@ -9,7 +9,10 @@ const handler = auth(request => {
       router: appRouter,
       req: request,
       endpoint: '/api/trpc',
-      createContext: async (): Promise<TrpcContext> => ({session: request.auth}),
+      createContext: async (): Promise<TrpcContext> => ({
+        session: request.auth,
+        getHeader: name => request.headers.get(name),
+      }),
       onError: ({error, path}) => logger.tag(`path=${path}`).error(error),
     })
   })

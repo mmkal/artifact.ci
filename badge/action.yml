@@ -1,0 +1,34 @@
+name: Badge action
+description: Drop in replacement for actions/upload-artifact which provides a browsable link to the artifact
+inputs:
+  artifactci-origin:
+    description: The origin of the artifact.ci server
+  message:
+    description: The message to display on the badge
+    required: true
+    type: string
+  label:
+    description: The label to display on the badge
+    required: false
+    type: string
+  logo:
+    description: Icon slug from simple-icons. You can click the icon title on simple-icons to copy the slug or they can be found in the slugs.md file in the simple-icons repository.
+    type: string
+  logoBase64:
+    description: Base64 data uri of encoded SVG logo. Cannot be used with `logo`.
+    type: string
+  style:
+    description: "The style of the badge. See https://www.npmjs.com/package/badge-maker#styles. Options: 'plastic', 'flat', 'flat-square', 'for-the-badge', 'social'."
+    type: string
+  name:
+    description: The name of the artifact to upload. This will be included in the badge URL. Defaults to `label` or `message` if label is not provided.
+    type: string
+  color:
+    description: The color of the badge
+    type: string
+  labelColor:
+    description: The color of the label
+    type: string
+runs:
+  using: node20
+  main: ../bundled-action/badge.min.js

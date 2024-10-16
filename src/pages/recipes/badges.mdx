@@ -1,0 +1,27 @@
+## Badges
+
+artifact.ci also provides a `badge` action, a thin wrapper around the artifact upload action which uses the [badge-maker](https://github.com/badges/shields) library (from sheilds.io) to generate badges.
+
+```yaml
+- uses: mmkal/artifact.ci/badge@main
+  with:
+    label: result
+    message: checkmate
+    logo: chessdotcom
+    color: brown
+    labelColor: lightgrey
+```
+
+(`message` is required, everything else is optional. `logo` can be a slug from [simple-icons](https://simpleicons.org))
+
+The result will be a URL looking something like this (available as a step output named `badge-url-branch`):
+
+https://artifactci-git-badge-action-mmkals-projects.vercel.app/artifact/view/mmkal/artifact.ci/branch/badge-action/result/badge.svg
+
+It will render like this:
+
+![result checkmate](https://artifactci-git-badge-action-mmkals-projects.vercel.app/artifact/view/mmkal/artifact.ci/branch/badge-action/result/badge.svg)
+
+The advantage of using the badge action over, say, the shields.io API, is that the URL will be stable, but the badge itself will update when the workflow is run again.
+
+Note: for branch URLs, the server sends a 5-minute cache header, but for run and sha URLs, it sends a one-year cache header.

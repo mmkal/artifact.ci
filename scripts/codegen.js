@@ -2,6 +2,8 @@
 module.exports.generateReadme = ({dependencies: {fs}}) => {
   const websiteIndexMd = fs.readFileSync('src/pages/index.mdx', 'utf8')
   let readmeMd = websiteIndexMd
+    .replace('# artifact.ci', '') // rm title
+    .trim()
     .replaceAll(/\(\/(\S*)\)/g, `(https://www.artifact.ci/$1)`)
     .replaceAll('codegen:start', 'codegen:disabled')
   const customComponentsStart = readmeMd.indexOf('import')

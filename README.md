@@ -1,6 +1,8 @@
-<!-- codegen:start {preset: custom, source: ./scripts/codegen.js, export: generateReadme} -->
 # artifact.ci
 
+![(status badge made with artifact.ci)](https://artifactci-git-eager-mode-mmkals-projects.vercel.app/artifact/view/mmkal/artifact.ci/branch/eager-mode/badge/status.svg)
+
+<!-- codegen:start {preset: custom, source: ./scripts/codegen.js, export: generateReadme} -->
 View your GitHub artifacts in the browser.
 
 ## How

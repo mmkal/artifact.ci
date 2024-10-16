@@ -4,4 +4,7 @@ export default {
   more: {
     title: 'More',
   },
+  index: {
+    display: 'hidden',
+  },
 }

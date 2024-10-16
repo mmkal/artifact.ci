@@ -1,6 +1,6 @@
 import pMap from 'p-suite/p-map'
 import {unzip} from 'unzipit'
-import {trpcClient} from '~/client/trpc'
+import {trpcClient as defaultTrpcClient} from '~/client/trpc'
 import {createProxyClient} from '~/openapi/client'
 import {paths} from '~/openapi/generated/supabase-storage'
 
@@ -8,11 +8,16 @@ export declare namespace clientUpload {
   export type Params = {
     artifactId: string
     onProgress?: (stage: string, message: string) => void
+    trpcClient?: typeof defaultTrpcClient
   }
 }
 
 /** Pulls an artifact and uploads to a storage bucket. The server is used for auth, but the hard work (/most bandwidth usage 😈) is done by the client. */
-export async function clientUpload({artifactId, onProgress = () => {}}: clientUpload.Params) {
+export async function clientUpload({
+  artifactId,
+  onProgress = () => {},
+  trpcClient = defaultTrpcClient,
+}: clientUpload.Params) {
   onProgress('start', 'Getting artifact information')
   const download = await trpcClient.getDownloadUrl.query({artifactId})
   onProgress('downloading', 'Downloading archive ' + download.githubId)
