@@ -6,7 +6,8 @@ The artifact.ci [GitHub repository](https://github.com/mmkal/artifact.ci) contai
 
 - The passthrough action uploads files mid-job to the artifact.ci service, whereas the default action will only be picked up by artifact.ci once the job completes (either succeeding or failing). This can be useful for very long running jobs.
 - The passthrough action exposes the viewable links as step outputs, so they can be used in subsequent steps.
-- You can pass `artifactci_visibility: public` to make the artifact publicly-viewable.
+- You can pass `artifactci-visibility: public` to make the artifact publicly-viewable.
+- Pass `artifactci-mode: eager` to upload the files within the artifact immediately (default is `lazy` mode where files won't be uploaded until a logged-in user visits the URL).
 
 Here's an example of the change you might make to start using the passthrough action:
 
