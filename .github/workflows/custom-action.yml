@@ -8,8 +8,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./badge
         with:
-          message: hello
-          label: cruel world
+          label: hello
+          message: cruel world
           color: blue
   custom_action:
     runs-on: ubuntu-latest
