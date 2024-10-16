@@ -14,6 +14,12 @@ inputs:
   logo:
     description: Icon slug from simple-icons. You can click the icon title on simple-icons to copy the slug or they can be found in the slugs.md file in the simple-icons repository.
     type: string
+  logoBase64:
+    description: Base64 data uri of encoded SVG logo. Cannot be used with `logo`.
+    type: string
+  style:
+    description: "The style of the badge. See https://www.npmjs.com/package/badge-maker#styles. Options: 'plastic', 'flat', 'flat-square', 'for-the-badge', 'social'."
+    type: string
   name:
     description: The name of the artifact to upload. This will be included in the badge URL. Defaults to `label` or `message` if label is not provided.
     type: string
