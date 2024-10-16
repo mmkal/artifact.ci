@@ -10,7 +10,8 @@ jobs:
         with:
           label: hello
           message: cruel world
-          color: blue
+          color: purple
+          logo: github
   custom_action:
     runs-on: ubuntu-latest
     steps:

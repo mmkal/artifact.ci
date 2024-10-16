@@ -46,6 +46,11 @@ async function main() {
 
   /** camelCase version of the inputs in action.yml. Note that *most* don't have defaults because the defaults are defined in action.yml */
   const Inputs = z.object({
+    name: z
+      .string()
+      .regex(/^[\w-]+$/)
+      .max(50)
+      .optional(),
     artifactciOrigin: z
       .string()
       .default(
@@ -53,9 +58,8 @@ async function main() {
           ? `https://artifactci-git-${branchName.replaceAll(/\W/g, '-')}-mmkals-projects.vercel.app`
           : 'https://www.artifact.ci',
       ),
-    name: z.string().optional(),
-    message: z.string(),
-    label: z.string().optional(),
+    message: z.string().max(100),
+    label: z.string().max(100).optional(),
     /** see https://www.npmjs.com/package/badge-maker#colors */
     labelColor: z.string().optional(),
     /** see https://www.npmjs.com/package/badge-maker#colors */
@@ -94,7 +98,7 @@ async function main() {
     ),
   )
 
-  const artifactName = inputs.name || (inputs.label || inputs.message).replaceAll(/\W/g, '')
+  const artifactName = (inputs.name || inputs.label || inputs.message).replaceAll(/\W/g, '')
   const uploadResponse = await artifactClient.uploadArtifact(artifactName, [file], '.', {retentionDays: 1})
   logger.debug({uploadResponse})
   const [owner, repo] = env.GITHUB_REPOSITORY.split('/')
@@ -104,7 +108,7 @@ async function main() {
     artifact: {
       id: uploadResponse.id!,
       visibility: 'public',
-      aliasTypes: ['branch'],
+      aliasTypes: ['sha', 'branch'],
     },
     job: {
       head_branch: env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME,
