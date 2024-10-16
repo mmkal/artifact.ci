@@ -145,7 +145,9 @@ async function main() {
     if (entrypoints.length !== 1) throw new Error(`expected 1 entrypoint, got ${entrypoints.length}`)
     const {url: baseUrl} = result.urls[0]
     const e = entrypoints[0]
-    setOutput('badge_url', `${baseUrl}/${e.path}`)
+    const badgeUrl = `${baseUrl}/${e.path}`
+    logger.info('badge_url', badgeUrl)
+    setOutput('badge_url', badgeUrl)
   } else {
     logger.error(resp.message.statusCode, body)
     setFailed(body)
