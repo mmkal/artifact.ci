@@ -113,7 +113,7 @@ async function main() {
     },
   } satisfies UploadRequest)
 
-  const uploadUrl = `${badgeMakerInputs.artifactciOrigin}/github/upload`
+  const uploadUrl = `${artifactciOrigin}/github/upload`
   logger.debug({uploadUrl, uploadRequest})
 
   const http = new HttpClient('artifact.ci/action/v0')
@@ -133,7 +133,7 @@ async function main() {
       trpcClient: createTRPCClient<AppRouter>({
         links: [
           httpLink({
-            url: badgeMakerInputs.artifactciOrigin + '/api/trpc',
+            url: artifactciOrigin + '/api/trpc',
             headers: {'artifactci-upload-token': result.uploadToken},
           }),
         ],
