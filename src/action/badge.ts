@@ -78,7 +78,9 @@ async function main() {
     }),
   ) as {}
   logger.debug({coercedInput}, process.env.GITHUB_RETENTION_DAYS)
-  const inputs = Inputs.parse(coercedInput)
+  const inputs = Inputs.transform(
+    val => Object.fromEntries(Object.entries(val).filter(([_, v]) => v !== undefined)) as typeof val,
+  ).parse(coercedInput)
   logger.debug({inputs})
 
   const artifactClient = new DefaultArtifactClient()
