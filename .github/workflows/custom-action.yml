@@ -61,7 +61,7 @@ jobs:
           ' > status.svg
       - uses: ./upload
         with:
-          name: badge
+          name: status-badge
           path: status.svg
           artifactci-visibility: public
           artifactci-mode: eager
