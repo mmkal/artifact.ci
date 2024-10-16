@@ -62,8 +62,11 @@ async function main() {
     color: z.string().optional(),
     logoBase64: z.string().optional(),
     // links: z.array(z.string()).max(2),
-    style: z.enum(['plastic', 'flat', 'flat-square', 'for-the-badge', 'social']),
-    idSuffix: z.string().regex(/^[\w-]+$/),
+    style: z.enum(['plastic', 'flat', 'flat-square', 'for-the-badge', 'social']).optional(),
+    idSuffix: z
+      .string()
+      .regex(/^[\w-]+$/)
+      .optional(),
   })
 
   const coercedInput = Object.fromEntries(
