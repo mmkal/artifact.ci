@@ -10,7 +10,7 @@ jobs:
         with:
           label: result
           message: checkmate
-          logo: chess.com
+          logo: chessdotcom
           color: brown
           labelColor: lightgrey
   custom_action:

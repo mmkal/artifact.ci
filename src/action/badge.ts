@@ -61,6 +61,7 @@ async function main() {
     labelColor: z.string().optional(),
     /** see https://www.npmjs.com/package/badge-maker#colors */
     color: z.string().optional(),
+    logo: z.string().optional(),
     logoBase64: z.string().optional(),
     // links: z.array(z.string()).max(2),
     style: z.enum(['plastic', 'flat', 'flat-square', 'for-the-badge', 'social']).optional(),
@@ -81,8 +82,21 @@ async function main() {
   ) as {}
 
   logger.debug({coercedInput})
-  const {name, artifactciOrigin, ...badgeMakerInputs} = Inputs.parse(coercedInput)
+  const {name, artifactciOrigin, logo, ...badgeMakerInputs} = Inputs.parse(coercedInput)
   logger.debug({name, artifactciOrigin, badgeMakerInputs})
+
+  if (logo && badgeMakerInputs.logoBase64) throw new Error('cannot use both logo and logoBase64')
+
+  if (logo) {
+    const url = `https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/${logo}.svg`
+    const response = await fetch(url)
+    logger.debug({url, response: response.status, headers: response.headers})
+    const svgText = await response.text()
+    const base64 = Buffer.from(svgText).toString('base64')
+    const dataUri = `data:image/svg+xml;base64,${base64}`
+    logger.debug({svgText, dataUri})
+    badgeMakerInputs.logoBase64 = dataUri
+  }
 
   const artifactClient = new DefaultArtifactClient()
 
