@@ -77,6 +77,7 @@ async function main() {
       return [camelKey, value]
     }),
   ) as {}
+
   logger.debug({coercedInput}, process.env.GITHUB_RETENTION_DAYS)
   const inputs = Inputs.parse(coercedInput)
   logger.debug({inputs})
