@@ -1,15 +1,15 @@
 import React from 'react'
-import {SearchUI} from './Search.server'
+import {SearchReposUI} from './Search.server'
 import {ArtifactViewPageTemplate} from './nav'
 import {PathParams} from './params'
-import {searchArtifacts} from './search'
+import {searchRepos} from './search'
 
 export default async function ArtifactViewPage({params}: {params: Partial<PathParams>}) {
-  const results = await searchArtifacts(params)
+  const results = await searchRepos(params)
 
   return (
     <ArtifactViewPageTemplate params={params}>
-      <SearchUI results={results} />
+      <SearchReposUI results={results} />
     </ArtifactViewPageTemplate>
   )
 }
