@@ -3,8 +3,6 @@ description: Drop in replacement for actions/upload-artifact which provides a br
 inputs:
   artifactci-origin:
     description: The origin of the artifact.ci server
-    required: false
-    default: https://www.artifact.ci
   message:
     description: The message to display on the badge
     required: true

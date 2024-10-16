@@ -44,6 +44,11 @@ async function main() {
 
   logger.debug({env, branchName})
 
+  let defaultBackend = 'https://www.artifact.ci'
+  if (env.GITHUB_REPOSITORY === 'mmkal/artifact.ci' && branchName !== 'main') {
+    // use vercel preview url - this isn't an exact match for their slugify algorithm but for simple branch names it works: https://github.com/orgs/vercel/discussions/472
+    defaultBackend = `https://artifactci-git-${branchName.replaceAll(/\W/g, '-')}-mmkals-projects.vercel.app`
+  }
   /** camelCase version of the inputs in action.yml. Note that *most* don't have defaults because the defaults are defined in action.yml */
   const Inputs = z.object({
     name: z
@@ -51,13 +56,7 @@ async function main() {
       .regex(/^[\w-]+$/)
       .max(50)
       .optional(),
-    artifactciOrigin: z
-      .string()
-      .default(
-        env.GITHUB_REPOSITORY === 'mmkal/artifact.ci' && branchName !== 'main'
-          ? `https://artifactci-git-${branchName.replaceAll(/\W/g, '-')}-mmkals-projects.vercel.app`
-          : 'https://www.artifact.ci',
-      ),
+    artifactciOrigin: z.string().default(defaultBackend),
     message: z.string().max(100),
     label: z.string().max(100).optional(),
     /** see https://www.npmjs.com/package/badge-maker#colors */
