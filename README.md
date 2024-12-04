@@ -49,7 +49,7 @@ The app requires minimal permissions, operates read-only, and uses GitHub's APIs
 
 ## Who
 
-This is [my](https://x.com/mmkalmmkal) side project, something I built initially for my own use in support of another project I'm working on.
+This is [my](https://x.com/mmkalmmkal) side project, something I built over a week or so, initially for my own use in support of another project I'm working on, so assume it exists as-is with no guarantees of new features etc. But feel free to file issues.
 
 ## Pricing
 
