@@ -203,7 +203,7 @@ type RequestOptionSerializer = {
   stringify: (body: unknown) => string
 }
 
-type RequestOptions = {
+export type RequestOptions = {
   baseUrl: string
   headers?: Record<string, string>
   /** default ['2XX'] */

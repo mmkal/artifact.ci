@@ -29,6 +29,14 @@ const baseConfig = {
       source: '/ingest/:path*',
       destination: 'https://us.i.posthog.com/:path*',
     },
+    {
+      source: '/https\\://:path*',
+      destination: '/api/openapi/https/:path*',
+    },
+    {
+      source: '/https\\:/:path*',
+      destination: '/api/openapi/https/:path*',
+    },
   ],
   // unfortunately, rewrites won't work for now - vercel storage doesn't let you view html/other browser-renderable content inline: https://vercel.com/docs/storage/vercel-blob#security
   // rewrites: async () => {
