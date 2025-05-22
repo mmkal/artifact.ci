@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  eslint-plugin-codegen: https://pkg.pr.new/mmkal/eslint-plugin-codegen@28
+  eslint-plugin-codegen: 0.31.0
 
 importers:
 
