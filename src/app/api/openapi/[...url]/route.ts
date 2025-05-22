@@ -5,6 +5,14 @@ import * as tarStream from 'tar-stream'
 import YAML from 'yaml'
 import {z} from 'zod/v4'
 
+const getRawUrl = (url: string) => {
+  const urlObj = new URL(url)
+  if (urlObj.hostname === 'github.com') {
+    return `https://raw.githubusercontent.com/${urlObj.pathname.replace('/blob/', '/refs/heads/')}`
+  }
+  return url
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const pathname = url.pathname
@@ -18,7 +26,8 @@ export async function GET(request: Request) {
     })
   }
 
-  const targetUrl = pathname.slice(pathname.indexOf('https')).replace(/^https:?\/+/, 'https://') // some server libraries convert https:// to https:/ when in pathnanme
+  let targetUrl = pathname.slice(pathname.indexOf('https')).replace(/^https:?\/+/, 'https://') // some server libraries convert https:// to https:/ when in pathnanme
+  targetUrl = getRawUrl(targetUrl)
   const specText = await fetch(targetUrl).then(r => r.text())
 
   const spec =
@@ -26,7 +35,19 @@ export async function GET(request: Request) {
       ? (YAML.parse(specText) as OpenAPI3)
       : (JSON.parse(specText) as OpenAPI3)
 
-  const {tgz, pkg} = await createNpmPackage(spec, parsedOptions.data)
+  const pkgOrResponse = await createNpmPackage(targetUrl, spec, parsedOptions.data).catch(err => {
+    if (String(err).includes('Unsupported Swagger version')) {
+      return new Response(String(err), {
+        status: 400,
+        headers: {'Content-Type': 'text/plain; charset=utf-8'},
+      })
+    }
+    throw err
+  })
+  if (pkgOrResponse instanceof Response) {
+    return pkgOrResponse
+  }
+  const {tgz, pkg} = pkgOrResponse
   return new Response(tgz, {
     headers: {
       'Content-Type': 'application/octet-stream',
@@ -84,7 +105,7 @@ function TemplatableString<Variable extends string>(...variables: Variable[]) {
     },
   }))
 }
-async function createNpmPackage(spec: OpenAPI3, flags: Options) {
+async function createNpmPackage(url: string, spec: OpenAPI3, flags: Options) {
   const tsPaths = await openapiTS(spec, flags)
   const tsPathsString = astToString(tsPaths)
 
@@ -112,6 +133,16 @@ async function createNpmPackage(spec: OpenAPI3, flags: Options) {
   const createClientFnName = kebabToCamel(`create-${packageJsonObj.name}-client`)
   const entrypointDts = `
     import {paths} from './paths'
+    export declare const specUrl: string
+    /**
+     * Creates a client instance for the ${packageJsonObj.name} API.
+     *
+     * @example
+     * \`\`\`ts
+     * const client = ${createClientFnName}().configure({ baseUrl: 'https://api.example.com' })
+     * const {json: pet} = await client.pet.petId('123').get()
+     * \`\`\`
+     */
     export declare const ${createClientFnName}: () => {
       configure: <const RO extends import("./client").RequestOptions>(options: RO) => import("./client").ProxyClient<paths, RO, [paths, ""]>;
     };
@@ -119,6 +150,7 @@ async function createNpmPackage(spec: OpenAPI3, flags: Options) {
   const entrypointCjs = `
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    exports.specUrl = ${JSON.stringify(url)};
     exports.${createClientFnName} = void 0;
     const client_1 = require("./client");
     const ${createClientFnName} = () => (0, client_1.createProxyClient)();
@@ -130,6 +162,7 @@ async function createNpmPackage(spec: OpenAPI3, flags: Options) {
     {name: 'package/index.js', content: entrypointCjs},
     {name: 'package/index.d.ts', content: entrypointDts},
     {name: 'package/paths.d.ts', content: tsPathsString},
+    {name: 'package/spec.json', content: JSON.stringify(spec, null, 2)},
     ...clientFiles.map(file => ({name: `package/${file.name}`, content: file.content})),
   ]
 
