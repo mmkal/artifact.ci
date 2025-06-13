@@ -106,6 +106,11 @@ export const appRouter = router({
             .wildcard(artifactFullPath)
             .post({acceptStatus: ['200', '4XX']})
 
+          logger.debug(`status ${res.response.status} for ${artifactFullPath}`, {
+            responseUrl: res.response.url,
+            responseHeaders: Object.fromEntries(res.response.headers),
+          })
+
           let token: string | undefined
           if (res.statusMatch === '200') token = res.json.token
           else if (res.json.statusCode === '409') token = undefined
