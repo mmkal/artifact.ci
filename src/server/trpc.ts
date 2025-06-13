@@ -1,3 +1,4 @@
+import 'source-map-support/register'
 import {initTRPC, TRPCError} from '@trpc/server'
 import mime from 'mime'
 import {Session} from 'next-auth'
@@ -69,6 +70,11 @@ export const artifactAccessProcedure = t.procedure
   })
 
 export const appRouter = router({
+  logStackTrace: publicProcedure.query(async () => {
+    const stack = new Error('test error for stack trace').stack
+    logger.info(stack)
+    return stack?.split('\n')
+  }),
   getDownloadUrl: artifactAccessProcedure.query(async ({ctx}) => {
     const archiveResponse = await ctx.octokit.rest.actions.downloadArtifact({
       owner: ctx.artifact.owner,
