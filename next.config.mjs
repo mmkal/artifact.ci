@@ -22,9 +22,7 @@ const baseConfig = {
   },
   webpack: (config, { webpack }) => {
       // wtf https://github.com/vercel/next.js/discussions/50177
-      config.plugins.push(new webpack.IgnorePlugin({
-          resourceRegExp: /^pg-native$|^cloudflare:sockets$/,
-      }))
+      config.externals.push('cloudflare:sockets');
 
       return config
   },
