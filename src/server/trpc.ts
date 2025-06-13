@@ -112,16 +112,19 @@ export const appRouter = router({
             responseHeaders: Object.fromEntries(res.response.headers),
           })
 
-          if (res.response.headers.get('content-type') !== contentType) {
-            const message = `Couldn't create upload token for ${artifactFullPath}. Expected ${contentType} from supabase but got ${res.response.headers.get('content-type')}.`
-            logger.error(message, `body: ${await res.response.clone().text()}`)
-            throw new Error(message)
+          let token: string | undefined
+          if (res.statusMatch === '200') {
+            // parse json manually - supabase sends text/plain but it's actually json
+            const json: typeof res.json = (await res.response.clone().json()) as never
+            token = json.token
+          } else {
+            // parse json manually - supabase sends text/plain but it's actually json
+            const json: typeof res.json = (await res.response.clone().json()) as never
+            if (json.statusCode === '409') token = undefined
+            else new Error(`upload failed: ${JSON.stringify(json)}`)
           }
 
-          let token: string | undefined
-          if (res.statusMatch === '200') token = res.json.token
-          else if (res.json.statusCode === '409') token = undefined
-          else throw new Error(`upload failed: ${JSON.stringify(res.json)}`)
+          logger.info(`token: ${token}`)
 
           return {entry, artifactFullPath, token, contentType}
         },
