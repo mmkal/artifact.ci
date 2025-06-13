@@ -95,6 +95,7 @@ export const appRouter = router({
         artifact.name,
         artifact.id,
       ].join('/')
+      logger.debug(`get tokens for entries on ${artifactPathPrefix}`, input)
       const tokens = await pMap(
         input.entries,
         async entry => {
