@@ -20,9 +20,10 @@ const baseConfig = {
       bodySizeLimit: '100mb',
     },
   },
-  webpack: (config, { webpack }) => {
+  webpack: (config, { isServer }) => {
       // wtf https://github.com/vercel/next.js/discussions/50177
       config.externals.push('cloudflare:sockets');
+      if (isServer) config.devtool = 'inline-source-map'
 
     return config
   },
