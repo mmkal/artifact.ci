@@ -24,7 +24,7 @@ const baseConfig = {
       // wtf https://github.com/vercel/next.js/discussions/50177
       config.externals.push('cloudflare:sockets');
 
-      return config
+    return config
   },
   rewrites: async () => [
     {
