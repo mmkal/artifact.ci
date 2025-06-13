@@ -20,6 +20,14 @@ const baseConfig = {
       bodySizeLimit: '100mb',
     },
   },
+  webpack: (config, { webpack }) => {
+      // wtf https://github.com/vercel/next.js/discussions/50177
+      config.plugins.push(new webpack.IgnorePlugin({
+          resourceRegExp: /^pg-native$|^cloudflare:sockets$/,
+      }))
+
+      return config
+  },
   rewrites: async () => [
     {
       source: '/ingest/static/:path*',
