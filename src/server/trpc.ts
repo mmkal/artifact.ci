@@ -114,11 +114,11 @@ export const appRouter = router({
 
           let token: string | undefined
           if (res.statusMatch === '200') {
-            // parse json manually - supabase sends text/plain but it's actually json
+            // parse json manually - supabase sends text/plain but it's actually json.
             const json: typeof res.json = (await res.response.clone().json()) as never
             token = json.token
           } else {
-            // parse json manually - supabase sends text/plain but it's actually json
+            // parse json manually - supabase sends text/plain but it's actually json.
             const json: typeof res.json = (await res.response.clone().json()) as never
             if (json.statusCode === '409') token = undefined
             else new Error(`upload failed: ${JSON.stringify(json)}`)
