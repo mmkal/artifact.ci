@@ -37,11 +37,11 @@ const baseConfig = {
       destination: 'https://us.i.posthog.com/:path*',
     },
     {
-      source: '/https\\://:path*',
+      source: String.raw`/https\://:path*`,
       destination: '/api/openapi/https/:path*',
     },
     {
-      source: '/https\\:/:path*',
+      source: String.raw`/https\:/:path*`,
       destination: '/api/openapi/https/:path*',
     },
   ],
