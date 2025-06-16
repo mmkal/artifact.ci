@@ -42,6 +42,19 @@ export class TagLogger {
     return [this.tags.map(c => `[${c}]`).join('')]
   }
 
+  /** wrapper for `_storage.enterWith` - adds tags to the current async context */
+  setTag(...tags: string[]) {
+    this._storage.enterWith({...this.context, tags: [...this.context.tags, ...tags]})
+  }
+
+  /**
+   * may not be the best way retrieve stuff from context, but useful in a pinch: if you've set tags in the form `foo=bar` you can retrieve
+   * them anywhere in the async context with this: `logger.getTag('foo') // return 'bar'`
+   */
+  getTag(name: string) {
+    return new URLSearchParams(this.tags.join('&')).get(name)
+  }
+
   run<T>(tag: string | string[], fn: () => T): T {
     return this._storage.run({...this.context, tags: this.context.tags.concat(tag)}, fn)
   }

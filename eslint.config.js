@@ -6,6 +6,7 @@ module.exports = [
     rules: {
       'no-console': 'off', // todo: reenable
       '@typescript-eslint/no-namespace': 'off', // mmkal
+      'prefer-arrow-callback': 'off', // mmkal
     },
   },
   {ignores: ['**/generated/**']},

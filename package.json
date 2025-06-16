@@ -72,7 +72,7 @@
     "autoprefixer": "^10.4.20",
     "esbuild": "^0.24.0",
     "eslint": "^8.57.0",
-    "eslint-plugin-mmkal": "0.10.1",
+    "eslint-plugin-mmkal": "https://pkg.pr.new/mmkal/eslint-plugin-codegen/eslint-plugin-mmkal@beece09",
     "expect-type": "^1.0.0",
     "openapi-typescript": "^7.4.1",
     "postcss": "^8.4.47",
@@ -82,11 +82,6 @@
     "tsx": "^4.19.0",
     "typescript": "5.5.4",
     "yaml": "^2.5.1"
-  },
-  "pnpm": {
-    "overrides": {
-      "eslint-plugin-codegen": "0.31.0"
-    }
   },
   "simple-git-hooks": {
     "pre-commit": "git diff --quiet origin bundled-action src/action || (node --run generate && git diff --quiet bundled-action || git add bundled-action)",

@@ -15,12 +15,16 @@ export interface TrpcContext {
   getHeader: (name: string) => string | null | undefined
 }
 
-const t = initTRPC.context<TrpcContext>().create()
+const unmodifiedTRPC = initTRPC.context<TrpcContext>().create()
 
-export const router = t.router
-export const publicProcedure = t.procedure
+export const router = unmodifiedTRPC.router
+export const publicProcedure = unmodifiedTRPC.procedure.use(async function loggingMiddleware({ctx, next, path}) {
+  const requestId = crypto.randomUUID()
+  logger.setTag(`path=${path}`, `requestId=${requestId}`)
+  return next({ctx: {...ctx, getHeader: ctx.getHeader}})
+})
 
-export const artifactAccessProcedure = t.procedure
+export const artifactAccessProcedure = unmodifiedTRPC.procedure
   .input(
     z.object({
       artifactId: Id('artifact'),
@@ -72,8 +76,10 @@ export const artifactAccessProcedure = t.procedure
 export const appRouter = router({
   logStackTrace: publicProcedure.query(async () => {
     const stack = new Error('test error for stack trace').stack
-    logger.info(stack)
-    return stack?.split('\n')
+    logger.info(stack, {requestId: logger.getTag('requestId')})
+    return {
+      requestId: logger.getTag('requestId'),
+    }
   }),
   getDownloadUrl: artifactAccessProcedure.query(async ({ctx}) => {
     const archiveResponse = await ctx.octokit.rest.actions.downloadArtifact({
