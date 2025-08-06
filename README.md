@@ -1,6 +1,6 @@
 # artifact.ci [![X Follow](https://img.shields.io/twitter/follow/mmkalmmkal)](https://x.com/mmkalmmkal)
 
-<!-- codegen:start {preset: custom, source: ./scripts/codegen.js, export: generateReadme} -->
+<!-- codegen:start {preset: custom, source: ./scripts/codegen.cjs, export: generateReadme} -->
 View your GitHub artifacts in the browser.
 
 ## How
