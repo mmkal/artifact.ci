@@ -1,5 +1,5 @@
 /** @type {import('eslint-plugin-mmkal').CodegenPreset} */
-module.exports.generateReadme = ({dependencies: {fs, arktype, zx}}) => {
+module.exports.generateReadme = ({dependencies: {fs}}) => {
   const websiteIndexMd = fs.readFileSync('src/pages/index.mdx', 'utf8')
   let readmeMd = websiteIndexMd
     .replace('# artifact.ci', '') // rm title

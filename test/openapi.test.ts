@@ -5,7 +5,9 @@ import {createProxyClient} from '../src/openapi/client'
 // import {paths as petstorePaths} from '../src/openapi/generated/petstore'
 import {paths as supabaseStoragePaths} from '../src/openapi/generated/supabase-storage'
 
-const test = (title: string, fn: () => void | Promise<void>) => void title && fn
+const test = (title: string, fn: () => void | Promise<void>) => {
+  // return fn()
+}
 
 test('supabase-storage', async () => {
   const open = createProxyClient<supabaseStoragePaths>().configure({
