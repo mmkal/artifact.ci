@@ -47,7 +47,7 @@ Guides for common tools:
 
 ## Security
 
-The app requires minimal permissions, operates read-only, and uses GitHub's APIs and authentication. It maintains your repository's existing access controls. See [the privacy policy](https://www.artifact.ci/privacy) for more details.
+The app requires minimal permissions, operates read-only, and uses GitHub's APIs and authentication. It maintains your repository's existing access controls. See [the privacy policy](https://artifact.ci/legal/privacy) for more details.
 
 ## Who
 
