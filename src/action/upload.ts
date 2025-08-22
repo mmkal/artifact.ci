@@ -90,7 +90,12 @@ async function main() {
     excludeHiddenFiles: !inputs.includeHiddenFiles,
   })
   const files = await globber.glob()
-  const uploadResponse = await client.uploadArtifact(inputs.name, files, '.', {
+  const searchPaths = globber.getSearchPaths()
+  
+  // Use the first search path as root otherwise use current directory
+  const rootDirectory = searchPaths.length > 0 ? searchPaths[0] : '.'
+  
+  const uploadResponse = await client.uploadArtifact(inputs.name, files, rootDirectory, {
     retentionDays: inputs.retentionDays,
     compressionLevel: inputs.compressionLevel,
   })
