@@ -11,9 +11,7 @@ View test reports, code coverage, PDFs, images, and more, directly in your brows
 
 It's a small tool which solves a specific, hopefully temporary, [shortcoming of GitHub Actions](https://github.com/actions/upload-artifact/issues/14). To use it, all you need to do is install the app. Then use `actions/upload-artifact` as normal in your workflow. It will add a link to view any artifacts uploaded via GitHub checks.
 
-To get started simply [Install the artifact.ci app](https://github.com/apps/artifact-ci).
- 
-See further docs and install instructions on [artifact.ci](https://artifact.ci).
+Docs and install instructions on [artifact.ci](https://artifact.ci).
 
 ## Why
 
@@ -47,7 +45,7 @@ Guides for common tools:
 
 ## Security
 
-The app requires minimal permissions, operates read-only, and uses GitHub's APIs and authentication. It maintains your repository's existing access controls. See [the privacy policy](https://artifact.ci/legal/privacy) for more details.
+The app requires minimal permissions, operates read-only, and uses GitHub's APIs and authentication. It maintains your repository's existing access controls. See [the privacy policy](https://www.artifact.ci/privacy) for more details.
 
 ## Who
 
