@@ -21,7 +21,11 @@ export function SearchReposUI({results}: SearchReposUI.Props) {
           <>
             <div className="p-3 rounded-md hover:bg-gray-900">No repositories found</div>
             <div className="p-3 rounded-md hover:bg-gray-900">
-              Make sure <Link href="/artifact/view">the app</Link> is installed on your GitHub account.
+              Make sure{' '}
+              <Link className="underline" href="/artifact/view">
+                the app
+              </Link>{' '}
+              is installed on your GitHub account.
             </div>
           </>
         ) : (

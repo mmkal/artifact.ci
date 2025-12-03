@@ -48,7 +48,7 @@ export const searchArtifacts = async (params: Partial<PathParams>, {offset = 0, 
       artifactId: repo.artifact_id,
     })
     if (!canAccess.canAccess) {
-      logger.warn({canAccess}, 'searchArtifacts: checkCanAccess failed')
+      logger.warn({canAccess}, 'searchArtifacts: checkCanAccess -> false', dedupedRepos)
       return []
     }
   }

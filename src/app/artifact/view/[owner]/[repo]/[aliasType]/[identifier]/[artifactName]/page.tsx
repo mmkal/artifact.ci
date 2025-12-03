@@ -59,7 +59,9 @@ async function ArtifactPageInner({params, searchParams}: ArtifactPage.Params) {
           >
             Sponsor me
           </a>
-          {` to keep using ${productionUrl.hostname}. If you're not sure, or you'd like more credits, `}
+          {` to keep using ${productionUrl.hostname}.`}
+          <br />
+          {`If you're not sure, or you'd like more credits, `}
           <a
             href="https://x.com/mmkalmmkal"
             target="_blank"
