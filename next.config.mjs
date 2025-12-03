@@ -1,11 +1,4 @@
 import nextra from 'nextra'
-import {z} from 'zod'
-
-const Env = z.object({
-  STORAGE_ORIGIN: z.string().url(),
-})
-
-const env = Env.parse(process.env)
 
 /** @type {import('next').NextConfig} */
 const baseConfig = {
@@ -27,6 +20,13 @@ const baseConfig = {
 
     return config
   },
+  redirects: async () => [
+    {
+      source: '/artifact',
+      destination: '/artifact/view',
+      permanent: false,
+    },
+  ],
   rewrites: async () => [
     {
       source: '/ingest/static/:path*',
@@ -45,15 +45,6 @@ const baseConfig = {
       destination: '/api/openapi/https/:path*',
     },
   ],
-  // unfortunately, rewrites won't work for now - vercel storage doesn't let you view html/other browser-renderable content inline: https://vercel.com/docs/storage/vercel-blob#security
-  // rewrites: async () => {
-  //   return [
-  //     {
-  //       source: '/artifact/blob/:filepath*',
-  //       destination: `${env.STORAGE_ORIGIN}/:filepath*`,
-  //     },
-  //   ]
-  // },
 }
 
 const withNextra = nextra({

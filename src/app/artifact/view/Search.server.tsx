@@ -18,7 +18,12 @@ export function SearchReposUI({results}: SearchReposUI.Props) {
         {results.length === 0 && 'code' in results && results.code === 'not_logged_in' ? (
           <div className="p-3 rounded-md hover:bg-gray-900">Not logged in</div>
         ) : results.length === 0 ? (
-          <div className="p-3 rounded-md hover:bg-gray-900">No repositories found</div>
+          <>
+            <div className="p-3 rounded-md hover:bg-gray-900">No repositories found</div>
+            <div className="p-3 rounded-md hover:bg-gray-900">
+              Make sure <Link href="/artifact/view">the app</Link> is installed on your GitHub account.
+            </div>
+          </>
         ) : (
           <>
             <h2 className="text-2xl font-semibold mb-4">Repositories</h2>
@@ -56,11 +61,12 @@ export function SearchUI({results}: SearchUI.Props) {
         ) : (
           <>
             <h2 className="text-2xl font-semibold mb-4">Artifacts</h2>
-            {results.map(({pathParams, label, name}, index) => (
+            {results.map(({pathParams, label, name, createdAt}, index) => (
               <div key={index} className="snap-start">
                 <div className="p-3 rounded-md transition duration-300 ease-in-out">
                   <span className="text-sm text-amber-400 mr-3">{label}</span>
                   <span className="text-lg font-semibold text-amber-400">{name}</span>
+                  <span className="ml-3 text-sm text-gray-300">{createdAt.toLocaleString()}</span>
                   <span className="ml-3 text-sm text-gray-300 gap-2 inline-flex flex-row">
                     {pathParams.map(p => (
                       <Link

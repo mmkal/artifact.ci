@@ -15,7 +15,8 @@ export const searchArtifacts = async (params: Partial<PathParams>, {offset = 0, 
       repos.owner,
       repos.name as repo,
       ins.github_id as installation_github_id,
-      array_agg(ai.type || '/' || ai.value) as aggregated_identifiers
+      array_agg(ai.type || '/' || ai.value) as aggregated_identifiers,
+      a.created_at
     from artifacts a
     join artifact_identifiers ai on ai.artifact_id = a.id
     join repos on repos.id = a.repo_id
@@ -67,6 +68,7 @@ export const searchArtifacts = async (params: Partial<PathParams>, {offset = 0, 
       artifactId: a.artifact_id,
       name: a.name,
       pathParams,
+      createdAt: new Date(a.created_at),
       label: params.repo ? '' : `${a.owner}/${a.repo}`,
       installationId: a.installation_github_id,
     }
@@ -133,6 +135,9 @@ export declare namespace queries {
 
     /** regtype: `text[]` */
     aggregated_identifiers: string[] | null
+
+    /** column: `public.artifacts.created_at`, not null: `true`, regtype: `timestamp with time zone` */
+    created_at: Date
   }
 
   /** - query: `select repos.owner, repos.name as repo, ... [truncated] ...d order by repos.name limit $3 offset $4` */
