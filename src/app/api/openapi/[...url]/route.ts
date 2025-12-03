@@ -57,7 +57,7 @@ export async function GET(request: Request) {
 }
 
 // codegen:start {preset: custom, export: getOpenApiTsFlags, require: tsx/cjs}
-// codegen:hash {input: 79a9a04cb35aa17703770dbc31dcab7f, output: 7e1cd77b87db84714576d28070d2bdbe, timestamp: 2025-08-06T16:32:51.234Z}
+// codegen:hash {input: 79a9a04cb35aa17703770dbc31dcab7f, output: 7e1cd77b87db84714576d28070d2bdbe, timestamp: 2025-12-03T11:47:40.253Z}
 const OpenApiTsFlags = z.object({
   additionalProperties: z.stringbool().optional(),
   alphabetize: z.stringbool().optional(),
