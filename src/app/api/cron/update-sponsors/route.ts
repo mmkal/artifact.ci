@@ -7,6 +7,10 @@ export const dynamic = 'force-dynamic'
 export async function GET(_request: Request) {
   const sponsoree = process.env.DEVELOPER_GITHUB_LOGIN || 'mmkal'
   const sponsors = await getGithubSponsors({sponsoree})
+  for (const s of process.env.ADDITIONAL_SPONSORS?.split(',') || []) {
+    const [id, type = 'user'] = s.split('|')
+    sponsors.push({id, type: type as 'user' | 'org'})
+  }
   const records = sponsors.map(s => ({
     sponsor_login: s.id.toLowerCase(),
     sponsoree_login: sponsoree,

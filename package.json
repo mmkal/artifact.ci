@@ -38,7 +38,7 @@
     "lucide-react": "^0.447.0",
     "mime": "^4.0.4",
     "mime-types": "^2.1.35",
-    "next": "^14.2.29",
+    "next": "^16.1.1",
     "next-auth": "5.0.0-beta.20",
     "nextra": "^3.0.8",
     "nextra-theme-docs": "^3.0.8",
