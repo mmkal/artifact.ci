@@ -42,7 +42,8 @@ export const GET = auth(async (request, {params}) => {
         )
       }
 
-      return loadFile(res.storagePathname, pathParams)
+      const raw = request.nextUrl.searchParams.get('raw') === 'true'
+      return loadFile(res.storagePathname, pathParams, {raw})
     })
     .catch(error => {
       logger.error(error)

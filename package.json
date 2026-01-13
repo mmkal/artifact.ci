@@ -36,6 +36,7 @@
     "badge-maker": "^4.1.0",
     "cheerio": "^1.0.0",
     "lucide-react": "^0.447.0",
+    "marked": "^17.0.1",
     "mime": "^4.0.4",
     "mime-types": "^2.1.35",
     "next": "^16.1.1",
