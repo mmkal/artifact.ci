@@ -122,7 +122,10 @@ export async function loadFile(storagePathname: string, params: PathParams, opti
     return new Response(html, {headers, status: 200})
   }
 
-  const contentType = mimeTypeLookup(storagePathname) || 'text/plain'
+  let contentType = mimeTypeLookup(storagePathname) || 'text/plain'
+  if (ext === '.log') {
+    contentType = 'text/plain'
+  }
 
   const headers: Record<string, string> = {}
 
@@ -145,6 +148,15 @@ export async function loadFile(storagePathname: string, params: PathParams, opti
     ext === '.json' ||
     ext === '.pdf' ||
     ext === '.txt' ||
+    ext === '.log' ||
+    ext === '.csv' ||
+    ext === '.tsv' ||
+    ext === '.xml' ||
+    ext === '.yaml' ||
+    ext === '.yml' ||
+    ext === '.json' ||
+    ext === '.jsonl' ||
+    ext === '.jsonl' ||
     contentType.startsWith('text/') ||
     contentType.startsWith('image/') ||
     contentType.startsWith('video/') ||
