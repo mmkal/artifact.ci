@@ -1,0 +1,105 @@
+---
+title: "artifact.ci"
+---
+# artifact.ci
+
+View your GitHub artifacts in the browser.
+
+## How
+
+artifact.ci is a GitHub App that provides browsable links for artifacts uploaded during GitHub Actions workflow runs.
+
+View test reports, code coverage, PDFs, images, and more, directly in your browser. No more downloading and unzipping.
+
+It's a small tool which solves a specific, hopefully temporary, [shortcoming of GitHub Actions](https://github.com/actions/upload-artifact/issues/14). To use it, all you need to do is install the app. Then use `actions/upload-artifact` as normal in your workflow. It will add a link to view any artifacts uploaded via GitHub checks.
+
+export function InstallButton() {
+    return <a 
+      className="install-button"
+      style={{
+        margin: '1rem 0',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        padding: '0.5rem 1rem',
+        borderRadius: '0.5rem',
+        backgroundColor: '#1f2328',
+        color: '#c9d1d9',
+        textDecoration: 'none',
+      }}
+      href="https://github.com/apps/artifact-ci">
+        {/* avoid https://unpkg.com/simple-icons@v13/icons/github.svg because it's light-mode only? */}
+        <svg width={32} height={32} style={{backgroundColor: '#1f2328', fill: 'white'}} role="img" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg>
+        Install GitHub App
+    </a>
+}
+
+<InstallButton />
+
+Here's an end-to-end example of a repo installing the app, then using vitest's HTML report to view test results in-browser:
+
+export function DemoVideo() {
+    return <video
+      muted
+      autoPlay
+      playsInline
+      controls
+      >
+      <source src={`/artifact.ci-demo.webm`} type="video/mp4" />
+      Your browser does not support the video tag.
+    </video>
+}
+
+<br />
+<br />
+<DemoVideo />
+
+Here's an example of what the GitHub App produces, on the [expect-type](https://github.com/mmkal/expect-type) repo: it's a simple link to the viewable artifact as a GitHub check: https://github.com/mmkal/expect-type/runs/31567129309
+
+## Why
+
+CI jobs often generate useful HTML reports (test results, coverage, etc.). GitHub Actions doesn't provide a way to view these directly. The existing option is to use `actions/upload-artifact`, then download it as a zip file, unzip it on your local machine, and then poke around at the files or run a local server. This app fills that gap, letting you view artifacts in your browser without downloading and unzipping.
+
+This _should_ really be a feature built into GitHub, and likely one day will be, but [for now it isn't](https://github.com/actions/upload-artifact/issues/14). (Note: it is built into some other CI providers like CircleCI).
+
+## Usage
+
+Guides for common tools:
+
+### Testing frameworks
+
+- [Vitest](/docs/recipes/testing/vitest)
+- [Playwright](/docs/recipes/testing/playwright)
+- [Jest](/docs/recipes/testing/jest)
+- [Mocha](/docs/recipes/testing/mocha)
+- [AVA](/docs/recipes/testing/ava)
+
+### Other languages
+
+- [Python](/docs/recipes/other-languages/python)
+- [Go](/docs/recipes/other-languages/go)
+
+### More
+
+- [Static websites](/docs/recipes/more/website)
+- [PDFs](/docs/recipes/more/pdf)
+
+...you get the idea. If you can render it statically in a web browser, you can upload it to artifact.ci.
+
+## Security
+
+The app requires minimal permissions, operates read-only, and uses GitHub's APIs and authentication. It maintains your repository's existing access controls. See [the privacy policy](/docs/legal/privacy) for more details.
+
+## Who
+
+This is [my](https://x.com/mmkalmmkal) side project, something I built over a week or so, initially for my own use in support of another project I'm working on, so assume it exists as-is with no guarantees of new features etc. But feel free to file issues.
+
+## Pricing
+
+The actual service doesn't have a paywall for now, and usage is free to start out with. Access may be limited to my [GitHub sponsors](https://github.com/sponsors/mmkal) due to storage costs. I'm giving some users and organizations free access - this is based on how much I use them myself, but if you would like to use this without sponsorship, [contact me](https://x.com/mmkalmmkal).
+
+## Usage and Availability
+
+There's no API surface right now. Just install the app and it should "just work" - it'll find your artifacts automatically. There are a small number of options that can be customised, see [advanced usage docs](/docs/advanced). Usage limits may be introduced in future, or a proper payments setup.
+
+Note that the GitHub team have mentioned a built-in solution is on their radar, so hopefully this will only be necessary for a short while.

@@ -1,0 +1,12 @@
+// @ts-nocheck
+import { browser } from 'fumadocs-mdx/runtime/browser';
+import type * as Config from '../source.config';
+
+const create = browser<typeof Config, import("fumadocs-mdx/runtime/types").InternalTypeConfig & {
+  DocData: {
+  }
+}>();
+const browserCollections = {
+  docs: create.doc("docs", {"advanced.md": () => import("../content/docs/advanced.md?collection=docs"), "index.mdx": () => import("../content/docs/index.mdx?collection=docs"), "not.md": () => import("../content/docs/not.md?collection=docs"), "self-hosting.md": () => import("../content/docs/self-hosting.md?collection=docs"), "legal/contact.mdx": () => import("../content/docs/legal/contact.mdx?collection=docs"), "legal/data-retention.mdx": () => import("../content/docs/legal/data-retention.mdx?collection=docs"), "legal/privacy.mdx": () => import("../content/docs/legal/privacy.mdx?collection=docs"), "recipes/badges.mdx": () => import("../content/docs/recipes/badges.mdx?collection=docs"), "recipes/index.md": () => import("../content/docs/recipes/index.md?collection=docs"), "recipes/more.md": () => import("../content/docs/recipes/more.md?collection=docs"), "recipes/other-languages.md": () => import("../content/docs/recipes/other-languages.md?collection=docs"), "recipes/testing.md": () => import("../content/docs/recipes/testing.md?collection=docs"), "recipes/more/eslint.md": () => import("../content/docs/recipes/more/eslint.md?collection=docs"), "recipes/more/pdf.md": () => import("../content/docs/recipes/more/pdf.md?collection=docs"), "recipes/more/website.md": () => import("../content/docs/recipes/more/website.md?collection=docs"), "recipes/other-languages/go.md": () => import("../content/docs/recipes/other-languages/go.md?collection=docs"), "recipes/other-languages/python.md": () => import("../content/docs/recipes/other-languages/python.md?collection=docs"), "recipes/testing/ava.md": () => import("../content/docs/recipes/testing/ava.md?collection=docs"), "recipes/testing/jest.md": () => import("../content/docs/recipes/testing/jest.md?collection=docs"), "recipes/testing/mocha.md": () => import("../content/docs/recipes/testing/mocha.md?collection=docs"), "recipes/testing/playwright.md": () => import("../content/docs/recipes/testing/playwright.md?collection=docs"), "recipes/testing/vitest.md": () => import("../content/docs/recipes/testing/vitest.md?collection=docs"), }),
+};
+export default browserCollections;

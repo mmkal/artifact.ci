@@ -1,9 +1,8 @@
-import nextra from 'nextra'
+import {createMDX} from 'fumadocs-mdx/next'
 
 /** @type {import('next').NextConfig} */
 const baseConfig = {
   reactStrictMode: true,
-  eslint: {ignoreDuringBuilds: true},
   typescript: {ignoreBuildErrors: true},
   productionBrowserSourceMaps: true,
   experimental: {
@@ -21,6 +20,11 @@ const baseConfig = {
     return config
   },
   redirects: async () => [
+    {
+      source: '/',
+      destination: '/docs',
+      permanent: false,
+    },
     {
       source: '/artifact',
       destination: '/artifact/view',
@@ -47,9 +51,6 @@ const baseConfig = {
   ],
 }
 
-const withNextra = nextra({
-  theme: 'nextra-theme-docs',
-  themeConfig: './theme.config.tsx',
-})
+const withMDX = createMDX()
 
-export default withNextra(baseConfig)
+export default withMDX(baseConfig)

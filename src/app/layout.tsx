@@ -1,12 +1,13 @@
 import '../styles/globals.css'
+import 'fumadocs-ui/style.css'
 
 import type {Metadata} from 'next'
 import {Inter} from 'next/font/google'
 import {Suspense} from 'react'
 import {emoji, productionUrl} from '../site-config'
 import {PostHogPageview} from '~/analytics/posthog-client'
+import {RootProvider} from 'fumadocs-ui/provider/next'
 
-// https://github.com/vercel/next.js/blob/f6afb0e09e3d149d0b3216cb199f14994698df21/packages/next/src/compiled/node-fetch/index.js requires `punycode` which is deprecated
 const inter = Inter({subsets: ['latin']})
 
 export const metadata: Metadata = {
@@ -14,9 +15,9 @@ export const metadata: Metadata = {
   description: 'Artifact Browser by @mmkal',
 }
 
-export default function RootLayout({children}: {children: React.ReactNode}): JSX.Element {
+export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link
           rel="icon"
@@ -26,7 +27,9 @@ export default function RootLayout({children}: {children: React.ReactNode}): JSX
       <Suspense fallback={null}>
         <PostHogPageview />
       </Suspense>
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <RootProvider>{children}</RootProvider>
+      </body>
     </html>
   )
 }

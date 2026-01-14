@@ -1,0 +1,10 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "index",
+    "recipes",
+    "not",
+    "advanced",
+    "self-hosting"
+  ]
+}
