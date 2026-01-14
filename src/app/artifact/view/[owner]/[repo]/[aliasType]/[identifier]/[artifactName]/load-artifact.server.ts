@@ -173,6 +173,10 @@ export async function loadFile(storagePathname: string, params: PathParams, opti
     headers['cache-control'] = file.response.headers.get('cache-control') || 'no-cache'
   }
 
+  if (contentType.startsWith('text/plain')) {
+    return new Response(await file.response.text(), {headers, status: file.response.status})
+  }
+
   return new Response(file.response.body, {headers, status: file.response.status})
 }
 
