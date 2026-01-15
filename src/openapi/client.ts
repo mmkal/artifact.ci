@@ -33,7 +33,7 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
 
       headers.set('content-type', contentType)
       const content = input.content[contentType]
-      if (content instanceof Buffer) {
+      if (content instanceof Buffer || content instanceof Blob) {
         body = content
       } else {
         const serializer = options.serializers?.[contentType as never] as RequestOptionSerializer | undefined
