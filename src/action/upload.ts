@@ -96,7 +96,12 @@ async function main() {
   // Use the first search path as root otherwise use current directory.
   // If the search path is a file (not a directory), use its parent directory.
   let rootDirectory = searchPaths.length > 0 ? searchPaths[0] : '.'
-  if (rootDirectory !== '.' && !(await stat(rootDirectory).then(s => s.isDirectory()).catch(() => false))) {
+  if (
+    rootDirectory !== '.' &&
+    !(await stat(rootDirectory)
+      .then(s => s.isDirectory())
+      .catch(() => false))
+  ) {
     rootDirectory = path.dirname(rootDirectory)
   }
 
