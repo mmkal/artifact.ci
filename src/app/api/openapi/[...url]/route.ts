@@ -57,7 +57,7 @@ export async function GET(request: Request) {
 }
 
 // codegen:start {preset: custom, export: getOpenApiTsFlags, require: tsx/cjs}
-// codegen:hash {input: 79a9a04cb35aa17703770dbc31dcab7f, output: 7e1cd77b87db84714576d28070d2bdbe, timestamp: 2025-12-03T11:47:40.253Z}
+// codegen:hash {input: 79a9a04cb35aa17703770dbc31dcab7f, output: 7265f5095ff5246acf68b7d89c38448c, timestamp: 2026-03-06T19:28:49.269Z}
 const OpenApiTsFlags = z.object({
   additionalProperties: z.stringbool().optional(),
   alphabetize: z.stringbool().optional(),
@@ -67,6 +67,7 @@ const OpenApiTsFlags = z.object({
   emptyObjectsUnknown: z.stringbool().optional(),
   enum: z.stringbool().optional(),
   enumValues: z.stringbool().optional(),
+  conditionalEnums: z.stringbool().optional(),
   dedupeEnums: z.stringbool().optional(),
   check: z.stringbool().optional(),
   excludeDeprecated: z.stringbool().optional(),
@@ -75,8 +76,10 @@ const OpenApiTsFlags = z.object({
   pathParamsAsTypes: z.stringbool().optional(),
   rootTypes: z.stringbool().optional(),
   rootTypesNoSchemaPrefix: z.stringbool().optional(),
+  rootTypesKeepCasing: z.stringbool().optional(),
   makePathsEnum: z.stringbool().optional(),
   generatePathParams: z.stringbool().optional(),
+  readWriteMarkers: z.stringbool().optional(),
 })
 // codegen:end
 
