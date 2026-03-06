@@ -1,6 +1,8 @@
 import {NextRequest, NextResponse} from 'next/server'
 import {client, sql} from '../../../db'
 
+export const dynamic = 'force-dynamic'
+
 /** Responds with public info about the signed-in user and logs the full auth object */
 export async function GET(_request: NextRequest) {
   return NextResponse.json(await client.one(sql<queries.One>`select 1 as one`))
