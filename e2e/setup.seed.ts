@@ -3,6 +3,12 @@ import * as fs from 'fs'
 import {STORAGE_STATE} from '../playwright.config'
 
 setup('setup: do login', async ({page}) => {
+  const mmkalBotCredentials = process.env.MMKAL_BOT_CREDENTIALS
+  if (!mmkalBotCredentials) {
+    throw new Error('MMKAL_BOT_CREDENTIALS is not set')
+  }
+  const [mmkalBotUsername, ...mmkalBotPasswordParts] = mmkalBotCredentials.split(':')
+  const mmkalBotPassword = mmkalBotPasswordParts.join(':')
   try {
     const stat = fs.statSync(STORAGE_STATE)
     if (stat.mtimeMs > Date.now() - 1000 * 60 * 60) {
@@ -12,8 +18,8 @@ setup('setup: do login', async ({page}) => {
     // STORAGE_STATE prolly doesn't exist yet
   }
   await page.goto('https://github.com/login')
-  await page.locator('#login_field').fill('mmkal-bot')
-  await page.locator('#password').fill('*K.eA?svK>Jd8.yEJHo7T}RA')
+  await page.locator('#login_field').fill(mmkalBotUsername)
+  await page.locator('#password').fill(mmkalBotPassword)
   await page.getByText('Sign in', {exact: true}).click()
 
   await page.goto('https://github.com/mmkal-bot/test-repo')
