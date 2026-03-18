@@ -2,6 +2,7 @@
   "name": "artifact.ci",
   "version": "1.0.0",
   "description": "",
+  "type": "module",
   "packageManager": "pnpm@10.24.0",
   "scripts": {
     "deploy": "alchemy deploy",

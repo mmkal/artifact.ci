@@ -19,6 +19,7 @@ export const docsWorker = await Astro('docs', {
   cwd: './apps/docs',
   name: `${app.name}-${app.stage}-docs`,
   output: 'server',
+  compatibility: 'node',
   build: {
     command: 'astro build',
   },

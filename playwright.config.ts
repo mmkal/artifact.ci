@@ -1,8 +1,8 @@
-import {defineConfig, devices, PlaywrightTestConfig} from '@playwright/test'
+import {defineConfig, devices, type PlaywrightTestConfig} from '@playwright/test'
 import * as fs from 'fs'
 import * as path from 'path'
 
-export const STORAGE_STATE = path.join(__dirname, 'playwright/.auth/user.json')
+export const STORAGE_STATE = path.join(import.meta.dirname, 'playwright/.auth/user.json')
 const storageStateAgeMs = () => {
   try {
     const stat = fs.statSync(STORAGE_STATE)
