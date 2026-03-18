@@ -2,8 +2,8 @@
   "name": "artifact.ci",
   "version": "1.0.0",
   "description": "",
-  "packageManager": "pnpm@9.7.1",
-  "scripts": {
+  "packageManager": "pnpm@10.24.0",
+    "scripts": {
     "pgkit-link": "npx link ../pgkit/packages/pgkit",
     "pgkit": "node node_modules/pgkit/dist/cli.js",
     "build-supabase-client": "openapi-typescript --default-non-nullable=false https://supabase.github.io/storage/api.json -o src/openapi/generated/supabase-storage.ts",
