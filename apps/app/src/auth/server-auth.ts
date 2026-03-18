@@ -1,5 +1,6 @@
 import {Pool} from 'pg'
 import {betterAuth} from 'better-auth'
+import {admin} from 'better-auth/plugins'
 import {tanstackStartCookies} from 'better-auth/tanstack-start'
 
 const globalPool = globalThis as typeof globalThis & {__artifactBetterAuthPool?: Pool}
@@ -44,7 +45,7 @@ export const createServerAuth = () => {
           },
         }
       : {},
-    plugins: [tanstackStartCookies()],
+    plugins: [tanstackStartCookies(), admin()],
   })
 }
 

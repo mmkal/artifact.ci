@@ -4,8 +4,7 @@
   "description": "",
   "packageManager": "pnpm@10.24.0",
   "scripts": {
-    "auth:generate": "better-auth generate --config ./auth.ts --output ./migrations/0001_better_auth.sql --yes",
-    "auth:migrate": "better-auth migrate --config ./auth.ts --yes",
+    "auth:generate": "mkdir -p ./tmp && better-auth generate --config ./auth.ts --output ./tmp/better-auth-generated.sql --yes",
     "pgkit-link": "npx link ../pgkit/packages/pgkit",
     "pgkit": "node node_modules/pgkit/dist/cli.js",
     "build-supabase-client": "openapi-typescript --default-non-nullable=false https://supabase.github.io/storage/api.json -o src/openapi/generated/supabase-storage.ts",
@@ -78,6 +77,7 @@
   "devDependencies": {
     "@better-auth/cli": "^1.4.21",
     "@cloudflare/vite-plugin": "^1.29.1",
+    "@pgkit/admin": "0.6.1",
     "@playwright/test": "1.46.1",
     "@types/mime-types": "^2.1.1",
     "@types/node": "^22.7.5",

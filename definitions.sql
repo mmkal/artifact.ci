@@ -144,6 +144,65 @@ create table artifact_entries (
 );
 -- #endregion core tables
 
+-- #region auth tables
+-- generated from `pnpm auth:generate`
+create table "user" (
+	"id" text not null primary key,
+	"name" text not null,
+	"email" text not null unique,
+	"emailVerified" boolean not null,
+	"image" text,
+	"createdAt" timestamptz default current_timestamp not null,
+	"updatedAt" timestamptz default current_timestamp not null,
+	"role" text,
+	"banned" boolean,
+	"banReason" text,
+	"banExpires" timestamptz,
+	"githubLogin" text
+);
+
+create table "session" (
+	"id" text not null primary key,
+	"expiresAt" timestamptz not null,
+	"token" text not null unique,
+	"createdAt" timestamptz default current_timestamp not null,
+	"updatedAt" timestamptz not null,
+	"ipAddress" text,
+	"userAgent" text,
+	"userId" text not null references "user" ("id") on delete cascade,
+	"impersonatedBy" text
+);
+
+create table "account" (
+	"id" text not null primary key,
+	"accountId" text not null,
+	"providerId" text not null,
+	"userId" text not null references "user" ("id") on delete cascade,
+	"accessToken" text,
+	"refreshToken" text,
+	"idToken" text,
+	"accessTokenExpiresAt" timestamptz,
+	"refreshTokenExpiresAt" timestamptz,
+	"scope" text,
+	"password" text,
+	"createdAt" timestamptz default current_timestamp not null,
+	"updatedAt" timestamptz not null
+);
+
+create table "verification" (
+	"id" text not null primary key,
+	"identifier" text not null,
+	"value" text not null,
+	"expiresAt" timestamptz not null,
+	"createdAt" timestamptz default current_timestamp not null,
+	"updatedAt" timestamptz default current_timestamp not null
+);
+
+create index "session_userId_idx" on "session" ("userId");
+create index "account_userId_idx" on "account" ("userId");
+create index "verification_identifier_idx" on "verification" ("identifier");
+-- #endregion auth tables
+
 -- #region row level security
 -- not using supabase auth but may as well make sure the anonymous key can't access our tables
 alter table repos enable row level security;
@@ -153,6 +212,10 @@ alter table artifacts enable row level security;
 alter table artifact_identifiers enable row level security;
 alter table artifact_entries enable row level security;
 alter table github_installations enable row level security;
+alter table "user" enable row level security;
+alter table "session" enable row level security;
+alter table "account" enable row level security;
+alter table "verification" enable row level security;
 -- #endregion row level security
 
 -- #region indexes
