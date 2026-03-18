@@ -1,5 +1,7 @@
+import {handle} from '@astrojs/cloudflare/handler'
+
 export default {
-  async fetch(): Promise<Response> {
-    return new Response('Astro docs worker not wired yet.', {status: 503})
+  async fetch(request: Request, env: unknown, ctx: unknown): Promise<Response> {
+    return handle(request, env, ctx)
   },
 }
