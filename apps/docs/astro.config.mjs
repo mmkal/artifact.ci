@@ -1,18 +1,15 @@
-import alchemy from 'alchemy/cloudflare/astro'
 import react from '@astrojs/react'
 import starlight from '@astrojs/starlight'
 import {defineConfig} from 'astro/config'
 
 export default defineConfig({
   site: 'https://artifact.ci',
-  adapter: alchemy({prerenderEnvironment: 'node'}),
-  output: 'server',
+  output: 'static',
   integrations: [
     react(),
     starlight({
       title: 'artifact.ci',
       description: 'Docs for publishing and viewing build artifacts without cargo-culting a full app framework into the docs stack.',
-      prerender: false,
       pagefind: false,
       sidebar: [
         {

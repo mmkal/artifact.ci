@@ -18,13 +18,12 @@ export const appWorker = await TanStackStart('app', {
 export const docsWorker = await Astro('docs', {
   cwd: './apps/docs',
   name: `${app.name}-${app.stage}-docs`,
-  output: 'server',
-  compatibility: 'node',
+  output: 'static',
   build: {
     command: 'astro build',
   },
   dev: {
-    command: 'sh -c "astro build && astro preview --host 127.0.0.1 --port 3002"',
+    command: 'astro dev --port 3002 --host 127.0.0.1',
   },
 })
 

@@ -23,6 +23,6 @@ setup('setup: do login', async ({page}) => {
   await page.getByText('Sign in', {exact: true}).click()
 
   await page.goto('https://github.com/mmkal-bot/test-repo')
-  await page.locator('text=a test repo for testing and repoing').waitFor()
+  await page.locator('#repo-content-pjax-container #repository-container-header').waitFor()
   await page.context().storageState({path: STORAGE_STATE})
 })

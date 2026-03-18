@@ -17,10 +17,6 @@ export default {
   async fetch(request: Request, env: FrontdoorEnv): Promise<Response> {
     const url = new URL(request.url)
 
-    if (url.pathname === '/') {
-      return proxyToOrigin(request, env.APP_URL)
-    }
-
     const target = routeRequest(url.pathname)
 
     if (target === 'artifact') {
