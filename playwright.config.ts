@@ -3,6 +3,8 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 export const STORAGE_STATE = path.join(import.meta.dirname, 'playwright/.auth/user.json')
+const hasBotCredentials = Boolean(process.env.MMKAL_BOT_CREDENTIALS)
+const hasFreshStorageState = () => storageStateAgeMs() < 1000 * 60 * 60
 const storageStateAgeMs = () => {
   try {
     const stat = fs.statSync(STORAGE_STATE)
@@ -16,7 +18,7 @@ export default defineConfig({
   testDir: 'e2e',
   use: {
     colorScheme: 'dark',
-    baseURL: 'http://localhost:3000',
+    baseURL: 'http://localhost:1337',
   },
   projects: (() => {
     const defaultProjects: PlaywrightTestConfig['projects'] = [
@@ -29,13 +31,17 @@ export default defineConfig({
         name: 'chromium',
         use: {
           ...devices['Desktop Chrome'],
-          storageState: STORAGE_STATE,
+          ...(hasFreshStorageState() ? {storageState: STORAGE_STATE} : {}),
         },
         dependencies: ['seed'],
       },
     ]
 
-    if (storageStateAgeMs() < 1000 * 60 * 60) {
+    if (!hasBotCredentials) {
+      return defaultProjects.slice(1).map(p => ({...p, dependencies: p.dependencies?.filter(d => d !== 'seed')}))
+    }
+
+    if (hasFreshStorageState()) {
       return defaultProjects.slice(1).map(p => ({...p, dependencies: p.dependencies?.filter(d => d !== 'seed')}))
     }
     return defaultProjects
@@ -43,6 +49,6 @@ export default defineConfig({
   webServer: {
     reuseExistingServer: true,
     command: 'pnpm dev',
-    port: 3000,
+    port: 1337,
   },
 })

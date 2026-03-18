@@ -1,4 +1,4 @@
-import {Page} from '@playwright/test'
+import {type Page} from '@playwright/test'
 
 export const installApp = async ({page}: {page: Page}) => {
   await page.goto('https://github.com/apps/artifact-ci')

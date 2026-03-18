@@ -36,6 +36,8 @@ export const frontdoorWorker = await Worker('frontdoor', {
   bindings: {
     APP: appWorker,
     DOCS: docsWorker,
+    APP_URL: appWorker.url || 'http://127.0.0.1:3001',
+    DOCS_URL: docsWorker.url || 'http://127.0.0.1:3002',
     SUPABASE_PROJECT_URL: process.env.SUPABASE_PROJECT_URL || '',
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   },

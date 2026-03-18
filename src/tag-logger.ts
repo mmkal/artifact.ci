@@ -14,7 +14,11 @@ export class TagLogger {
 
   _storage = new AsyncLocalStorage<TagLogger.Context>()
 
-  constructor(readonly _implementation = console as Pick<typeof console, TagLogger.Level>) {}
+  readonly _implementation: Pick<typeof console, TagLogger.Level>
+
+  constructor(implementation = console as Pick<typeof console, TagLogger.Level>) {
+    this._implementation = implementation
+  }
 
   get context(): TagLogger.Context {
     return this._storage.getStore() || {level: 'info', tags: [], logs: []}

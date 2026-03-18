@@ -8,6 +8,10 @@ export default createServerEntry({
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url)
 
+    if (url.pathname === '/api/test') {
+      return Response.json({testTableData: {id: 1, name: 'one'}})
+    }
+
     if (url.pathname.startsWith('/api/auth/')) {
       const auth = createServerAuth()
       return auth.handler(request)

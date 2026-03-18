@@ -14,7 +14,7 @@ export const Route = createRootRouteWithContext<{session: AppSessionSnapshot}>()
     meta: [
       {charSet: 'utf-8'},
       {name: 'viewport', content: 'width=device-width, initial-scale=1'},
-      {title: 'artifact.ci app'},
+      {title: 'artifact.ci'},
       {
         name: 'description',
         content: 'Signed-in app shell for artifact.ci, including auth, billing, and artifact browser routes.',
