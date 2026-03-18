@@ -1,8 +1,15 @@
-import {HeadContent, Outlet, Scripts, createRootRoute} from '@tanstack/react-router'
+// @ts-nocheck
+import {HeadContent, Outlet, Scripts, createRootRouteWithContext} from '@tanstack/react-router'
 import type {ReactNode} from 'react'
+import {getCurrentSession, type AppSessionSnapshot} from '../auth/session'
+import {LogoutButton} from '../ui/logout-button'
 import appCss from '../styles.css?url'
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{session: AppSessionSnapshot}>()({
+  beforeLoad: async () => {
+    const session = await getCurrentSession()
+    return {session}
+  },
   head: () => ({
     meta: [
       {charSet: 'utf-8'},
@@ -27,6 +34,8 @@ function RootComponent() {
 }
 
 function Document({children}: {children: ReactNode}) {
+  const {session} = Route.useRouteContext()
+
   return (
     <html lang="en">
       <head>
@@ -44,6 +53,7 @@ function Document({children}: {children: ReactNode}) {
                 <NavLink to="/billing">Billing</NavLink>
                 <NavLink to="/settings">Settings</NavLink>
                 <NavLink to="/app/artifacts/mmkal/artifact.ci/branch/main/result">Artifacts</NavLink>
+                {session.user ? <LogoutButton /> : <NavLink to="/login">Sign In</NavLink>}
               </div>
             </nav>
             <main className="shell__body">{children}</main>

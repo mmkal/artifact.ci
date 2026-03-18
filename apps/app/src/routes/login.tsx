@@ -1,11 +1,14 @@
 // @ts-nocheck
 import {createFileRoute} from '@tanstack/react-router'
+import {LoginCard} from '../ui/login-card'
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
 })
 
 function LoginPage() {
+  const search = Route.useSearch() as {callbackUrl?: string}
+
   return (
     <section className="page">
       <div className="eyebrow">Authentication</div>
@@ -14,7 +17,7 @@ function LoginPage() {
         This route is reserved for the first-party sign-in flow. The frontdoor redirects unauthenticated artifact
         requests here with a callback URL.
       </p>
-      <div className="badge">Planned: Better Auth + GitHub + first-party cookies</div>
+      <LoginCard callbackUrl={search.callbackUrl} />
     </section>
   )
 }

@@ -6,6 +6,8 @@ export const Route = createFileRoute('/')({
 })
 
 function AppHomePage() {
+  const {session} = Route.useRouteContext()
+
   return (
     <section className="hero">
       <div className="eyebrow">App Shell</div>
@@ -15,6 +17,14 @@ function AppHomePage() {
         and the artifact browser chrome. The actual asset bytes still belong at the edge frontdoor.
       </p>
       <div className="cards">
+        <article className="card">
+          <h2>Viewer</h2>
+          <p>
+            {session.user
+              ? `Signed in as ${session.user.githubLogin || session.user.email || session.user.id}.`
+              : 'No active Better Auth session yet.'}
+          </p>
+        </article>
         <article className="card">
           <h2>Routing contract</h2>
           <p>

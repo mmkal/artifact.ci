@@ -1,7 +1,9 @@
 // @ts-nocheck
 import {createFileRoute} from '@tanstack/react-router'
+import {requireCurrentSession} from '../auth/session'
 
 export const Route = createFileRoute('/settings')({
+  beforeLoad: async ({location}) => requireCurrentSession({data: {redirectTo: location.href}}),
   component: SettingsPage,
 })
 
