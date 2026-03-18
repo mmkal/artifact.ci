@@ -3,14 +3,12 @@ import {getInput, isDebug as isDebugCore, setFailed, setOutput} from '@actions/c
 import * as github from '@actions/github'
 import * as glob from '@actions/glob'
 import {HttpClient} from '@actions/http-client'
-import {createTRPCClient, httpLink} from '@trpc/client'
 import {readFile, stat} from 'fs/promises'
 import * as path from 'path'
 import {z} from 'zod'
 import {EventType} from './types'
-import {clientUpload} from '~/app/artifact/view/[owner]/[repo]/[aliasType]/[identifier]/[artifactName]/client-upload'
-import {UploadRequest, UploadResponse} from '~/app/github/upload/types'
-import {AppRouter} from '~/server/trpc'
+import {clientUpload} from '@artifact/domain/artifact/client-upload'
+import {UploadRequest, UploadResponse} from '@artifact/domain/github/upload-types'
 import {logger} from '~/tag-logger'
 
 async function main() {
@@ -158,14 +156,8 @@ async function main() {
         onProgress(stage, message) {
           logger.info(`${stage}: ${message}`)
         },
-        trpcClient: createTRPCClient<AppRouter>({
-          links: [
-            httpLink({
-              url: inputs.artifactciOrigin + '/api/trpc',
-              headers: {'artifactci-upload-token': result.uploadToken},
-            }),
-          ],
-        }),
+        trpcUrl: inputs.artifactciOrigin + '/api/trpc',
+        uploadToken: result.uploadToken,
       })
 
       const {entrypoints} = records.entrypoints

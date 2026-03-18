@@ -1,8 +1,9 @@
 import {z} from 'zod'
-import {Id} from '~/db'
+import {Id} from '../db/client'
 
 export const AliasType = z.enum(['run', 'sha', 'branch'])
 export type AliasType = z.infer<typeof AliasType>
+
 export const UploadRequest = z.object({
   owner: z.string(),
   repo: z.string(),

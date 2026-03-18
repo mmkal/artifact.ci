@@ -1,16 +1,14 @@
 import {DefaultArtifactClient} from '@actions/artifact'
 import {getInput, isDebug as isDebugCore, setFailed, setOutput} from '@actions/core'
 import {HttpClient} from '@actions/http-client'
-import {createTRPCClient, httpLink} from '@trpc/client'
 import {makeBadge} from 'badge-maker'
 import * as fs from 'fs/promises'
 import {readFile} from 'fs/promises'
 import * as path from 'path'
 import {z} from 'zod'
 import {EventType} from './types'
-import {clientUpload} from '~/app/artifact/view/[owner]/[repo]/[aliasType]/[identifier]/[artifactName]/client-upload'
-import {UploadRequest, UploadResponse} from '~/app/github/upload/types'
-import {AppRouter} from '~/server/trpc'
+import {clientUpload} from '@artifact/domain/artifact/client-upload'
+import {UploadRequest, UploadResponse} from '@artifact/domain/github/upload-types'
 import {logger} from '~/tag-logger'
 
 async function main() {
@@ -141,14 +139,8 @@ async function main() {
     const records = await clientUpload({
       artifactId: result.artifactId,
       onProgress: (stage, message) => logger.debug(`${stage}: ${message}`),
-      trpcClient: createTRPCClient<AppRouter>({
-        links: [
-          httpLink({
-            url: artifactciOrigin + '/api/trpc',
-            headers: {'artifactci-upload-token': result.uploadToken},
-          }),
-        ],
-      }),
+      trpcUrl: artifactciOrigin + '/api/trpc',
+      uploadToken: result.uploadToken,
     })
     logger.debug('clientUpload done', records)
 
