@@ -1,8 +1,9 @@
 import {type ArtifactResolveRequest, type ArtifactResolveResponse} from '@artifact/domain/artifact/edge-contract'
 import {PathParams, toAppArtifactPath} from '@artifact/domain/artifact/path-params'
 import {resolveArtifactRequest} from '@artifact/domain/artifact/resolve-artifact-request'
-import {checkCanAccess, getInstallationOctokit} from '~/auth'
-import {client, sql} from '~/db'
+import {client, sql, type Id} from '@artifact/domain/db/client'
+import {checkCanAccess} from '@artifact/domain/github/access'
+import {getInstallationOctokit} from '@artifact/domain/github/installations'
 
 export async function resolveArtifactForEdge(
   input: ArtifactResolveRequest,
@@ -117,7 +118,7 @@ export async function resolveArtifactForEdge(
 export declare namespace queries {
   export interface ArtifactInfo {
     installation_github_id: number
-    artifact_id: import('~/db').Id<'artifacts'>
+    artifact_id: Id<'artifacts'>
     visibility: string
     entries: string[] | null
   }

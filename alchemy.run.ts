@@ -23,7 +23,7 @@ export const docsWorker = await Astro('docs', {
     command: 'astro build',
   },
   dev: {
-    command: 'astro dev --port 3002 --host 127.0.0.1',
+    command: 'sh -c "astro build && astro preview --host 127.0.0.1 --port 3002"',
   },
 })
 
@@ -36,7 +36,7 @@ export const frontdoorWorker = await Worker('frontdoor', {
     APP: appWorker,
     DOCS: docsWorker,
     SUPABASE_PROJECT_URL: process.env.SUPABASE_PROJECT_URL || '',
-    SUPABASE_SERVICE_ROLE_KEY: alchemy.secret(process.env.SUPABASE_SERVICE_ROLE_KEY || ''),
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   },
 })
 
