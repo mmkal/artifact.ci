@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     return pkgOrResponse
   }
   const {tgz, pkg} = pkgOrResponse
-  return new Response(tgz, {
+  return new Response(new Uint8Array(tgz), {
     headers: {
       'Content-Type': 'application/octet-stream',
       'Content-Disposition': `attachment; filename="${pkg.name}-${pkg.version}.tgz"`,

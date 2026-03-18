@@ -1,10 +1,16 @@
-import {expect, PageAssertionsToHaveScreenshotOptions, test as baseTest, Page as BasePage} from '@playwright/test'
+import {
+  expect,
+  PageAssertionsToHaveScreenshotOptions,
+  test as baseTest,
+  Page as BasePage,
+  TestInfo,
+} from '@playwright/test'
 import {copyFile} from 'node:fs/promises'
 import {setTimeout} from 'node:timers/promises'
 
 type Page = BasePage & {snapshotScreen: (options?: PageAssertionsToHaveScreenshotOptions) => Promise<void>}
 const test = baseTest.extend<{page: Page}>({
-  page: async ({page}, use, testInfo) => {
+  page: async ({page}: {page: BasePage}, use: (page: Page) => Promise<void>, testInfo: TestInfo) => {
     await use(
       Object.assign(page, {
         snapshotScreen: async (options?: PageAssertionsToHaveScreenshotOptions) => {

@@ -17,7 +17,7 @@ Docs and install instructions on [artifact.ci](https://artifact.ci).
 
 CI jobs often generate useful HTML reports (test results, coverage, etc.). GitHub Actions doesn't provide a way to view these directly. The existing option is to use `actions/upload-artifact`, then download it as a zip file, unzip it on your local machine, and then poke around at the files or run a local server. This app fills that gap, letting you view artifacts in your browser without downloading and unzipping.
 
-This _should_ really be a feature built into GitHub, and likely one day will be, but [for now it isn't](https://github.com/actions/upload-artifact/issues/14). (Note: it is built into some other CI providers like CircleCI).
+This _should_ really be a feature built into GitHub, and likely one day will be, but [for now it isn't](https://github.com/actions/upload-artifact/issues/14 - [even though that issue was closed](https://github.com/actions/upload-artifact/issues/14#issuecomment-4033438739)). (Note: it is built into some other CI providers like CircleCI).
 
 ## Usage
 

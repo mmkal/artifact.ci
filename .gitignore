@@ -19,3 +19,4 @@ test-results
 playwright/.auth
 *.log
 playwriter*
+*.tsbuildinfo
