@@ -4,6 +4,7 @@ import starlight from '@astrojs/starlight'
 import {defineConfig} from 'astro/config'
 
 export default defineConfig({
+  site: 'https://artifact.ci',
   adapter: cloudflare({prerenderEnvironment: 'node'}),
   output: 'server',
   integrations: [

@@ -4,9 +4,13 @@ import {tanstackStartCookies} from 'better-auth/tanstack-start'
 
 const globalPool = globalThis as typeof globalThis & {__artifactBetterAuthPool?: Pool}
 
+const getConnectionString = () => {
+  return process.env.DATABASE_URL || process.env.PGKIT_CONNECTION_STRING || 'postgresql://postgres:postgres@localhost:5500/postgres'
+}
+
 const getPool = () => {
   globalPool.__artifactBetterAuthPool ??= new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: getConnectionString(),
   })
 
   return globalPool.__artifactBetterAuthPool
@@ -15,7 +19,7 @@ const getPool = () => {
 export const createServerAuth = () => {
   return betterAuth({
     appName: 'artifact.ci',
-    baseURL: process.env.BETTER_AUTH_URL || 'http://localhost:3000',
+    baseURL: process.env.BETTER_AUTH_URL || process.env.AUTH_URL || 'http://localhost:3000',
     basePath: '/api/auth',
     secret: process.env.BETTER_AUTH_SECRET || 'dev-only-not-for-production',
     database: getPool(),
