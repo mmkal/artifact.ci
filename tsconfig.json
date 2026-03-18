@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
     "plugins": [
       {
         "name": "next"
@@ -25,6 +26,12 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "paths": {
+      "@artifact/config/*": [
+        "./packages/config/src/*"
+      ],
+      "@artifact/domain/*": [
+        "./packages/domain/src/*"
+      ],
       "~/*": [
         "./src/*"
       ]
