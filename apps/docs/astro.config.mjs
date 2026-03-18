@@ -1,11 +1,11 @@
-import cloudflare from '@astrojs/cloudflare'
+import alchemy from 'alchemy/cloudflare/astro'
 import react from '@astrojs/react'
 import starlight from '@astrojs/starlight'
 import {defineConfig} from 'astro/config'
 
 export default defineConfig({
   site: 'https://artifact.ci',
-  adapter: cloudflare({prerenderEnvironment: 'node'}),
+  adapter: alchemy({prerenderEnvironment: 'node'}),
   output: 'server',
   integrations: [
     react(),

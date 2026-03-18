@@ -1,19 +1,49 @@
-export default {
-  name: 'artifact-ci',
-  workers: {
-    frontdoor: {
-      entry: 'apps/frontdoor/src/index.ts',
-      domains: ['artifact.ci'],
-      bindings: {
-        APP: 'app',
-        DOCS: 'docs',
-      },
-    },
-    app: {
-      entry: 'apps/app/src/index.ts',
-    },
-    docs: {
-      entry: 'apps/docs/src/index.ts',
-    },
+import alchemy from 'alchemy'
+import {Astro, TanStackStart, Worker} from 'alchemy/cloudflare'
+
+const app = await alchemy('artifact-ci')
+
+export const appWorker = await TanStackStart('app', {
+  cwd: './apps/app',
+  name: `${app.name}-${app.stage}-app`,
+  entrypoint: 'dist/server/server.js',
+  build: {
+    command: 'vite build',
   },
-} as const
+  dev: {
+    command: 'vite dev --port 3001 --host 127.0.0.1',
+  },
+})
+
+export const docsWorker = await Astro('docs', {
+  cwd: './apps/docs',
+  name: `${app.name}-${app.stage}-docs`,
+  output: 'server',
+  build: {
+    command: 'astro build',
+  },
+  dev: {
+    command: 'astro dev --port 3002 --host 127.0.0.1',
+  },
+})
+
+export const frontdoorWorker = await Worker('frontdoor', {
+  name: `${app.name}-${app.stage}-frontdoor`,
+  entrypoint: './apps/frontdoor/src/index.ts',
+  compatibility: 'node',
+  url: true,
+  bindings: {
+    APP: appWorker,
+    DOCS: docsWorker,
+    SUPABASE_PROJECT_URL: process.env.SUPABASE_PROJECT_URL || '',
+    SUPABASE_SERVICE_ROLE_KEY: alchemy.secret(process.env.SUPABASE_SERVICE_ROLE_KEY || ''),
+  },
+})
+
+console.log({
+  appUrl: appWorker.url,
+  docsUrl: docsWorker.url,
+  frontdoorUrl: frontdoorWorker.url,
+})
+
+await app.finalize()
