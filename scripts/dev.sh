@@ -28,4 +28,14 @@ mkdir -p .alchemy/logs
 
 pnpm dev:server &
 server_pid=$!
+
+for _ in $(seq 1 180); do
+  if curl -fsS http://127.0.0.1:1337/ >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+
+printf '\nOpen in browser: http://artifactci.localhost:1355\n\n'
+
 wait "$server_pid"

@@ -1,5 +1,5 @@
 import alchemy from 'alchemy'
-import {Astro, TanStackStart, Worker} from 'alchemy/cloudflare'
+import {TanStackStart, Website, Worker} from 'alchemy/cloudflare'
 
 const app = await alchemy('artifact-ci')
 
@@ -15,16 +15,16 @@ export const appWorker = await TanStackStart('app', {
   },
 })
 
-export const docsWorker = await Astro('docs', {
+export const docsWorker = await Website('docs', {
   cwd: './apps/docs',
   name: `${app.name}-${app.stage}-docs`,
-  output: 'static',
   build: {
     command: 'astro build',
   },
   dev: {
     command: 'astro dev --host 127.0.0.1',
   },
+  assets: 'dist',
 })
 
 export const frontdoorWorker = await Worker('frontdoor', {
