@@ -1,71 +1,239 @@
-import {test, type Page} from '@playwright/test'
-import {installApp, uninstallApp} from './manage-app'
+import {expect, test, type Page} from '@playwright/test'
+import {mkdir, mkdtemp, rm, writeFile} from 'node:fs/promises'
+import {tmpdir} from 'node:os'
+import path from 'node:path'
+import {execFile} from 'node:child_process'
+import {promisify} from 'node:util'
 
-const editFile = async (
-  page: Page,
-  params: {path: string; type: () => Promise<void>; commitMessage: string; branchName: string | null},
-) => {
-  await page.goto('https://github.com/mmkal-bot/test-repo/blob/main/' + params.path)
-  await page.getByLabel('Edit this file').click()
-  await page.locator('file-attachment .cm-line').last().click()
-  await params.type()
-  await page.locator('text=Commit changes').click()
+const execFileAsync = promisify(execFile)
+const installRepoSlug = 'mmkal-bot/test-repo'
+const installRepoUrl = `https://github.com/${installRepoSlug}`
+const workflowRepoOwner = 'mmkal'
+const githubApiOrigin = 'https://api.github.com'
 
-  await page.locator('#commit-message-input').waitFor()
-  await page.keyboard.press('Meta+Backspace')
-  await page.keyboard.type(params.commitMessage)
-  if (params.branchName) {
-    await page.locator('text=Create a new branch').click()
-    await page.locator('#branch-name-input').fill(params.branchName)
+class ArtifactCiAppFixture {
+  readonly page: Page
+
+  constructor(page: Page) {
+    this.page = page
   }
-  await page.keyboard.press('Meta+Enter')
-  await page.locator('text=sdiofjsdoijfsd').click()
+
+  static async create(page: Page) {
+    const fixture = new ArtifactCiAppFixture(page)
+    await fixture.assertInstalled()
+    return fixture
+  }
+
+  async assertInstalled() {
+    await this.page.goto(`${installRepoUrl}/settings/installations`)
+    await expect.poll(async () => (await this.page.locator('body').innerText()).includes('artifact.ci'), {timeout: 30_000}).toBe(true)
+    await expect(this.page.getByRole('link', {name: 'Configure'}).last()).toBeVisible({timeout: 30_000})
+  }
+
+  async [Symbol.asyncDispose]() {
+    await this.assertInstalled()
+  }
 }
 
-test.skip('showcase', async ({page}) => {
-  await page.goto('https://github.com/mmkal-bot/test-repo')
-  await new Promise(resolve => setTimeout(resolve, 2000))
-  await page.locator('data-testid="checks-status-badge-icon"').click()
-  await new Promise(resolve => setTimeout(resolve, 3000))
+class WorkflowRepoFixture {
+  readonly repoName: string
+  readonly repoSlug: string
+  readonly repoUrl: string
+  readonly branch: string
+  readonly workflowName: string
+  readonly commitMessage: string
+  readonly workflowPath: string
+  readonly tempDir: string
 
-  await installApp({page})
+  constructor(params: {
+    repoName: string
+    branch: string
+    workflowName: string
+    commitMessage: string
+    workflowPath: string
+    tempDir: string
+  }) {
+    this.repoName = params.repoName
+    this.repoSlug = `${workflowRepoOwner}/${params.repoName}`
+    this.repoUrl = `https://github.com/${this.repoSlug}`
+    this.branch = params.branch
+    this.workflowName = params.workflowName
+    this.commitMessage = params.commitMessage
+    this.workflowPath = params.workflowPath
+    this.tempDir = params.tempDir
+  }
 
-  await editFile(page, {
-    path: 'artifact.ci-' + Date.now(),
-    type: async () => {
-      await page.keyboard.press('Backspace')
-      const lines = [
-        ' --reporter html', //
-        '- uses: actions/upload-artifact@v4',
-        'with:',
-        'name: test-report',
-        'path: html',
-      ]
-      for (const line of lines) {
-        await page.keyboard.type(line)
-        await page.keyboard.press('Enter')
+  static async create() {
+    const repoName = `artifact-ci-e2e-${Date.now()}`
+    const workflowName = `artifact-ci-showcase-${Date.now()}`
+    const branch = workflowName
+    const commitMessage = `add ${workflowName}`
+    const workflowPath = `.github/workflows/${workflowName}.yml`
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'artifact-ci-e2e-'))
+    const fixture = new WorkflowRepoFixture({repoName, branch, workflowName, commitMessage, workflowPath, tempDir})
+    await fixture.createRepo()
+    await fixture.pushWorkflow()
+    return fixture
+  }
+
+  async createRepo() {
+    await githubJson('/user/repos', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: this.repoName,
+        private: false,
+        auto_init: true,
+      }),
+    })
+  }
+
+  async pushWorkflow() {
+    const remote = authenticatedGitRemote(this.repoSlug)
+    await git(['clone', '--depth', '1', '--branch', 'main', remote, this.tempDir])
+    await git(['checkout', '-b', this.branch], {cwd: this.tempDir})
+    const fullPath = path.join(this.tempDir, this.workflowPath)
+    await mkdir(path.dirname(fullPath), {recursive: true})
+    await writeFile(fullPath, buildWorkflowYaml(this.workflowName))
+    await git(['add', this.workflowPath], {cwd: this.tempDir})
+    await git(['-c', 'user.name=artifact-ci-e2e', '-c', 'user.email=artifact-ci-e2e@users.noreply.github.com', 'commit', '-m', this.commitMessage], {
+      cwd: this.tempDir,
+    })
+    await git(['push', '--set-upstream', 'origin', this.branch], {cwd: this.tempDir})
+  }
+
+  async [Symbol.asyncDispose]() {
+    try {
+      await githubDelete(`/repos/${this.repoSlug}`)
+    } catch {
+      // best effort cleanup
+    }
+    await rm(this.tempDir, {recursive: true, force: true})
+  }
+}
+
+test('showcase', async ({page}) => {
+  test.setTimeout(1000 * 60 * 5)
+
+  await using _app = await ArtifactCiAppFixture.create(page)
+  await using repo = await WorkflowRepoFixture.create()
+
+  const run = await waitForWorkflowSuccess(repo)
+
+  await page.goto(`${repo.repoUrl}/tree/${repo.branch}`)
+  await expect(page.getByTitle(repo.commitMessage)).toBeVisible({timeout: 30_000})
+
+  const checksBadge = page.getByTestId('checks-status-badge-icon').first()
+  await expect(checksBadge).toBeVisible({timeout: 30_000})
+  await checksBadge.click()
+  await expect(page.getByText(repo.workflowName, {exact: true})).toBeVisible({timeout: 30_000})
+
+  await page.goto(run.html_url)
+
+  await expect(page.locator('a[href*="/artifacts/"]').first()).toBeVisible({timeout: 120_000})
+})
+
+async function waitForWorkflowSuccess(repo: WorkflowRepoFixture) {
+  const timeoutMs = 180_000
+  const started = Date.now()
+
+  while (Date.now() - started < timeoutMs) {
+    const data = (await githubJson(`/repos/${repo.repoSlug}/actions/runs?branch=${repo.branch}`, {method: 'GET'})) as {
+      workflow_runs?: Array<{name: string; status: string; conclusion: string | null; id: number; html_url: string; artifacts_url: string}>
+    }
+    const run = data.workflow_runs?.find(x => x.name === repo.workflowName)
+
+    if (run?.status === 'completed') {
+      if (run.conclusion !== 'success') {
+        throw new Error(`Workflow ${repo.workflowName} completed with ${run.conclusion}`)
       }
+
+      const artifacts = (await githubJson(`/repos/${repo.repoSlug}/actions/runs/${run.id}/artifacts`, {method: 'GET'})) as {
+        total_count: number
+      }
+      if (artifacts.total_count === 0) {
+        throw new Error(`Workflow ${repo.workflowName} succeeded without artifacts`)
+      }
+
+      return run
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 5000))
+  }
+
+  throw new Error(`Timed out waiting for workflow ${repo.workflowName} to succeed`)
+}
+
+function authenticatedGitRemote(repoSlug: string) {
+  const githubToken = requiredGithubToken()
+  return `https://x-access-token:${encodeURIComponent(githubToken)}@github.com/${repoSlug}.git`
+}
+
+async function githubJson(pathname: string, init: RequestInit) {
+  const response = await fetch(`${githubApiOrigin}${pathname}`, {
+    ...init,
+    headers: {
+      accept: 'application/vnd.github+json',
+      authorization: `Bearer ${requiredGithubToken()}`,
+      'x-github-api-version': '2022-11-28',
+      'content-type': 'application/json',
+      ...(init.headers || {}),
     },
-    commitMessage: 'add artifact.ci',
-    branchName: 'artifact-ci-' + Date.now(),
   })
 
-  await uninstallApp({page})
-})
+  if (!response.ok) {
+    throw new Error(`GitHub API ${pathname} failed: ${response.status} ${await response.text()}`)
+  }
 
-test.skip('add multiply test', async ({page}) => {
-  await editFile(page, {
-    path: 'calculator.test.ts',
-    type: async () => {
-      await page.keyboard.type(
-        [
-          `test('multiply', () => {`, //
-          `expect(multiply(3, 4)).toBe(12)`,
-          `})`,
-        ].join('\n'),
-      )
+  return response.json()
+}
+
+async function githubDelete(pathname: string) {
+  const response = await fetch(`${githubApiOrigin}${pathname}`, {
+    method: 'DELETE',
+    headers: {
+      accept: 'application/vnd.github+json',
+      authorization: `Bearer ${requiredGithubToken()}`,
+      'x-github-api-version': '2022-11-28',
     },
-    commitMessage: 'add multiply test',
-    branchName: 'multiply-test-' + Date.now(),
   })
-})
+
+  if (response.status !== 204 && response.status !== 404) {
+    throw new Error(`GitHub API ${pathname} failed: ${response.status} ${await response.text()}`)
+  }
+}
+
+function requiredGithubToken() {
+  const token = process.env.GH_TOKEN
+  if (!token) throw new Error('GH_TOKEN is required for showcase usage tests')
+  return token
+}
+
+async function git(args: string[], options?: {cwd?: string}) {
+  await execFileAsync('git', args, {
+    cwd: options?.cwd,
+    env: {
+      ...process.env,
+      GIT_TERMINAL_PROMPT: '0',
+    },
+  })
+}
+
+function buildWorkflowYaml(workflowName: string) {
+  return [
+    `name: ${workflowName}`,
+    'on:',
+    '  push:',
+    'jobs:',
+    '  showcase:',
+    '    runs-on: ubuntu-latest',
+    '    steps:',
+    '      - name: Write HTML report',
+    '        run: |',
+    '          mkdir -p html',
+    `          printf '<!doctype html><html><body><h1>${workflowName}</h1></body></html>' > html/index.html`,
+    '      - uses: actions/upload-artifact@v4',
+    '        with:',
+    '          name: showcase-report',
+    '          path: html',
+  ].join('\n')
+}

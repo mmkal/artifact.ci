@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cleanup() {
+  if [[ -n "${server_pid:-}" ]]; then
+    kill "$server_pid" 2>/dev/null || true
+  fi
+}
+
+on_signal() {
+  cleanup
+  exit 130
+}
+
+trap cleanup EXIT
+trap on_signal INT TERM
+
+pkill -f "alchemy dev" 2>/dev/null || true
+for port in 1337 1355; do
+  lsof -ti tcp:"$port" | xargs kill -9 2>/dev/null || true
+done
+
+portless proxy start >/dev/null 2>&1 || true
+portless alias artifactci 1337 >/dev/null 2>&1 || true
+
+rm -rf .alchemy apps/app/.alchemy apps/docs/.alchemy apps/docs/.astro apps/docs/.wrangler apps/docs/dist
+mkdir -p .alchemy/logs
+
+pnpm dev:server &
+server_pid=$!
+wait "$server_pid"

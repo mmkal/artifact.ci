@@ -5,6 +5,11 @@ import {defineConfig} from 'astro/config'
 export default defineConfig({
   site: 'https://artifact.ci',
   output: 'static',
+  vite: {
+    server: {
+      hmr: false,
+    },
+  },
   integrations: [
     react(),
     starlight({

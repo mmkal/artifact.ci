@@ -8,10 +8,19 @@ export interface FrontdoorEnv extends ArtifactHandlerEnv {
   DOCS_URL: string
 }
 
-const proxyToOrigin = (request: Request, origin: string) => {
+const proxyToOrigin = async (request: Request, origin: string) => {
   const url = new URL(request.url)
-  return fetch(new Request(new URL(`${url.pathname}${url.search}`, origin), request))
+  const response = await fetch(new Request(new URL(`${url.pathname}${url.search}`, origin), request))
+  const headers = new Headers(response.headers)
+  const body = await response.arrayBuffer()
+  return new Response(body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
 }
+
+const isLocalOrigin = (origin: string) => /^https?:\/\/(127\.0\.0\.1|localhost):\d+/.test(origin)
 
 export default {
   async fetch(request: Request, env: FrontdoorEnv): Promise<Response> {
@@ -24,6 +33,10 @@ export default {
     }
 
     if (target === 'app') {
+      if (isLocalOrigin(env.APP_URL)) {
+        return proxyToOrigin(request, env.APP_URL)
+      }
+
       return env.APP.fetch(request)
     }
 

@@ -11,7 +11,7 @@ export const appWorker = await TanStackStart('app', {
     command: 'vite build',
   },
   dev: {
-    command: 'vite dev --port 3001 --host 127.0.0.1',
+    command: 'vite dev --host 127.0.0.1',
   },
 })
 
@@ -23,7 +23,7 @@ export const docsWorker = await Astro('docs', {
     command: 'astro build',
   },
   dev: {
-    command: 'astro dev --port 3002 --host 127.0.0.1',
+    command: 'astro dev --host 127.0.0.1',
   },
 })
 
@@ -35,8 +35,8 @@ export const frontdoorWorker = await Worker('frontdoor', {
   bindings: {
     APP: appWorker,
     DOCS: docsWorker,
-    APP_URL: appWorker.url || 'http://127.0.0.1:3001',
-    DOCS_URL: docsWorker.url || 'http://127.0.0.1:3002',
+    APP_URL: appWorker.url || '',
+    DOCS_URL: docsWorker.url || '',
     SUPABASE_PROJECT_URL: process.env.SUPABASE_PROJECT_URL || '',
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   },
