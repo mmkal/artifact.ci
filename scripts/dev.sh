@@ -16,7 +16,7 @@ trap cleanup EXIT
 trap on_signal INT TERM
 
 pkill -f "alchemy dev" 2>/dev/null || true
-for port in 1337 1355; do
+for port in 1337 1355 43111 43112; do
   lsof -ti tcp:"$port" | xargs kill -9 2>/dev/null || true
 done
 
@@ -25,6 +25,10 @@ portless alias artifactci 1337 >/dev/null 2>&1 || true
 
 rm -rf .alchemy apps/app/.alchemy apps/docs/.alchemy apps/docs/.astro apps/docs/.wrangler apps/docs/dist
 mkdir -p .alchemy/logs
+touch \
+  .alchemy/logs/artifact-ci-mmkal-app.log \
+  .alchemy/logs/artifact-ci-mmkal-docs.log \
+  .alchemy/logs/artifact-ci-mmkal-frontdoor.log
 
 pnpm dev:server &
 server_pid=$!
