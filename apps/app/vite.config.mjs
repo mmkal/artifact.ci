@@ -16,4 +16,7 @@ export default defineConfig({
       '~': path.join(rootDir, 'src'),
     },
   },
+  server: {
+    hmr: false,
+  },
 })

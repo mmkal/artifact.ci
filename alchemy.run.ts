@@ -25,7 +25,7 @@ export const docsWorker = await Website('docs', {
     command: 'astro build',
   },
   dev: {
-    command: `astro dev --host 127.0.0.1 --port ${DOCS_DEV_PORT}`,
+    command: `python3 -m http.server ${DOCS_DEV_PORT} -d dist`,
   },
   assets: 'dist',
 })

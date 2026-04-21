@@ -16,6 +16,26 @@ test('login route shows app sign-in screen', async ({page}) => {
   await expect(page.getByText('GitHub OAuth via Better Auth')).toBeVisible()
 })
 
+test('frontdoor navigation from docs root to /app lands on login without websocket 500s', async ({page}) => {
+  const websocketErrors: string[] = []
+  page.on('console', msg => {
+    if (msg.type() !== 'error') return
+    const text = msg.text()
+    if (/Websocket error:.*Unexpected server response: 500/i.test(text)) {
+      websocketErrors.push(text)
+    }
+  })
+
+  await gotoWithRetry(page, '/')
+  await expect(page).toHaveTitle('artifact.ci')
+
+  await gotoWithRetry(page, '/app')
+  await expect(page).toHaveURL(/\/login$/)
+  await expect(page).toHaveTitle('artifact.ci')
+  await expect(page.getByRole('heading', {name: 'Better Auth lands here next.'})).toBeVisible()
+  expect(websocketErrors).toEqual([])
+})
+
 async function gotoWithRetry(page: Parameters<typeof test>[0] extends never ? never : any, url: string) {
   let lastError: unknown
 
