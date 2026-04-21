@@ -6,6 +6,11 @@ const baseConfig = {
   eslint: {ignoreDuringBuilds: true},
   typescript: {ignoreBuildErrors: true},
   productionBrowserSourceMaps: true,
+  // The artifact view route handles its own trailing-slash semantics so that pretty URLs
+  // (e.g. /foo serving foo.html, /foo/ serving foo/index.html) work correctly. Without
+  // this, Next.js would 308-redirect /foo/ -> /foo before our handler could choose
+  // between foo.html and foo/index.html.
+  skipTrailingSlashRedirect: true,
   experimental: {
     serverSourceMaps: true,
     serverActions: {

@@ -1,12 +1,19 @@
-// very good shim for require('path')
+// very good shim for require('path') — kept browser-friendly so this file can be imported
+// from client components (FileList.tsx) without pulling in node:path.
 const path = {
   parse: (filepath: string) => {
     const pathParts = filepath.split('/')
     const base = pathParts.pop()!
-    const fileParts = base.split('.')
-    return {dir: pathParts.join('/'), base, name: fileParts.slice(0, -1).join('.'), ext: `.${fileParts.at(-1)}`}
+    const dotIndex = base.lastIndexOf('.')
+    const hasExt = dotIndex > 0 // leading-dot files like .gitignore have no extension
+    return {
+      dir: pathParts.join('/'),
+      base,
+      name: hasExt ? base.slice(0, dotIndex) : base,
+      ext: hasExt ? base.slice(dotIndex) : '',
+    }
   },
-  join: (...paths: string[]) => paths.map(p => p.replace(/^\/$/, '').replace(/^\.\//, '')).join('/'),
+  join: (...paths: string[]) => paths.filter(p => p !== '').join('/'),
 }
 
 export type Entrypoint = {path: string; shortened: string; score: number}

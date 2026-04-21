@@ -2,13 +2,17 @@ import {marked} from 'marked'
 import {lookup as mimeTypeLookup} from 'mime-types'
 import * as path from 'path'
 import {type ArtifactLoader} from './ArtifactLoader'
+import {resolveFilepath} from './resolve-filepath'
 import {type PathParams} from '~/app/artifact/view/params'
 import {checkCanAccess, getInstallationOctokit} from '~/auth'
 import {client, sql} from '~/db'
 import {supabaseStorageServiceRoleClient} from '~/storage/supabase'
 import {logger} from '~/tag-logger'
 
-export const loadArtifact = async (login: string | null | undefined, {params}: {params: PathParams}) => {
+export const loadArtifact = async (
+  login: string | null | undefined,
+  {params, trailingSlash}: {params: PathParams; trailingSlash: boolean},
+) => {
   const githubLogin = login || undefined
   logger.tag('params').debug(params)
   const {owner, repo, aliasType, identifier, artifactName, filepath = []} = params
@@ -65,13 +69,35 @@ export const loadArtifact = async (login: string | null | undefined, {params}: {
     return {code: '2xx', storagePathname: null, artifactInfo, loaderParams} as const
   }
 
+  const filepathStr = filepath.join('/')
+  const resolution = resolveFilepath(filepathStr, trailingSlash, new Set(artifactInfo.entries || []))
+
+  if (resolution.type === 'not_found') {
+    return {
+      code: 'upload_not_found',
+      message: `Upload not found`,
+      params,
+      githubLogin,
+      artifactInfo,
+      loaderParams,
+    } as const
+  }
+
+  if (resolution.type === 'redirect') {
+    return {
+      code: 'redirect',
+      to: {filepath: resolution.filepath, trailingSlash: resolution.trailingSlash},
+      artifactInfo,
+      loaderParams,
+    } as const
+  }
+
   const dbFile = await client.maybeOne(sql<queries.DbFile>`
     select o.name as storage_pathname
-    from artifacts a
-    join artifact_entries ae on ae.artifact_id = a.id
+    from artifact_entries ae
     join storage.objects o on ae.storage_object_id = o.id
-    where a.id = ${artifactInfo.artifact_id}
-    and ${filepath.join('/') || '.'} = any(ae.aliases)
+    where ae.artifact_id = ${artifactInfo.artifact_id}
+    and ae.entry_name = ${resolution.entryName}
     and o.name is not null
     order by ae.created_at desc
     limit 1

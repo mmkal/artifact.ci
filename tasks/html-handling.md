@@ -1,9 +1,25 @@
 ---
-status: ready
+status: implemented-needs-verification
 size: medium
 ---
 
 # `.html` extension resolution when serving artifacts
+
+## Status
+
+Implemented locally on `main`. Pure resolver function + 17-row spec table
+test pass against `node:test`. Needs the acceptance steps (staging deploy
++ live sqlfu URL check) before moving to complete.
+
+- Done: pure `resolveFilepath()` matching the spec table (incl. the
+  `foo/index.html` wins over `foo.html` rule, and the underlying root-cause
+  bug in `entrypoints.ts` where the path shim produced `/ui` instead of
+  `ui` for root-level files).
+- Done: route handler returns 307 with preserved query string.
+- Done: `skipTrailingSlashRedirect: true` in `next.config.mjs` so Next.js
+  doesn't 308-strip `/foo/` before our handler can choose between
+  `foo.html` and `foo/index.html`.
+- Missing: live verification against staging + sqlfu repro URL.
 
 ## The bug
 
@@ -205,3 +221,69 @@ correctly when the URL is the extensionless form. Production
 Cloudflare works today because its `html_handling: auto-trailing-slash`
 already does the right thing. The artifact.ci preview will start
 working the moment this task ships.
+
+## Implementation log
+
+### Files changed
+
+- `src/app/artifact/view/.../resolve-filepath.ts` — new pure resolver.
+  Returns `{type: 'serve', entryName}` / `{type: 'redirect', filepath,
+  trailingSlash}` / `{type: 'not_found'}`. The 5-step lookup order from
+  the spec is encoded directly here. `foo/index.html` is checked before
+  `foo.html` for the no-trailing-slash case, so when both coexist the
+  index file wins (matches Cloudflare; spec ack #3).
+- `src/app/artifact/view/.../resolve-filepath.test.ts` — `node:test`
+  mirror of the spec's test-case table, plus the conflict tiebreak case.
+  Run with: `npx tsx 'src/app/artifact/view/[owner]/[repo]/[aliasType]/[identifier]/[artifactName]/resolve-filepath.test.ts'`
+- `src/app/artifact/view/.../load-artifact.server.ts` — `loadArtifact`
+  now takes `trailingSlash` and uses the resolver against the
+  already-loaded `entries` array. The DB query for the storage object
+  switched from `${path} = any(ae.aliases)` to `ae.entry_name =
+  ${resolved}`. Added a new `redirect` return code.
+- `src/app/artifact/view/.../[...filepath]/route.ts` — derives
+  `trailingSlash` from `request.nextUrl.pathname.endsWith('/')` (only for
+  non-empty filepaths), and handles the new `redirect` code by returning
+  a 307 with `request.nextUrl.search` preserved.
+- `src/app/artifact/view/.../page.tsx` — passes `trailingSlash: false`
+  (this page is the artifact root; resolver isn't invoked for empty
+  filepath but the type system needs the param). Defensively handles
+  the `redirect` case by redirecting to the artifact root.
+- `next.config.mjs` — `skipTrailingSlashRedirect: true`. Without this,
+  Next.js's default 308 would strip `/foo/` to `/foo` before our handler
+  ran, making the `/about/` (serve `about/index.html`) vs `/about`
+  (redirect to `/about/`) distinction impossible — and risking a
+  redirect loop (spec ack #4).
+- `src/app/artifact/view/.../entrypoints.ts` — fixed two bugs in the
+  browser-friendly `path` shim:
+  1. `path.join('', 'ui')` was producing `/ui` (leading slash) because
+     `Array.prototype.join` puts the separator between empty strings.
+     Fixed by filtering empty parts.
+  2. `path.parse('README')` was producing `ext: '.README'` because the
+     shim assumed any `.split('.')` had an extension. Fixed by checking
+     for an actual `.` past position 0 (so `.gitignore` correctly has no
+     ext either).
+
+  These bugs meant the `aliases` column on `artifact_entries` was being
+  populated with garbage for root-level HTML files (e.g. `ui.html`
+  produced `[ui.html, /ui]` instead of `[ui.html, ui]`), so the old
+  alias-based lookup couldn't have served `/ui` even if it had wanted
+  to. The new resolver doesn't read `aliases`, but new uploads will at
+  least have correct values going forward, and `FileList`'s entrypoint
+  highlighting also benefits.
+
+### Notes
+
+- `loadFile` keeps using the request's `params.filepath` for the
+  `artifactci-path` response header (so the URL is reflected, not the
+  underlying entry name). Intentional — the header identifies the URL,
+  not the served file.
+- Existing entries written before this fix have stale `aliases` values.
+  Not backfilled — the new resolver doesn't depend on `aliases`, and
+  `aliases` is otherwise only consumed in places that are not on the
+  serving hot path. Future work could drop the column or backfill it.
+- `skipTrailingSlashRedirect: true` is global, not scoped to artifact
+  routes. Side effect: other routes won't auto-strip trailing slashes.
+  Most app routes are static `/page` style URLs that won't be hit with
+  trailing slashes in practice; if they are, Next.js's app-router
+  matching still works (it normalizes internally for `params`). Worth
+  watching after deploy but not expected to break anything.

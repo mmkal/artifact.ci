@@ -29,7 +29,7 @@ async function ArtifactPageInner({params, searchParams}: ArtifactPage.Params) {
 
   const githubLogin = session?.user?.github_login
 
-  const arti = await logger.try('loadArtifact', () => loadArtifact(githubLogin, {params}))
+  const arti = await logger.try('loadArtifact', () => loadArtifact(githubLogin, {params, trailingSlash: false}))
 
   if (arti.code === 'not_authorized' && !githubLogin) {
     const callbackUrl = `/artifact/view/${params.owner}/${params.repo}/${params.aliasType}/${params.identifier}/${params.artifactName}`
@@ -78,6 +78,11 @@ async function ArtifactPageInner({params, searchParams}: ArtifactPage.Params) {
 
   if (arti.code === 'not_authorized' || arti.code === 'upload_not_found' || arti.code === 'artifact_not_found') {
     return <pre>{JSON.stringify(arti, null, 2)}</pre>
+  }
+
+  if (arti.code === 'redirect') {
+    // Should not happen for the artifact root page (no filepath), but handle defensively.
+    return redirect(toFullUrl(params))
   }
 
   if (arti.code === 'not_uploaded_yet' || searchParams.reload === 'true') {

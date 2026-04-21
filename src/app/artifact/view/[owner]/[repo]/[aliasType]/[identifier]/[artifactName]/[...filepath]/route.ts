@@ -20,7 +20,9 @@ export const GET = auth(async (request, {params}) => {
         return NextResponse.redirect(redirectTo)
       }
 
-      const res = await loadArtifact(githubLogin, {params: pathParams})
+      const trailingSlash = request.nextUrl.pathname.endsWith('/') && (pathParams.filepath?.length ?? 0) > 0
+
+      const res = await loadArtifact(githubLogin, {params: pathParams, trailingSlash})
       if (res.code === 'not_authorized' && !githubLogin) {
         const redirectTo = new URL('/api/auth/signin', request.nextUrl.origin)
         redirectTo.searchParams.set('callbackUrl', request.nextUrl.toString().replace(request.nextUrl.origin, ''))
@@ -31,6 +33,13 @@ export const GET = auth(async (request, {params}) => {
       }
       if (res.code === 'not_authorized') {
         return NextResponse.json(res, {status: 403})
+      }
+      if (res.code === 'redirect') {
+        const filepathArr = res.to.filepath === '' ? [] : res.to.filepath.split('/')
+        const basePath = toPath({...pathParams, filepath: filepathArr})
+        const fullPath = basePath + (res.to.trailingSlash ? '/' : '')
+        const redirectUrl = new URL(fullPath + request.nextUrl.search, request.nextUrl.origin)
+        return NextResponse.redirect(redirectUrl, 307)
       }
       if (res.code !== '2xx') {
         res satisfies never // ensure typescript thinks we've handled all cases
