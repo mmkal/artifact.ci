@@ -11,6 +11,13 @@ import {TanStackStart, Tunnel, Website, Worker} from 'alchemy/cloudflare'
 const APP_DEV_PORT = 43111
 const DOCS_DEV_PORT = 43112
 
+// Tunnel hostname is deterministic, so we can seed PUBLIC_DEV_URL
+// before worker bindings evaluate. Otherwise the app worker binds an
+// empty string and Better Auth falls through to whatever stale URL
+// happens to be in .env.
+const TUNNEL_HOSTNAME = process.env.ARTIFACTCI_TUNNEL_HOSTNAME?.replace(/^https?:\/\//, '') || 'artifactci.dev'
+process.env.PUBLIC_DEV_URL ||= `https://${TUNNEL_HOSTNAME}`
+
 const app = await alchemy('artifact-ci', {
   // Required to serialize the Tunnel resource's run token (a Secret) into
   // .alchemy/artifact-ci state. Any stable local value works — state is
@@ -107,7 +114,7 @@ export const frontdoorWorker = await Worker('frontdoor', {
 // deploys. The token flows to scripts/tunnel.sh which runs cloudflared
 // as a detached daemon.
 if (app.phase === 'up' && process.env.ARTIFACTCI_DEV_TUNNEL !== 'off') {
-  const hostname = process.env.ARTIFACTCI_TUNNEL_HOSTNAME?.replace(/^https?:\/\//, '') || 'artifactci.dev'
+  const hostname = TUNNEL_HOSTNAME
   const tunnel = await Tunnel('dev-tunnel', {
     name: `${app.name}-${app.stage}-dev-tunnel`,
     adopt: true,

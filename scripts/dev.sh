@@ -32,6 +32,7 @@ trap cleanup EXIT
 trap on_signal INT TERM
 
 pkill -f "alchemy dev" 2>/dev/null || true
+pkill -f "alchemy\.run\.ts" 2>/dev/null || true
 for port in 1337 1355 43111 43112; do
   lsof -ti tcp:"$port" | xargs kill -9 2>/dev/null || true
 done
