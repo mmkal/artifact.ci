@@ -1,6 +1,5 @@
 import {Client} from 'pg'
 import {betterAuth} from 'better-auth'
-import {admin} from 'better-auth/plugins'
 import {tanstackStartCookies} from 'better-auth/tanstack-start'
 
 const getConnectionString = () => {
@@ -128,7 +127,7 @@ export const createServerAuth = () => {
           },
         }
       : {},
-    plugins: [tanstackStartCookies(), admin()],
+    plugins: [tanstackStartCookies()],
   })
 }
 
