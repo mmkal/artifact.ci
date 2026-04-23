@@ -56,27 +56,29 @@ touch \
   .alchemy/logs/artifact-ci-mmkal-frontdoor.log
 
 if persistent_tunnel_alive && [[ -s "$tunnel_url_file" ]]; then
-  printf '[dev] reusing tunnel: %s (pid %s)\n' "$(cat "$tunnel_url_file")" "$(cat "$tunnel_pid_file")"
+  printf '[dev] reusing tunnel daemon: %s (pid %s)\n' "$(cat "$tunnel_url_file")" "$(cat "$tunnel_pid_file")"
+  tunnel_owned_by_session=0
 else
-  # No tunnel running — start one via scripts/tunnel.sh (prefers named
-  # tunnel, falls back to quick). dev.sh owns it and will kill it on exit.
-  rm -f "$tunnel_url_file" "$tunnel_pid_file"
-  if bash scripts/tunnel.sh start; then
-    tunnel_owned_by_session=1
-  else
-    printf '[dev] tunnel failed to start; continuing without public URL\n' >&2
-  fi
-fi
-
-if [[ -s "$tunnel_url_file" ]]; then
-  export PUBLIC_DEV_URL="$(cat "$tunnel_url_file")"
+  # Stale pid file, no live daemon
+  rm -f "$tunnel_pid_file"
 fi
 
 # --unhandled-rejections=warn so stray websocket / client errors in alchemy
 # or miniflare don't kill the process. Node 24's default is `throw`, which
 # brought dev down every time Chrome opened a stale HMR websocket.
+#
+# alchemy dev is what provisions the Tunnel resource (writing
+# .alchemy/tunnel-token.txt + .alchemy/tunnel-url.txt). tunnel.sh picks
+# those up when they appear.
 NODE_OPTIONS="${NODE_OPTIONS:-} --unhandled-rejections=warn" pnpm dev:server &
 server_pid=$!
+
+# Start cloudflared once alchemy has provisioned the tunnel, in parallel
+# with alchemy continuing to bring up workers.
+if ! persistent_tunnel_alive; then
+  (bash scripts/tunnel.sh start || printf '[dev] tunnel failed to start; continuing without public URL\n' >&2) &
+  tunnel_owned_by_session=1
+fi
 
 for _ in $(seq 1 180); do
   if curl -fsS http://127.0.0.1:1337/ >/dev/null 2>&1; then
@@ -84,6 +86,10 @@ for _ in $(seq 1 180); do
   fi
   sleep 1
 done
+
+if [[ -s "$tunnel_url_file" ]]; then
+  export PUBLIC_DEV_URL="$(cat "$tunnel_url_file")"
+fi
 
 printf '\nOpen in browser: http://artifactci.localhost:1355\n'
 if [[ -s "$tunnel_url_file" ]]; then

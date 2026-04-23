@@ -4,8 +4,9 @@ import {createPrivateKey} from 'node:crypto'
 // in .env for deploys that need a different account.
 process.env.CLOUDFLARE_PROFILE ||= 'mishagmail'
 
+import {writeFile} from 'node:fs/promises'
 import alchemy from 'alchemy'
-import {TanStackStart, Website, Worker} from 'alchemy/cloudflare'
+import {TanStackStart, Tunnel, Website, Worker} from 'alchemy/cloudflare'
 
 const APP_DEV_PORT = 43111
 const DOCS_DEV_PORT = 43112
@@ -94,6 +95,25 @@ export const frontdoorWorker = await Worker('frontdoor', {
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   },
 })
+
+// Dev tunnel. Creating via alchemy (Cloudflare API) instead of
+// `cloudflared tunnel login / create / route dns` means no origin cert
+// required locally — alchemy reuses the same CF creds it uses for Worker
+// deploys. The token flows to scripts/tunnel.sh which runs cloudflared
+// as a detached daemon.
+if (app.phase === 'up' && process.env.ARTIFACTCI_DEV_TUNNEL !== 'off') {
+  const hostname = process.env.ARTIFACTCI_TUNNEL_HOSTNAME?.replace(/^https?:\/\//, '') || 'artifactci.dev'
+  const tunnel = await Tunnel('dev-tunnel', {
+    name: `${app.name}-${app.stage}-dev-tunnel`,
+    adopt: true,
+    ingress: [
+      {hostname, service: `http://127.0.0.1:1337`},
+      {service: 'http_status:404'},
+    ],
+  })
+  await writeFile('.alchemy/tunnel-token.txt', tunnel.token.unencrypted)
+  await writeFile('.alchemy/tunnel-url.txt', `https://${hostname}`)
+}
 
 console.log({
   appUrl: appWorker.url,
