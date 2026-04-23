@@ -137,7 +137,10 @@ if [[ -s "$tunnel_url_file" ]]; then
   export PUBLIC_DEV_URL="$(cat "$tunnel_url_file")"
 fi
 
-pnpm dev:server &
+# --unhandled-rejections=warn so stray websocket / client errors in alchemy
+# or miniflare don't kill the process. Node 24's default is `throw`, which
+# brought dev down every time Chrome opened a stale HMR websocket.
+NODE_OPTIONS="${NODE_OPTIONS:-} --unhandled-rejections=warn" pnpm dev:server &
 server_pid=$!
 
 for _ in $(seq 1 180); do

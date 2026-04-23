@@ -23,7 +23,17 @@ export const getPool = () => {
 }
 
 const getBaseUrl = () => {
-  return process.env.BETTER_AUTH_URL || process.env.AUTH_URL || process.env.PUBLIC_DEV_URL || 'http://localhost:3000'
+  // Prefer an explicit BETTER_AUTH_URL (prod deploys / tests), then the
+  // live PUBLIC_DEV_URL the dev script sets from the cloudflared tunnel,
+  // then the legacy next-auth AUTH_URL (only useful if the user hasn't
+  // run `pnpm dev` and still has an old value lying around), then the
+  // localhost fallback.
+  return (
+    process.env.BETTER_AUTH_URL ||
+    process.env.PUBLIC_DEV_URL ||
+    process.env.AUTH_URL ||
+    'http://localhost:3000'
+  )
 }
 
 const getTrustedOrigins = () => {
