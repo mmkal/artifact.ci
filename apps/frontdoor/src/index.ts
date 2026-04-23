@@ -62,16 +62,23 @@ export default {
     try {
       const url = new URL(request.url)
 
-      // Vite's client tries a WebSocket to /@vite/client for HMR. It can't
-      // upgrade cleanly through a Cloudflare Tunnel, so the client falls
-      // back to polling /__vite_ping — and when that poll *succeeds* (our
-      // app worker is happy to answer), vite decides the dev server just
-      // restarted and calls location.reload(). That's our infinite refresh
-      // loop. hmr:false in vite.config doesn't stop the client injection
-      // via the tanstack-start plugin, so we neutralize the poll here:
-      // always 404 so the client keeps polling silently and never reloads.
-      if (url.pathname === '/__vite_ping') {
-        return new Response('disabled through tunnel', {status: 404})
+      // Vite's HMR client doesn't survive a Cloudflare Tunnel: the HMR
+      // WebSocket's upgrade gets mangled, the client reports "server
+      // connection lost", then polls with a "vite-ping" WebSocket to the
+      // same URL. As soon as the ping WS looks like it succeeds, the
+      // client calls location.reload() — which is the infinite-refresh
+      // loop at https://artifactci.dev/<app-route>. hmr:false in
+      // vite.config doesn't stop tanstack-start from injecting the
+      // client, so we short-circuit the client script itself: return an
+      // empty module and the page never sets up HMR or polling.
+      if (
+        url.pathname === '/@vite/client' ||
+        url.pathname === `${APP_DEV_PREFIX}/@vite/client`
+      ) {
+        return new Response('export {}', {
+          status: 200,
+          headers: {'content-type': 'application/javascript; charset=utf-8'},
+        })
       }
 
       if (isWebsocketUpgrade(request)) {
