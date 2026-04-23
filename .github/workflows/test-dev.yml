@@ -1,0 +1,28 @@
+name: test-dev
+
+on:
+  push:
+
+jobs:
+  upload-to-dev:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: create sample html
+        run: |
+          cat > hello.html <<'EOF'
+          <!doctype html>
+          <title>dev tunnel test</title>
+          <h1>hello from artifactci.dev</h1>
+          <p>uploaded from ${{ github.ref_name }} at ${{ github.sha }}</p>
+          EOF
+      - uses: ./upload
+        with:
+          name: dev-smoke-test
+          path: hello.html
+          artifactci-origin: https://artifactci.dev
+          artifactci-visibility: private
+          artifactci-mode: eager
