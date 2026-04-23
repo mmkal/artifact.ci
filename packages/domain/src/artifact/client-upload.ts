@@ -17,7 +17,8 @@ type UploadClient = {
       artifactId: string
       uploads: Array<{entry: string; artifactFullPath: string; token?: string; contentType: string}>
     }): Promise<{
-      entrypoints: {entrypoints: Array<{path: string; shortened: string}>}
+      records: Array<{entry_name: string; aliases: string[]; storage_object_id: string}>
+      entrypoints: {entrypoints: Array<{path: string; shortened: string}>; flatAliases: string[]}
     }>
   }
 }

@@ -1,38 +1,133 @@
 // @ts-nocheck
-import {createFileRoute} from '@tanstack/react-router'
+import {createFileRoute, redirect} from '@tanstack/react-router'
+import {loadArtifactForBrowser, type LoadArtifactResult} from '../artifacts/load'
 import {requireCurrentSession} from '../auth/session'
+import {ArtifactLoader} from '../ui/artifact-loader'
+import {FileList} from '../ui/file-list'
+import {TrpcProvider} from '../ui/trpc-provider'
+
+type Search = {reload?: 'true'; delete?: 'true'}
 
 export const Route = createFileRoute('/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName')({
+  validateSearch: (search: Record<string, unknown>): Search => ({
+    reload: search.reload === 'true' ? 'true' : undefined,
+    delete: search.delete === 'true' ? 'true' : undefined,
+  }),
   beforeLoad: async ({location}) => requireCurrentSession({data: {redirectTo: location.href}}),
+  loader: async ({params, location}) => {
+    const data: LoadArtifactResult = await loadArtifactForBrowser({data: params})
+    if (data.resolved.code === 'not_authorized' && !data.githubLogin) {
+      throw redirect({
+        to: '/login',
+        search: {callbackUrl: location.pathname + location.search},
+      })
+    }
+    return data
+  },
   component: ArtifactBrowserPage,
 })
 
 function ArtifactBrowserPage() {
   const params = Route.useParams()
-  const {user} = Route.useRouteContext().session
+  const search = Route.useSearch()
+  const data = Route.useLoaderData() as LoadArtifactResult
 
-  return (
-    <section className="page">
+  const reload = search.reload === 'true'
+  const allowDelete = search.delete === 'true'
+
+  if (data.resolved.code === 'artifact_not_found') {
+    return (
+      <section className="page browser">
+        <div className="eyebrow">Artifact Browser</div>
+        <h1>{params.artifactName}</h1>
+        <p>Not found. Double-check the owner, repo, alias, identifier, and artifact name.</p>
+        <pre className="browser__debug">{JSON.stringify(data.resolved, null, 2)}</pre>
+      </section>
+    )
+  }
+
+  if (data.resolved.code === 'not_authorized') {
+    const reason = data.resolved.access.code
+    if (reason === 'no_credit') {
+      return (
+        <section className="page browser">
+          <div className="eyebrow">Out of credits</div>
+          <h1>No credit.</h1>
+          <p>
+            Artifacts don&apos;t grow on trees. Sponsor{' '}
+            <a href="https://github.com/sponsors/mmkal" rel="noreferrer noopener" target="_blank">
+              @mmkal
+            </a>{' '}
+            to keep using artifact.ci, or DM me on Twitter if you&apos;d like more credits.
+          </p>
+        </section>
+      )
+    }
+
+    return (
+      <section className="page browser">
+        <div className="eyebrow">Not authorized</div>
+        <h1>{params.artifactName}</h1>
+        <p>You don&apos;t have access to this artifact.</p>
+        <pre className="browser__debug">{JSON.stringify(data.resolved, null, 2)}</pre>
+      </section>
+    )
+  }
+
+  if (data.resolved.code === 'upload_not_found') {
+    return (
+      <section className="page browser">
+        <div className="eyebrow">Upload missing</div>
+        <h1>{params.artifactName}</h1>
+        <pre className="browser__debug">{JSON.stringify(data.resolved, null, 2)}</pre>
+      </section>
+    )
+  }
+
+  const header = (
+    <>
       <div className="eyebrow">Artifact Browser</div>
       <h1>{params.artifactName}</h1>
-      <p>
-        This page becomes the signed-in browser shell for artifact metadata, entrypoints, navigation, and action
-        controls. Actual file bytes remain on <code>/artifact/blob/*</code> through the frontdoor Worker.
-      </p>
-      <div className="meta">
-        <div>
-          <strong>viewer</strong>: <code>{user.githubLogin || user.email || user.id}</code>
-        </div>
-        <div>
-          <strong>repo</strong>: <code>{params.owner}/{params.repo}</code>
-        </div>
-        <div>
-          <strong>selector</strong>: <code>{params.aliasType}/{params.identifier}</code>
-        </div>
-        <div>
-          <strong>app path</strong>: <code>{Route.fullPath}</code>
-        </div>
+      <div className="browser__breadcrumbs">
+        <code>
+          {params.owner}/{params.repo} · {params.aliasType}/{params.identifier}
+        </code>
       </div>
-    </section>
+    </>
+  )
+
+  if (data.resolved.code === 'not_uploaded_yet' || reload) {
+    const loaderProps =
+      data.resolved.code === 'not_uploaded_yet'
+        ? data.resolved.loaderParams
+        : {
+            ...params,
+            githubLogin: data.githubLogin ?? undefined,
+            artifactId: data.resolved.artifactInfo.artifactId,
+            entry: null,
+          }
+    return (
+      <TrpcProvider>
+        <section className="page browser">
+          {header}
+          <ArtifactLoader {...loaderProps} reload={reload} />
+        </section>
+      </TrpcProvider>
+    )
+  }
+
+  data.resolved.code satisfies '2xx'
+  return (
+    <TrpcProvider>
+      <section className="page browser">
+        {header}
+        <FileList
+          names={data.resolved.artifactInfo.entries || []}
+          params={params}
+          artifactId={data.resolved.artifactInfo.artifactId}
+          allowDelete={allowDelete}
+        />
+      </section>
+    </TrpcProvider>
   )
 }

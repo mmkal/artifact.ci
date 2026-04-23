@@ -163,6 +163,117 @@ a {
   border: 1px solid rgba(245, 158, 11, 0.24);
 }
 
+.browser__breadcrumbs {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+.browser__heading {
+  margin: 24px 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.browser__list {
+  display: grid;
+  gap: 8px;
+}
+
+.browser__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.browser__row {
+  display: block;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 120ms ease;
+}
+
+.browser__row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.browser__arrow {
+  color: var(--accent);
+  margin-right: 6px;
+}
+
+.browser__danger {
+  margin-top: 24px;
+}
+
+.browser__delete {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(153, 27, 27, 0.15);
+  color: #fecaca;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.browser__delete:hover:not([disabled]) {
+  background: rgba(153, 27, 27, 0.25);
+}
+
+.browser__loader {
+  display: grid;
+  gap: 20px;
+}
+
+.browser__updates {
+  display: grid;
+  gap: 6px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.browser__update {
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: var(--ink);
+}
+
+.browser__update--error {
+  color: #fecaca;
+}
+
+.browser__action {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+  cursor: pointer;
+}
+
+.browser__action[disabled] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.browser__debug {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  overflow-x: auto;
+  font-size: 0.85em;
+  color: var(--muted);
+}
+
 @media (max-width: 720px) {
   .shell {
     padding: 12px;
