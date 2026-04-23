@@ -21,6 +21,26 @@ export const Route = createRootRouteWithContext<{session: AppSessionSnapshot}>()
       },
     ],
     links: [{rel: 'stylesheet', href: appCss}],
+    scripts: [
+      // Runtime shim: @tanstack/start-client-core reads
+      // process.env.TSS_SERVER_FN_BASE at module load. Vite's `define` is
+      // supposed to substitute it at build/transform time, but the plugin
+      // excludes these framework packages from optimizeDeps and serves them
+      // raw via /@fs/, so the substitution never happens and the browser
+      // blows up with "process is not defined". Shimming before any
+      // scripts evaluate keeps the client bundle happy.
+      {
+        children: [
+          'globalThis.process = globalThis.process || {env: {}};',
+          "globalThis.process.env.TSS_SERVER_FN_BASE = globalThis.process.env.TSS_SERVER_FN_BASE || '/_serverFn/';",
+          "globalThis.process.env.TSS_ROUTER_BASEPATH = globalThis.process.env.TSS_ROUTER_BASEPATH || '/';",
+          "globalThis.process.env.TSS_SHELL = globalThis.process.env.TSS_SHELL || 'false';",
+          "globalThis.process.env.TSS_DEV_SERVER = globalThis.process.env.TSS_DEV_SERVER || 'true';",
+          "globalThis.process.env.TSS_DEV_SSR_STYLES_ENABLED = globalThis.process.env.TSS_DEV_SSR_STYLES_ENABLED || 'true';",
+          "globalThis.process.env.TSS_DEV_SSR_STYLES_BASEPATH = globalThis.process.env.TSS_DEV_SSR_STYLES_BASEPATH || '/';",
+        ].join('\n'),
+      },
+    ],
   }),
   component: RootComponent,
 })

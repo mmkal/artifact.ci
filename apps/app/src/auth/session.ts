@@ -1,8 +1,6 @@
 // @ts-nocheck
 import {createServerFn} from '@tanstack/react-start'
-import {getRequestHeaders} from '@tanstack/react-start/server'
 import {redirect} from '@tanstack/react-router'
-import {createServerAuth} from './server-auth'
 
 export interface AppViewer {
   id: string
@@ -16,7 +14,16 @@ export interface AppSessionSnapshot {
   user: AppViewer | null
 }
 
+// The handlers are server-only. Dynamic-import anything that pulls in pg /
+// better-auth / request-headers APIs so the module can still be imported
+// from client components (TanStack Start RPC-ifies .handler() at build time,
+// but eager top-level imports land in the client bundle and break with
+// "process is not defined").
 export const getCurrentSession = createServerFn({method: 'GET'}).handler(async () => {
+  const [{createServerAuth}, {getRequestHeaders}] = await Promise.all([
+    import('./server-auth'),
+    import('@tanstack/react-start/server'),
+  ])
   const auth = createServerAuth()
   const session = await auth.api.getSession({headers: getRequestHeaders()})
 
