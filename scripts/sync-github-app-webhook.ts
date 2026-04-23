@@ -9,7 +9,7 @@
  */
 import 'dotenv/config'
 import {readFile} from 'node:fs/promises'
-import {App} from 'octokit'
+import {createSign} from 'node:crypto'
 
 async function main() {
   const argUrl = process.argv[2]
@@ -27,17 +27,17 @@ async function main() {
 
   const appId = required('GITHUB_APP_ID')
   const privateKey = required('GITHUB_APP_PRIVATE_KEY')
-  const app = new App({appId, privateKey})
+  const jwt = makeAppJwt(appId, privateKey)
 
   const webhookUrl = new URL('/github/events', tunnelUrl).toString()
 
-  const {data: before} = await app.octokit.request('GET /app/hook/config')
+  const before = await ghRequest('GET', '/app/hook/config', jwt)
   if (before.url === webhookUrl) {
     console.log(`[webhook-sync] already pointing at ${webhookUrl}`)
     return
   }
 
-  await app.octokit.request('PATCH /app/hook/config', {url: webhookUrl})
+  await ghRequest('PATCH', '/app/hook/config', jwt, {url: webhookUrl})
   console.log(`[webhook-sync] ${before.url || '(none)'} -> ${webhookUrl}`)
 }
 
@@ -45,6 +45,35 @@ function required(name: string) {
   const value = process.env[name]
   if (!value) throw new Error(`missing env var ${name}`)
   return value
+}
+
+function makeAppJwt(appId: string, privateKey: string) {
+  const now = Math.floor(Date.now() / 1000)
+  const header = {alg: 'RS256', typ: 'JWT'}
+  const payload = {iat: now - 60, exp: now + 9 * 60, iss: appId}
+  const encode = (value: object) =>
+    Buffer.from(JSON.stringify(value)).toString('base64url')
+  const signingInput = `${encode(header)}.${encode(payload)}`
+  const signature = createSign('RSA-SHA256').update(signingInput).sign(privateKey).toString('base64url')
+  return `${signingInput}.${signature}`
+}
+
+async function ghRequest(method: string, path: string, jwt: string, body?: unknown) {
+  const response = await fetch(`https://api.github.com${path}`, {
+    method,
+    headers: {
+      accept: 'application/vnd.github+json',
+      authorization: `Bearer ${jwt}`,
+      'x-github-api-version': '2022-11-28',
+      ...(body ? {'content-type': 'application/json'} : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`GitHub ${method} ${path} failed: ${response.status} ${text}`)
+  }
+  return (await response.json()) as any
 }
 
 main().catch(error => {

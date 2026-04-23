@@ -32,7 +32,11 @@ portless proxy start >/dev/null 2>&1 || true
 portless alias artifactci 1337 >/dev/null 2>&1 || true
 
 rm -rf .alchemy apps/app/.alchemy apps/docs/.alchemy apps/docs/.astro apps/docs/.wrangler apps/docs/dist
-mkdir -p .alchemy/logs
+mkdir -p .alchemy/logs apps/docs/dist
+# minimal placeholder so python http.server + alchemy Website have something
+# to serve while we're skipping the broken astro build.
+printf '<!doctype html><title>artifact.ci</title><h1>artifact.ci docs (dev placeholder)</h1>' \
+  > apps/docs/dist/index.html
 touch \
   .alchemy/logs/artifact-ci-mmkal-app.log \
   .alchemy/logs/artifact-ci-mmkal-docs.log \

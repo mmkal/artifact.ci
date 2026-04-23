@@ -25,7 +25,9 @@ export const docsWorker = await Website('docs', {
     command: 'astro build',
   },
   dev: {
-    command: `python3 -m http.server ${DOCS_DEV_PORT} -d dist`,
+    // -u so python flushes, 2>&1 so the "Serving on 0.0.0.0:PORT" line alchemy
+    // needs to latch onto reaches stdout instead of getting stuck on stderr.
+    command: `sh -c "python3 -u -m http.server ${DOCS_DEV_PORT} -d dist 2>&1"`,
   },
   assets: 'dist',
 })
