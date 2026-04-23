@@ -1,6 +1,7 @@
 // @ts-nocheck
 import {createFileRoute} from '@tanstack/react-router'
 import {requireCurrentSession} from '../auth/session'
+import {LogoutButton} from '../ui/logout-button'
 
 export const Route = createFileRoute('/account')({
   beforeLoad: async ({location}) => requireCurrentSession({data: {redirectTo: location.href}}),
@@ -12,17 +13,27 @@ function AccountPage() {
 
   return (
     <section className="page">
-      <div className="eyebrow">Account</div>
-      <h1>Account settings shell.</h1>
-      <p>Profile, linked identities, support context, and audit-friendly account controls belong here.</p>
-      <div className="meta">
+      <h1>Account</h1>
+      <dl className="meta">
         <div>
-          <strong>github</strong>: <code>{user.githubLogin || 'not set yet'}</code>
+          <dt>GitHub</dt>
+          <dd>
+            <code>{user.githubLogin || '—'}</code>
+          </dd>
         </div>
         <div>
-          <strong>email</strong>: <code>{user.email || 'unknown'}</code>
+          <dt>Email</dt>
+          <dd>
+            <code>{user.email || '—'}</code>
+          </dd>
         </div>
-      </div>
+      </dl>
+      <p>
+        <a href="https://github.com/settings/installations" rel="noreferrer noopener" target="_blank">
+          Manage GitHub App installations →
+        </a>
+      </p>
+      <LogoutButton />
     </section>
   )
 }

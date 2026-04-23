@@ -9,32 +9,14 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as BillingRouteImport } from './routes/billing'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRouteImport } from './routes/app.artifacts.$owner.$repo.$aliasType.$identifier.$artifactName'
 
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BillingRoute = BillingRouteImport.update({
-  id: '/billing',
-  path: '/billing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccountRoute = AccountRouteImport.update({
@@ -57,29 +39,20 @@ const AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
-  '/billing': typeof BillingRoute
-  '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/settings': typeof SettingsRoute
   '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName': typeof AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
-  '/billing': typeof BillingRoute
-  '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/settings': typeof SettingsRoute
   '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName': typeof AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
-  '/billing': typeof BillingRoute
-  '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/settings': typeof SettingsRoute
   '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName': typeof AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRoute
 }
 export interface FileRouteTypes {
@@ -87,69 +60,36 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/account'
-    | '/billing'
-    | '/dashboard'
     | '/login'
-    | '/settings'
     | '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/account'
-    | '/billing'
-    | '/dashboard'
     | '/login'
-    | '/settings'
     | '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName'
   id:
     | '__root__'
     | '/'
     | '/account'
-    | '/billing'
-    | '/dashboard'
     | '/login'
-    | '/settings'
     | '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRoute: typeof AccountRoute
-  BillingRoute: typeof BillingRoute
-  DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
-  SettingsRoute: typeof SettingsRoute
   AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRoute: typeof AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/billing': {
-      id: '/billing'
-      path: '/billing'
-      fullPath: '/billing'
-      preLoaderRoute: typeof BillingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/account': {
@@ -179,10 +119,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
-  BillingRoute: BillingRoute,
-  DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
-  SettingsRoute: SettingsRoute,
   AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRoute:
     AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRoute,
 }

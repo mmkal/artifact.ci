@@ -3,14 +3,25 @@ set -euo pipefail
 
 tunnel_mode="${CLOUDFLARE_TUNNEL:-quick}"
 tunnel_url_file=.alchemy/tunnel-url.txt
+tunnel_pid_file=.alchemy/tunnel.pid
 tunnel_log=.alchemy/logs/cloudflared.log
+
+# Whether this dev session owns the tunnel (and therefore should kill it on
+# exit). If a persistent tunnel was already running (`pnpm tunnel`), we just
+# reuse its URL and leave it alone.
+tunnel_owned_by_session=0
+
+persistent_tunnel_alive() {
+  [[ -f "$tunnel_pid_file" ]] && kill -0 "$(cat "$tunnel_pid_file")" 2>/dev/null
+}
 
 cleanup() {
   if [[ -n "${server_pid:-}" ]]; then
     kill "$server_pid" 2>/dev/null || true
   fi
-  if [[ -n "${tunnel_pid:-}" ]]; then
+  if [[ "$tunnel_owned_by_session" == "1" && -n "${tunnel_pid:-}" ]]; then
     kill "$tunnel_pid" 2>/dev/null || true
+    rm -f "$tunnel_url_file"
   fi
 }
 
@@ -23,7 +34,11 @@ trap cleanup EXIT
 trap on_signal INT TERM
 
 pkill -f "alchemy dev" 2>/dev/null || true
-pkill -f "cloudflared tunnel" 2>/dev/null || true
+# Only kill transient cloudflared tunnels; the persistent one (tracked via
+# tunnel.pid) gets left alone.
+if ! persistent_tunnel_alive; then
+  pkill -f "cloudflared tunnel --url" 2>/dev/null || true
+fi
 for port in 1337 1355 43111 43112; do
   lsof -ti tcp:"$port" | xargs kill -9 2>/dev/null || true
 done
@@ -31,7 +46,7 @@ done
 portless proxy start >/dev/null 2>&1 || true
 portless alias artifactci 1337 >/dev/null 2>&1 || true
 
-rm -rf .alchemy apps/app/.alchemy apps/docs/.alchemy apps/docs/.astro apps/docs/.wrangler apps/docs/dist
+rm -rf .alchemy/artifact-ci apps/app/.alchemy apps/docs/.alchemy apps/docs/.astro apps/docs/.wrangler apps/docs/dist
 mkdir -p .alchemy/logs
 
 # Pre-build the docs site so python http.server has real content to serve.
@@ -46,7 +61,17 @@ touch \
   .alchemy/logs/artifact-ci-mmkal-app.log \
   .alchemy/logs/artifact-ci-mmkal-docs.log \
   .alchemy/logs/artifact-ci-mmkal-frontdoor.log
-rm -f "$tunnel_url_file" "$tunnel_log"
+
+reuse_persistent_tunnel() {
+  if ! persistent_tunnel_alive; then
+    return 1
+  fi
+  if [[ ! -s "$tunnel_url_file" ]]; then
+    return 1
+  fi
+  printf '[dev] reusing persistent tunnel: %s (pid %s)\n' "$(cat "$tunnel_url_file")" "$(cat "$tunnel_pid_file")"
+  return 0
+}
 
 start_quick_tunnel() {
   if ! command -v cloudflared >/dev/null 2>&1; then
@@ -56,12 +81,14 @@ start_quick_tunnel() {
   : >"$tunnel_log"
   cloudflared tunnel --url http://127.0.0.1:1337 --no-autoupdate >"$tunnel_log" 2>&1 &
   tunnel_pid=$!
+  tunnel_owned_by_session=1
 
   for _ in $(seq 1 120); do
     if url=$(grep -Eo 'https://[A-Za-z0-9.-]+\.trycloudflare\.com' "$tunnel_log" | head -n1); then
       if [[ -n "$url" ]]; then
         printf '%s\n' "$url" >"$tunnel_url_file"
-        printf '[dev] public tunnel: %s\n' "$url"
+        printf '[dev] public tunnel (session-scoped): %s\n' "$url"
+        printf '[dev] tip: `pnpm tunnel` to keep one stable URL across restarts\n'
         return
       fi
     fi
@@ -80,6 +107,7 @@ start_named_tunnel() {
   : >"$tunnel_log"
   cloudflared tunnel --no-autoupdate run "$name" >"$tunnel_log" 2>&1 &
   tunnel_pid=$!
+  tunnel_owned_by_session=1
 
   if [[ -n "${PUBLIC_DEV_URL:-}" ]]; then
     printf '%s\n' "$PUBLIC_DEV_URL" >"$tunnel_url_file"
@@ -89,16 +117,21 @@ start_named_tunnel() {
   fi
 }
 
-case "$tunnel_mode" in
-  off|none|false|0)
-    ;;
-  quick)
-    start_quick_tunnel
-    ;;
-  *)
-    start_named_tunnel "$tunnel_mode"
-    ;;
-esac
+if reuse_persistent_tunnel; then
+  :
+else
+  rm -f "$tunnel_url_file" "$tunnel_log"
+  case "$tunnel_mode" in
+    off|none|false|0)
+      ;;
+    quick)
+      start_quick_tunnel
+      ;;
+    *)
+      start_named_tunnel "$tunnel_mode"
+      ;;
+  esac
+fi
 
 if [[ -s "$tunnel_url_file" ]]; then
   export PUBLIC_DEV_URL="$(cat "$tunnel_url_file")"

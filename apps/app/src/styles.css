@@ -163,6 +163,76 @@ a {
   border: 1px solid rgba(245, 158, 11, 0.24);
 }
 
+.shell__brand-link {
+  text-decoration: none;
+  color: var(--muted);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 14px;
+}
+
+.lookup {
+  display: grid;
+  gap: 16px;
+  margin: 24px 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel-strong);
+}
+
+.lookup__row {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.lookup label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.85em;
+}
+
+.lookup label span {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75em;
+}
+
+.lookup input,
+.lookup select {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--ink);
+  font: inherit;
+}
+
+.meta dl,
+.meta {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--panel-strong);
+}
+
+.meta dt {
+  color: var(--muted);
+  text-transform: uppercase;
+  font-size: 0.72em;
+  letter-spacing: 0.12em;
+  margin-bottom: 2px;
+}
+
+.meta dd {
+  margin: 0;
+}
+
 .browser__breadcrumbs {
   margin-top: 6px;
   color: var(--muted);

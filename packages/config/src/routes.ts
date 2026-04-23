@@ -2,7 +2,7 @@ export const ARTIFACT_ROUTE_PREFIX = '/artifact/'
 export const ARTIFACT_BLOB_ROUTE_PREFIX = '/artifact/blob/'
 export const LEGACY_ARTIFACT_VIEW_PREFIX = '/artifact/view/'
 
-export const APP_EXACT_ROUTES = ['/login', '/account', '/billing', '/settings', '/dashboard'] as const
+export const APP_EXACT_ROUTES = ['/login', '/account'] as const
 
 export const APP_ROUTE_PREFIXES = ['/app/', '/api/', '/github/'] as const
 export const APP_PREFIX_ROOTS = ['/app', '/api'] as const

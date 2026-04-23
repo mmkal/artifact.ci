@@ -17,7 +17,7 @@ export const Route = createRootRouteWithContext<{session: AppSessionSnapshot}>()
       {title: 'artifact.ci'},
       {
         name: 'description',
-        content: 'Signed-in app shell for artifact.ci, including auth, billing, and artifact browser routes.',
+        content: 'View GitHub Actions artifacts in the browser.',
       },
     ],
     links: [{rel: 'stylesheet', href: appCss}],
@@ -45,15 +45,20 @@ function Document({children}: {children: ReactNode}) {
         <div className="shell">
           <div className="shell__frame">
             <nav className="shell__nav">
-              <div className="shell__brand">artifact.ci app</div>
+              <div className="shell__brand">
+                <a href="/" className="shell__brand-link">artifact.ci</a>
+              </div>
               <div className="shell__links">
-                <NavLink to="/">Overview</NavLink>
-                <NavLink to="/dashboard">Dashboard</NavLink>
-                <NavLink to="/account">Account</NavLink>
-                <NavLink to="/billing">Billing</NavLink>
-                <NavLink to="/settings">Settings</NavLink>
-                <NavLink to="/app/artifacts/mmkal/artifact.ci/branch/main/result">Artifacts</NavLink>
-                {session.user ? <LogoutButton /> : <NavLink to="/login">Sign In</NavLink>}
+                {session.user ? (
+                  <>
+                    <NavLink to="/account">
+                      {session.user.githubLogin || session.user.email || 'Account'}
+                    </NavLink>
+                    <LogoutButton />
+                  </>
+                ) : (
+                  <NavLink to="/login">Sign in</NavLink>
+                )}
               </div>
             </nav>
             <main className="shell__body">{children}</main>
