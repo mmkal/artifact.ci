@@ -1,8 +1,9 @@
 import {initTRPC, TRPCError} from '@trpc/server'
 import mime from 'mime'
+import {Client} from 'pg'
 import pMap from 'p-suite/p-map'
 import {z} from 'zod'
-import {client, Id, sql} from '@artifact/domain/db/client'
+import {Id} from '@artifact/domain/db/client'
 import {getEntrypoints} from '@artifact/domain/artifact/entrypoints'
 import {checkCanAccess} from '@artifact/domain/github/access'
 import {getInstallationOctokit} from '@artifact/domain/github/installations'
@@ -12,6 +13,30 @@ import {supabaseStorageServiceRoleClient} from '@artifact/domain/storage/supabas
 export interface TrpcContext {
   githubLogin: string | null | undefined
   getHeader: (name: string) => string | null | undefined
+}
+
+async function withPg<T>(fn: (c: Client) => Promise<T>): Promise<T> {
+  const c = new Client({connectionString: process.env.DATABASE_URL || process.env.PGKIT_CONNECTION_STRING})
+  await c.connect()
+  try {
+    return await fn(c)
+  } finally {
+    await c.end().catch(() => {})
+  }
+}
+
+interface ArtifactRow {
+  id: string
+  repo_id: string
+  name: string
+  created_at: Date
+  updated_at: Date
+  github_id: number
+  installation_id: string
+  visibility: string
+  installation_github_id: number
+  owner: string
+  repo: string
 }
 
 const unmodifiedTRPC = initTRPC.context<TrpcContext>().create()
@@ -25,43 +50,54 @@ export const publicProcedure = unmodifiedTRPC.procedure.use(async function loggi
 export const artifactAccessProcedure = unmodifiedTRPC.procedure
   .input(z.object({artifactId: Id('artifact')}))
   .use(async ({input, ctx, next}) => {
-    let githubLogin = ctx.githubLogin
-    if (!githubLogin) {
-      const uploadToken = ctx.getHeader('artifactci-upload-token')
-      if (uploadToken) {
-        githubLogin = await client.oneFirst(sql<queries.DecryptedSecret>`
-          select decrypted_secret
-          from vault.decrypted_secrets
-          where secret = ${uploadToken}
-          and created_at > now() - interval '10 minutes'
-        `)
+    const artifact = await withPg(async c => {
+      let githubLogin = ctx.githubLogin
+      if (!githubLogin) {
+        const uploadToken = ctx.getHeader('artifactci-upload-token')
+        if (uploadToken) {
+          const {rows} = await c.query<{decrypted_secret: string | null}>(
+            `select decrypted_secret
+             from vault.decrypted_secrets
+             where secret = $1
+               and created_at > now() - interval '10 minutes'`,
+            [uploadToken],
+          )
+          githubLogin = rows[0]?.decrypted_secret ?? undefined
+        }
       }
-    }
-    if (!githubLogin) {
-      throw new TRPCError({code: 'UNAUTHORIZED', message: 'not authenticated'})
-    }
-    const artifact = await client.one(sql<queries.Artifact>`
-      select a.*, gi.github_id as installation_github_id, r.owner, r.name as repo
-      from artifacts a
-      join github_installations gi on gi.id = a.installation_id
-      join repos r on r.id = a.repo_id
-      where a.id = ${input.artifactId}
-    `)
-    const octokit = await getInstallationOctokit(artifact.installation_github_id)
+      if (!githubLogin) {
+        throw new TRPCError({code: 'UNAUTHORIZED', message: 'not authenticated'})
+      }
+      const {rows: artifactRows} = await c.query<ArtifactRow>(
+        `select a.*, gi.github_id as installation_github_id, r.owner, r.name as repo
+         from artifacts a
+         join github_installations gi on gi.id = a.installation_id
+         join repos r on r.id = a.repo_id
+         where a.id = $1`,
+        [input.artifactId],
+      )
+      if (!artifactRows[0]) {
+        throw new TRPCError({code: 'NOT_FOUND', message: `artifact ${input.artifactId} not found`})
+      }
+      return {artifact: artifactRows[0], githubLogin}
+    })
+
+    const octokit = await getInstallationOctokit(artifact.artifact.installation_github_id)
 
     const canAccess = await checkCanAccess(octokit, {
-      ...artifact,
-      username: githubLogin,
+      owner: artifact.artifact.owner,
+      repo: artifact.artifact.repo,
+      username: artifact.githubLogin,
       artifactId: input.artifactId,
     })
     if (!canAccess.canAccess) {
       throw new TRPCError({
         code: 'UNAUTHORIZED',
-        message: `user ${githubLogin} is not authorized to access artifact ${input.artifactId}`,
+        message: `user ${artifact.githubLogin} is not authorized to access artifact ${input.artifactId}`,
       })
     }
 
-    return next({ctx: {...ctx, artifact, octokit}})
+    return next({ctx: {...ctx, artifact: artifact.artifact, octokit}})
   })
 
 export const appRouter = router({
@@ -87,11 +123,12 @@ export const appRouter = router({
     .input(z.object({entries: z.array(z.string())}))
     .mutation(async ({input, ctx: {artifact}}) => {
       const storage = supabaseStorageServiceRoleClient()
+      const createdAt = new Date(artifact.created_at)
       const artifactPathPrefix = [
         'github/artifacts',
         `${artifact.owner}/${artifact.repo}`,
-        artifact.created_at.toISOString().split(/\D/).slice(0, 3).join('/'),
-        artifact.created_at.toISOString().split('T')[1].replaceAll(':', '.'),
+        createdAt.toISOString().split(/\D/).slice(0, 3).join('/'),
+        createdAt.toISOString().split('T')[1].replaceAll(':', '.'),
         artifact.name,
         artifact.id,
       ].join('/')
@@ -109,7 +146,6 @@ export const appRouter = router({
           logger.debug(`status ${res.response.status} for ${artifactFullPath}`, {
             expectingContentType: contentType,
             responseUrl: res.response.url,
-            responseHeaders: Object.fromEntries(res.response.headers),
           })
 
           let token: string | undefined
@@ -121,8 +157,6 @@ export const appRouter = router({
             if (json.statusCode === '409') token = undefined
             else new Error(`upload failed: ${JSON.stringify(json)}`)
           }
-
-          logger.info(`token: ${token}`)
 
           return {entry, artifactFullPath, token, contentType}
         },
@@ -138,42 +172,41 @@ export const appRouter = router({
       }),
     )
     .mutation(async ({input, ctx}) => {
-      const records = await client.any(
-        sql<{entry_name: string; aliases: string[]; storage_object_id: string}>`
-          --typegen-ignore
-          insert into artifact_entries (
-            artifact_id,
-            entry_name,
-            aliases,
-            storage_object_id
-          )
-          select
-            ${input.artifactId} as artifact_id,
-            entries.entry_name,
-            entries.aliases,
-            (
-              select id
-              from storage.objects
-              where name = entries.storage_key
-            ) as storage_object_id
-          from jsonb_to_recordset(
-            ${JSON.stringify(
-              input.uploads.map(u => ({
-                entry_name: u.entry,
-                aliases: getEntrypoints([u.entry]).flatAliases,
-                storage_key: u.artifactFullPath,
-              })),
-            )}
-          ) as entries(
-            entry_name text,
-            aliases text[],
-            storage_key text
-          )
-          on conflict (artifact_id, entry_name) do update set
-            entry_name = excluded.entry_name
-          returning entry_name, aliases, storage_object_id
-        `,
-      )
+      const payload = input.uploads.map(u => ({
+        entry_name: u.entry,
+        aliases: getEntrypoints([u.entry]).flatAliases,
+        storage_key: u.artifactFullPath,
+      }))
+
+      const records = await withPg(async c => {
+        const {rows} = await c.query<{entry_name: string; aliases: string[]; storage_object_id: string}>(
+          `insert into artifact_entries (
+             artifact_id,
+             entry_name,
+             aliases,
+             storage_object_id
+           )
+           select
+             $1 as artifact_id,
+             entries.entry_name,
+             entries.aliases,
+             (
+               select id
+               from storage.objects
+               where name = entries.storage_key
+             ) as storage_object_id
+           from jsonb_to_recordset($2::jsonb) as entries(
+             entry_name text,
+             aliases text[],
+             storage_key text
+           )
+           on conflict (artifact_id, entry_name) do update set
+             entry_name = excluded.entry_name
+           returning entry_name, aliases, storage_object_id`,
+          [input.artifactId, JSON.stringify(payload)],
+        )
+        return rows
+      })
 
       return {
         artifact: ctx.artifact,
@@ -182,26 +215,36 @@ export const appRouter = router({
       }
     }),
   deleteEntries: artifactAccessProcedure.mutation(async ({input}) => {
-    const deleted = await client.maybeOne(sql<queries.Deleted>`
-      with deleted_entries as (
-        delete from artifact_entries where artifact_id = ${input.artifactId}
-        returning *
-      ),
-      storage_objects as (
-        select name
-        from storage.objects
-        where id = any(select storage_object_id from deleted_entries)
+    const deleted = await withPg(async c => {
+      const {rows} = await c.query<{
+        id: string
+        owner: string
+        repo: string
+        object_names: string[] | null
+        deleted_entries_count: number
+      }>(
+        `with deleted_entries as (
+           delete from artifact_entries where artifact_id = $1
+           returning *
+         ),
+         storage_objects as (
+           select name
+           from storage.objects
+           where id = any(select storage_object_id from deleted_entries)
+         )
+         select
+           artifacts.id,
+           r.owner,
+           r.name as repo,
+           (select array_agg(name) from storage_objects) as object_names,
+           (select count(*)::int from deleted_entries) as deleted_entries_count
+         from artifacts
+         join repos r on r.id = artifacts.repo_id
+         where artifacts.id = $1`,
+        [input.artifactId],
       )
-      select
-        artifacts.*,
-        r.owner,
-        r.name as repo,
-        (select array_agg(name) from storage_objects) object_names,
-        (select count(*) from deleted_entries) deleted_entries_count
-      from artifacts
-      join repos r on r.id = artifacts.repo_id
-      where artifacts.id = ${input.artifactId}
-    `)
+      return rows[0]
+    })
 
     const storage = supabaseStorageServiceRoleClient()
     await pMap(deleted?.object_names || [], async name => {
@@ -221,40 +264,3 @@ export const appRouter = router({
 })
 
 export type AppRouter = typeof appRouter
-
-export declare namespace queries {
-  export interface DecryptedSecret {
-    decrypted_secret: string | null
-  }
-
-  export interface Artifact {
-    id: Id<'artifacts'>
-    repo_id: string
-    name: string
-    created_at: Date
-    updated_at: Date
-    download_url: string | null
-    github_id: number
-    installation_id: string
-    visibility: string
-    installation_github_id: number
-    owner: string
-    repo: string
-  }
-
-  export interface Deleted {
-    id: Id<'artifacts'>
-    repo_id: string
-    name: string
-    created_at: Date
-    updated_at: Date
-    download_url: string | null
-    github_id: number
-    installation_id: string
-    visibility: string
-    owner: string
-    repo: string
-    object_names: string[] | null
-    deleted_entries_count: number
-  }
-}
