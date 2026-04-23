@@ -76,15 +76,10 @@ export async function handleUploadRequest(request: Request): Promise<Response> {
  * dropped, we just ask GitHub who owns this repo and upsert.
  */
 async function ensureInstallationAndRepo(owner: string, repo: string) {
-  const existing = await client.maybeOne(sql<queries.Installation>`
-    select github_id id
-    from github_installations
-    join repos on github_installations.id = repos.installation_id
-    where repos.owner = ${owner} and repos.name = ${repo}
-    limit 1
-  `)
-  if (existing) return existing
-
+  // Always resolve against GitHub's live API rather than trusting the DB:
+  // a stale repos row (e.g. from a prior run against a different app, or
+  // a repo that got re-created under the same name) can otherwise send us
+  // chasing an installation id that doesn't belong to this app.
   const installation = await lookupRepoInstallation(owner, repo).catch(error => {
     logger.warn({owner, repo, error: String(error)}, 'lookup installation via GitHub failed')
     return null

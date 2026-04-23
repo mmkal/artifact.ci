@@ -1,4 +1,4 @@
-import {App} from 'octokit'
+import {App, Octokit} from 'octokit'
 import {z} from 'zod'
 
 export const GithubAppEnv = z.object({
@@ -11,9 +11,27 @@ export const getOctokitApp = () => {
   return new App({appId: env.GITHUB_APP_ID, privateKey: env.GITHUB_APP_PRIVATE_KEY})
 }
 
-export const getInstallationOctokit = async (installationId: number) => {
-  const app = getOctokitApp()
-  return app.getInstallationOctokit(installationId)
+/**
+ * Returns an Octokit instance authenticated as a specific installation.
+ *
+ * Mints the installation token via a raw JWT-authenticated POST rather than
+ * relying on octokit's App.getInstallationOctokit, which blows up inside
+ * workerd: its bundled universal-github-app-jwt + auth plumbing mishandles
+ * the PKCS#8 key or the request somehow, yielding a bogus 404 on the token
+ * mint. A hand-rolled JWT signed with node:crypto works reliably.
+ */
+export const getInstallationOctokit = async (installationId: number): Promise<Octokit> => {
+  const env = GithubAppEnv.parse(process.env)
+  const jwt = await makeAppJwt(env.GITHUB_APP_ID, env.GITHUB_APP_PRIVATE_KEY)
+  const response = await fetch(`https://api.github.com/app/installations/${installationId}/access_tokens`, {
+    method: 'POST',
+    headers: githubHeaders(jwt),
+  })
+  if (!response.ok) {
+    throw new Error(`mint installation token for ${installationId} failed: ${response.status} ${await response.text()}`)
+  }
+  const payload = (await response.json()) as {token: string}
+  return new Octokit({auth: payload.token})
 }
 
 /**
@@ -26,11 +44,7 @@ export const lookupRepoInstallation = async (owner: string, repo: string): Promi
   const env = GithubAppEnv.parse(process.env)
   const jwt = await makeAppJwt(env.GITHUB_APP_ID, env.GITHUB_APP_PRIVATE_KEY)
   const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/installation`, {
-    headers: {
-      accept: 'application/vnd.github+json',
-      authorization: `Bearer ${jwt}`,
-      'x-github-api-version': '2022-11-28',
-    },
+    headers: githubHeaders(jwt),
   })
   if (response.status === 404) return null
   if (!response.ok) {
@@ -39,6 +53,13 @@ export const lookupRepoInstallation = async (owner: string, repo: string): Promi
   const payload = (await response.json()) as {id: number}
   return {id: payload.id}
 }
+
+const githubHeaders = (jwt: string): Record<string, string> => ({
+  accept: 'application/vnd.github+json',
+  authorization: `Bearer ${jwt}`,
+  'user-agent': 'artifact.ci (github.com/mmkal/artifact.ci)',
+  'x-github-api-version': '2022-11-28',
+})
 
 async function makeAppJwt(appId: string, privateKey: string) {
   const {createSign} = await import('node:crypto')
