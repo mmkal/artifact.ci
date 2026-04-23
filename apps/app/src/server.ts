@@ -3,6 +3,9 @@ import handler, {createServerEntry} from '@tanstack/react-start/server-entry'
 import {resolveArtifactForEdge} from './artifacts/resolve'
 import {getRequestSession} from './auth/request-session'
 import {createServerAuth} from './auth/server-auth'
+import {handleWebhookRequest} from './github/events'
+import {handleUploadRequest} from './github/upload'
+import {handleTrpcRequest} from './trpc/server'
 
 export default createServerEntry({
   async fetch(request: Request): Promise<Response> {
@@ -15,6 +18,18 @@ export default createServerEntry({
     if (url.pathname.startsWith('/api/auth/')) {
       const auth = createServerAuth()
       return auth.handler(request)
+    }
+
+    if (url.pathname.startsWith('/api/trpc/')) {
+      return handleTrpcRequest(request)
+    }
+
+    if (url.pathname === '/github/upload' && request.method === 'POST') {
+      return handleUploadRequest(request)
+    }
+
+    if (url.pathname === '/github/events' && request.method === 'POST') {
+      return handleWebhookRequest(request)
     }
 
     if (url.pathname === '/api/internal/artifacts/resolve' && request.method === 'POST') {

@@ -4,7 +4,7 @@ export const LEGACY_ARTIFACT_VIEW_PREFIX = '/artifact/view/'
 
 export const APP_EXACT_ROUTES = ['/login', '/account', '/billing', '/settings', '/dashboard'] as const
 
-export const APP_ROUTE_PREFIXES = ['/app/', '/api/'] as const
+export const APP_ROUTE_PREFIXES = ['/app/', '/api/', '/github/'] as const
 export const APP_PREFIX_ROOTS = ['/app', '/api'] as const
 
 export const isArtifactRoute = (pathname: string) => pathname.startsWith(ARTIFACT_ROUTE_PREFIX)
