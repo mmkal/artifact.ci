@@ -46,10 +46,6 @@ export class TagLogger {
     return [this.tags.map(c => `[${c}]`).join('')]
   }
 
-  setTag(...tags: string[]) {
-    this._storage.enterWith({...this.context, tags: [...this.context.tags, ...tags]})
-  }
-
   getTag(name: string) {
     return new URLSearchParams(this.tags.join('&')).get(name)
   }

@@ -6,6 +6,28 @@ const DOCS_DEV_PORT = 43112
 
 const app = await alchemy('artifact-ci')
 
+const passthroughEnv = (names: string[]): Record<string, string> =>
+  Object.fromEntries(names.map(name => [name, process.env[name] ?? '']))
+
+const appBindings = passthroughEnv([
+  'DATABASE_URL',
+  'PGKIT_CONNECTION_STRING',
+  'BETTER_AUTH_SECRET',
+  'BETTER_AUTH_URL',
+  'AUTH_URL',
+  'AUTH_SECRET',
+  'GITHUB_APP_ID',
+  'GITHUB_APP_PRIVATE_KEY',
+  'GITHUB_APP_CLIENT_ID',
+  'GITHUB_APP_CLIENT_SECRET',
+  'GITHUB_APP_WEBHOOK_SECRET',
+  'SUPABASE_PROJECT_URL',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'POSTHOG_PROJECT_API_KEY',
+  'POSTHOG_HOST',
+  'PUBLIC_DEV_URL',
+])
+
 export const appWorker = await TanStackStart('app', {
   cwd: './apps/app',
   name: `${app.name}-${app.stage}-app`,
@@ -16,6 +38,7 @@ export const appWorker = await TanStackStart('app', {
   dev: {
     command: `vite dev --host 127.0.0.1 --port ${APP_DEV_PORT} --strictPort`,
   },
+  bindings: appBindings,
 })
 
 export const docsWorker = await Website('docs', {

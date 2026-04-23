@@ -137,7 +137,9 @@ test('showcase', async ({page}) => {
     'No tunnel URL found at .alchemy/tunnel-url.txt — run `pnpm dev` first so the GitHub App can reach your laptop.',
   )
 
-  await using _app = await ArtifactCiAppFixture.create(page)
+  if (process.env.SKIP_APP_FIXTURE !== '1') {
+    await using _app = await ArtifactCiAppFixture.create(page)
+  }
   await using repo = await WorkflowRepoFixture.create(tunnelUrl)
 
   const run = await waitForWorkflowSuccess(repo)

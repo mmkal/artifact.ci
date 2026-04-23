@@ -9,7 +9,7 @@ import {z} from 'zod'
 import {EventType} from './types'
 import {clientUpload} from '@artifact/domain/artifact/client-upload'
 import {UploadRequest, UploadResponse} from '@artifact/domain/github/upload-types'
-import {logger} from '~/tag-logger'
+import {logger} from '@artifact/domain/logging/tag-logger'
 
 async function main() {
   const event = JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH!, {encoding: 'utf8'})) as EventType

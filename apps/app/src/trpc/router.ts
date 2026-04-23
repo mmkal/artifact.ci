@@ -19,8 +19,7 @@ const unmodifiedTRPC = initTRPC.context<TrpcContext>().create()
 export const router = unmodifiedTRPC.router
 export const publicProcedure = unmodifiedTRPC.procedure.use(async function loggingMiddleware({ctx, next, path}) {
   const requestId = crypto.randomUUID()
-  logger.setTag(`path=${path}`, `requestId=${requestId}`)
-  return next({ctx})
+  return logger.run([`path=${path}`, `requestId=${requestId}`], () => next({ctx}))
 })
 
 export const artifactAccessProcedure = unmodifiedTRPC.procedure
