@@ -20,7 +20,7 @@ export type LoadArtifactResult = {
 export const loadArtifactForBrowser = createServerFn({method: 'GET'})
   .inputValidator((input: PathParams) => PathParams.parse(input))
   .handler(async ({data: params}): Promise<LoadArtifactResult> => {
-    const [{Client}, {checkCanAccess}, {getInstallationOctokit}, {resolveArtifactRequest}, {getCurrentSession}] =
+    const [{Client}, {checkCanAccess}, {getInstallationOctokit, lookupRepoInstallation}, {resolveArtifactRequest}, {getCurrentSession}] =
       await Promise.all([
         import('pg'),
         import('@artifact/domain/github/access'),
@@ -77,7 +77,15 @@ export const loadArtifactForBrowser = createServerFn({method: 'GET'})
         }
       },
       async checkAccess({installationGithubId, artifactId, owner, repo, githubLogin}) {
-        const octokit = await getInstallationOctokit(installationGithubId)
+        // The stored installation_github_id is whichever App was used to
+        // register the repo first (prod or dev). Both apps share this DB,
+        // so we can't treat it as authoritative for "this" app. Look up
+        // the live installation for our current App JWT; fall back to
+        // the stored id if the lookup comes up empty (e.g. a repo that
+        // only has one App installed).
+        const liveInstallation = await lookupRepoInstallation(owner, repo).catch(() => null)
+        const installationToUse = liveInstallation?.id ?? installationGithubId
+        const octokit = await getInstallationOctokit(installationToUse)
         return checkCanAccess(octokit, {
           owner,
           repo,
