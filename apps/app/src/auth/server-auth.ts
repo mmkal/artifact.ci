@@ -12,6 +12,11 @@ const getConnectionString = () => {
 export const getPool = () => {
   globalPool.__artifactBetterAuthPool ??= new Pool({
     connectionString: getConnectionString(),
+    // Aggressive lifecycle settings so workerd's shaky tcp doesn't leave us
+    // holding a dead connection between requests.
+    max: 5,
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 8_000,
   })
 
   return globalPool.__artifactBetterAuthPool

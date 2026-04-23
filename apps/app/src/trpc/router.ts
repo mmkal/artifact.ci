@@ -1,6 +1,7 @@
 import {initTRPC, TRPCError} from '@trpc/server'
 import mime from 'mime'
 import pMap from 'p-suite/p-map'
+import {Client} from 'pg'
 import {z} from 'zod'
 import {Id} from '@artifact/domain/db/client'
 import {getEntrypoints} from '@artifact/domain/artifact/entrypoints'
@@ -8,7 +9,16 @@ import {checkCanAccess} from '@artifact/domain/github/access'
 import {getInstallationOctokit} from '@artifact/domain/github/installations'
 import {logger} from '@artifact/domain/logging/tag-logger'
 import {supabaseStorageServiceRoleClient} from '@artifact/domain/storage/supabase'
-import {getPool} from '../auth/server-auth'
+
+async function withPg<T>(fn: (c: Client) => Promise<T>): Promise<T> {
+  const c = new Client({connectionString: process.env.DATABASE_URL || process.env.PGKIT_CONNECTION_STRING})
+  await c.connect()
+  try {
+    return await fn(c)
+  } finally {
+    await c.end().catch(() => {})
+  }
+}
 
 export interface TrpcContext {
   githubLogin: string | null | undefined
@@ -40,22 +50,12 @@ export const publicProcedure = unmodifiedTRPC.procedure.use(async function loggi
 export const artifactAccessProcedure = unmodifiedTRPC.procedure
   .input(z.object({artifactId: Id('artifact')}))
   .use(async ({input, ctx, next}) => {
-    console.log('[trpc-mw] start', {artifactId: input.artifactId})
-    let pool: ReturnType<typeof getPool>
-    try {
-      pool = getPool()
-      console.log('[trpc-mw] got pool')
-    } catch (error) {
-      console.log('[trpc-mw] getPool failed', error)
-      throw error
-    }
-    let githubLogin = ctx.githubLogin
-    if (!githubLogin) {
-      const uploadToken = ctx.getHeader('artifactci-upload-token')
-      console.log('[trpc-mw] have upload token?', Boolean(uploadToken))
-      if (uploadToken) {
-        try {
-          const {rows} = await pool.query<{decrypted_secret: string | null}>(
+    const artifact = await withPg(async c => {
+      let githubLogin = ctx.githubLogin
+      if (!githubLogin) {
+        const uploadToken = ctx.getHeader('artifactci-upload-token')
+        if (uploadToken) {
+          const {rows} = await c.query<{decrypted_secret: string | null}>(
             `select decrypted_secret
              from vault.decrypted_secrets
              where secret = $1
@@ -63,30 +63,24 @@ export const artifactAccessProcedure = unmodifiedTRPC.procedure
             [uploadToken],
           )
           githubLogin = rows[0]?.decrypted_secret ?? undefined
-          console.log('[trpc-mw] decrypted secret rows', rows.length)
-        } catch (e) {
-          console.log('[trpc-mw] decrypt query failed:', e instanceof Error ? e.message : e)
-          throw e
         }
       }
-    }
-    if (!githubLogin) {
-      throw new TRPCError({code: 'UNAUTHORIZED', message: 'not authenticated'})
-    }
-    console.log('[trpc-mw] about to query artifact', input.artifactId)
-    const {rows: artifactRows} = await pool.query<ArtifactRow>(
-      `select a.*, gi.github_id as installation_github_id, r.owner, r.name as repo
-       from artifacts a
-       join github_installations gi on gi.id = a.installation_id
-       join repos r on r.id = a.repo_id
-       where a.id = $1`,
-      [input.artifactId],
-    )
-    console.log('[trpc-mw] got artifact rows', artifactRows.length)
-    if (!artifactRows[0]) {
-      throw new TRPCError({code: 'NOT_FOUND', message: `artifact ${input.artifactId} not found`})
-    }
-    const artifact = {artifact: artifactRows[0], githubLogin}
+      if (!githubLogin) {
+        throw new TRPCError({code: 'UNAUTHORIZED', message: 'not authenticated'})
+      }
+      const {rows: artifactRows} = await c.query<ArtifactRow>(
+        `select a.*, gi.github_id as installation_github_id, r.owner, r.name as repo
+         from artifacts a
+         join github_installations gi on gi.id = a.installation_id
+         join repos r on r.id = a.repo_id
+         where a.id = $1`,
+        [input.artifactId],
+      )
+      if (!artifactRows[0]) {
+        throw new TRPCError({code: 'NOT_FOUND', message: `artifact ${input.artifactId} not found`})
+      }
+      return {artifact: artifactRows[0], githubLogin}
+    })
 
     console.log('[trpc-mw] got artifact, install id:', artifact.artifact.installation_github_id)
     const octokit = await getInstallationOctokit(artifact.artifact.installation_github_id)
@@ -187,8 +181,8 @@ export const appRouter = router({
         storage_key: u.artifactFullPath,
       }))
 
-      const pool = getPool()
-      const {rows: records} = await pool.query<{entry_name: string; aliases: string[]; storage_object_id: string}>(
+      const records = await withPg(async c => {
+        const {rows} = await c.query<{entry_name: string; aliases: string[]; storage_object_id: string}>(
         `insert into artifact_entries (
            artifact_id,
            entry_name,
@@ -214,6 +208,8 @@ export const appRouter = router({
          returning entry_name, aliases, storage_object_id`,
         [input.artifactId, JSON.stringify(payload)],
       )
+      return rows
+      })
 
       return {
         artifact: ctx.artifact,
@@ -222,14 +218,14 @@ export const appRouter = router({
       }
     }),
   deleteEntries: artifactAccessProcedure.mutation(async ({input}) => {
-    const pool = getPool()
-    const {rows} = await pool.query<{
-      id: string
-      owner: string
-      repo: string
-      object_names: string[] | null
-      deleted_entries_count: number
-    }>(
+    const deleted = await withPg(async c => {
+      const {rows} = await c.query<{
+        id: string
+        owner: string
+        repo: string
+        object_names: string[] | null
+        deleted_entries_count: number
+      }>(
       `with deleted_entries as (
          delete from artifact_entries where artifact_id = $1
          returning *
@@ -250,7 +246,8 @@ export const appRouter = router({
        where artifacts.id = $1`,
       [input.artifactId],
     )
-    const deleted = rows[0]
+      return rows[0]
+    })
 
     const storage = supabaseStorageServiceRoleClient()
     await pMap(deleted?.object_names || [], async name => {
