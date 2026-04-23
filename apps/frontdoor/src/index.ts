@@ -11,6 +11,31 @@ export interface FrontdoorEnv extends ArtifactHandlerEnv {
 const APP_DEV_PREFIX = '/__app_proxy__'
 const VITE_DEV_PREFIXES = ['/@vite/', '/__vite']
 
+// Drop-in replacement for /@vite/client when running through the tunnel.
+// Preserves the exports transformed vite modules import (createHotContext
+// etc.) as no-ops so hydration doesn't throw, but doesn't connect to HMR.
+const VITE_CLIENT_STUB = `const noop = () => {};
+const hot = {
+  get data() { return {}; },
+  accept: noop,
+  acceptExports: noop,
+  dispose: noop,
+  prune: noop,
+  decline: noop,
+  invalidate: noop,
+  on: noop,
+  off: noop,
+  send: noop,
+};
+export const createHotContext = () => hot;
+export const updateStyle = noop;
+export const removeStyle = noop;
+export const injectQuery = (url) => url;
+export class ErrorOverlay extends (globalThis.HTMLElement || class {}) {
+  constructor() { super(); }
+}
+`
+
 const proxyToOrigin = async (request: Request, origin: string) => {
   const url = new URL(request.url)
   return fetch(new Request(new URL(`${url.pathname}${url.search}`, origin), request))
@@ -75,7 +100,7 @@ export default {
         url.pathname === '/@vite/client' ||
         url.pathname === `${APP_DEV_PREFIX}/@vite/client`
       ) {
-        return new Response('export {}', {
+        return new Response(VITE_CLIENT_STUB, {
           status: 200,
           headers: {'content-type': 'application/javascript; charset=utf-8'},
         })
