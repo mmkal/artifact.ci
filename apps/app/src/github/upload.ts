@@ -84,13 +84,16 @@ async function handleUploadRequestInner(request: Request): Promise<Response> {
   // row id, so we re-fetch the ciphertext from vault.secrets to keep the
   // token format unchanged for consumers.
   const tokenRows = await withPg(async c => {
-    const res = await c.query<{secret: string | null}>(
-      `select s.secret
-         from vault.secrets s
-         where s.id = vault.create_secret($1)`,
+    const idRes = await c.query<{id: string}>(
+      `select vault.create_secret($1) as id`,
       [owner],
     )
-    return res.rows
+    const id = idRes.rows[0]!.id
+    const secretRes = await c.query<{secret: string | null}>(
+      `select secret from vault.secrets where id = $1`,
+      [id],
+    )
+    return secretRes.rows
   })
   console.log('[upload] step 7/7 respond')
   const uploadToken = tokenRows[0]
