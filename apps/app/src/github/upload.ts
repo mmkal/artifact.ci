@@ -76,7 +76,7 @@ async function handleUploadRequestInner(request: Request): Promise<Response> {
   })
   console.log('[upload] step 6/7 vault.secrets insert')
 
-  const origin = new URL(request.url).origin
+  const origin = process.env.PUBLIC_DEV_URL || new URL(request.url).origin
   const tokenRows = await withPg(async c => {
     const res = await c.query<{secret: string | null}>(
       `insert into vault.secrets (secret) values ($1) returning secret`,

@@ -125,7 +125,7 @@ async function handleEvent(request: Request, event: AppWebhookEvent) {
 
     const dedupedArtifacts = Object.values(Object.fromEntries(data.artifacts.map(a => [a.name, a])))
 
-    const origin = new URL(request.url).origin
+    const origin = process.env.PUBLIC_DEV_URL || new URL(request.url).origin
     const artifacts = await Promise.all(
       dedupedArtifacts.map(async a => {
         return logger.run(`artifact=${a.name}`, async () => {
