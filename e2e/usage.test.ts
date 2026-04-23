@@ -119,10 +119,14 @@ class WorkflowRepoFixture {
   }
 
   async [Symbol.asyncDispose]() {
-    try {
-      await githubDelete(`/repos/${this.repoSlug}`)
-    } catch {
-      // best effort cleanup
+    if (process.env.KEEP_E2E_REPO !== '1') {
+      try {
+        await githubDelete(`/repos/${this.repoSlug}`)
+      } catch {
+        // best effort cleanup
+      }
+    } else {
+      console.log(`[e2e] KEEP_E2E_REPO=1 → leaving ${this.repoUrl} for inspection`)
     }
     await rm(this.tempDir, {recursive: true, force: true})
   }

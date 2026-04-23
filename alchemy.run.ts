@@ -1,3 +1,4 @@
+import {createPrivateKey} from 'node:crypto'
 import alchemy from 'alchemy'
 import {TanStackStart, Website, Worker} from 'alchemy/cloudflare'
 
@@ -6,8 +7,26 @@ const DOCS_DEV_PORT = 43112
 
 const app = await alchemy('artifact-ci')
 
-const passthroughEnv = (names: string[]): Record<string, string> =>
-  Object.fromEntries(names.map(name => [name, process.env[name] ?? '']))
+/**
+ * workerd's bundled octokit ships universal-github-app-jwt, which only
+ * accepts PKCS#8 private keys. GitHub Apps issue keys in PKCS#1 by default.
+ * Node can round-trip them, so we normalise once here before binding.
+ */
+const normalizePrivateKey = (value: string | undefined) => {
+  if (!value) return ''
+  if (value.includes('BEGIN PRIVATE KEY')) return value
+  return createPrivateKey({key: value, format: 'pem'})
+    .export({format: 'pem', type: 'pkcs8'}) as string
+}
+
+const passthroughEnv = (names: string[]): Record<string, string> => {
+  const out: Record<string, string> = {}
+  for (const name of names) {
+    const raw = process.env[name] ?? ''
+    out[name] = name === 'GITHUB_APP_PRIVATE_KEY' ? normalizePrivateKey(raw) : raw
+  }
+  return out
+}
 
 const appBindings = passthroughEnv([
   'DATABASE_URL',
