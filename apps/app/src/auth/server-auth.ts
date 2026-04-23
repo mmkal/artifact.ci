@@ -17,14 +17,24 @@ const getPool = () => {
   return globalPool.__artifactBetterAuthPool
 }
 
+const getBaseUrl = () => {
+  return process.env.BETTER_AUTH_URL || process.env.AUTH_URL || process.env.PUBLIC_DEV_URL || 'http://localhost:3000'
+}
+
+const getTrustedOrigins = () => {
+  const extras = [process.env.PUBLIC_DEV_URL, process.env.BETTER_AUTH_URL, process.env.AUTH_URL]
+    .filter((u): u is string => Boolean(u))
+  return Array.from(new Set(['http://localhost:3000', 'http://artifactci.localhost:1355', 'https://artifact.ci', ...extras]))
+}
+
 export const createServerAuth = () => {
   return betterAuth({
     appName: 'artifact.ci',
-    baseURL: process.env.BETTER_AUTH_URL || process.env.AUTH_URL || 'http://localhost:3000',
+    baseURL: getBaseUrl(),
     basePath: '/api/auth',
     secret: process.env.BETTER_AUTH_SECRET || 'dev-only-not-for-production',
     database: getPool(),
-    trustedOrigins: ['http://localhost:3000', 'https://artifact.ci'],
+    trustedOrigins: getTrustedOrigins(),
     user: {
       additionalFields: {
         githubLogin: {

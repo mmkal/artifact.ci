@@ -91,6 +91,10 @@ case "$tunnel_mode" in
     ;;
 esac
 
+if [[ -s "$tunnel_url_file" ]]; then
+  export PUBLIC_DEV_URL="$(cat "$tunnel_url_file")"
+fi
+
 pnpm dev:server &
 server_pid=$!
 
