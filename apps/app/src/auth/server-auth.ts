@@ -1,26 +1,41 @@
-import {Pool} from 'pg'
+import {Client} from 'pg'
 import {betterAuth} from 'better-auth'
 import {admin} from 'better-auth/plugins'
 import {tanstackStartCookies} from 'better-auth/tanstack-start'
-
-const globalPool = globalThis as typeof globalThis & {__artifactBetterAuthPool?: Pool}
 
 const getConnectionString = () => {
   return process.env.DATABASE_URL || process.env.PGKIT_CONNECTION_STRING || 'postgresql://postgres:postgres@localhost:5500/postgres'
 }
 
-export const getPool = () => {
-  globalPool.__artifactBetterAuthPool ??= new Pool({
-    connectionString: getConnectionString(),
-    // Aggressive lifecycle settings so workerd's shaky tcp doesn't leave us
-    // holding a dead connection between requests.
-    max: 5,
-    idleTimeoutMillis: 10_000,
-    connectionTimeoutMillis: 8_000,
+// Minimal pg.Pool shim for Better Auth. better-auth detects
+// `"connect" in db` and hands the object to Kysely as
+// `new PostgresDialect({pool: db})`. Kysely calls pool.connect() to
+// get a client, runs queries on it, then calls client.release() to
+// return it. With a real pg.Pool this hangs after a few queries in
+// workerd (same shape as the upload/events hang we already fixed),
+// so we hand out a brand-new Client per connect() and end() it on
+// release(). Aggressive, but reliable through miniflare.
+const connectFreshClient = async () => {
+  const client = new Client({connectionString: getConnectionString()})
+  await client.connect()
+  return Object.assign(client, {
+    release: async () => {
+      await client.end().catch(() => {})
+    },
   })
-
-  return globalPool.__artifactBetterAuthPool
 }
+
+const freshPerConnectPool = {
+  connect: connectFreshClient,
+  // Kysely's PostgresDriver only calls these when it's shutting the pool
+  // down (which better-auth never does in a request lifecycle). Stubs
+  // here so the surface matches pg.Pool closely enough.
+  end: async () => {},
+  on: () => {},
+  off: () => {},
+}
+
+export const getPool = () => freshPerConnectPool
 
 const getBaseUrl = () => {
   // Prefer an explicit BETTER_AUTH_URL (prod deploys / tests), then the
