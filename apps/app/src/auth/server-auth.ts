@@ -82,6 +82,49 @@ export const createServerAuth = () => {
             mapProfileToUser: profile => ({
               githubLogin: typeof profile.login === 'string' ? profile.login : undefined,
             }),
+            // GitHub Apps don't respect OAuth email scope unless their User
+            // permission "Email addresses: Read" is granted, and even then
+            // users with "Keep my email addresses private" return no
+            // public email. Fall back to GitHub's own noreply format
+            // ({id}+{login}@users.noreply.github.com) so Better Auth's
+            // email_not_found gate doesn't reject signup.
+            getUserInfo: async token => {
+              const headers = {
+                Authorization: `Bearer ${token.accessToken}`,
+                'User-Agent': 'artifact-ci',
+                Accept: 'application/vnd.github+json',
+              }
+              const profileRes = await fetch('https://api.github.com/user', {headers})
+              if (!profileRes.ok) return null
+              const profile: Record<string, unknown> = await profileRes.json()
+
+              let email = typeof profile.email === 'string' ? profile.email : ''
+              let emailVerified = false
+              const emailsRes = await fetch('https://api.github.com/user/emails', {headers})
+              if (emailsRes.ok) {
+                const emails = (await emailsRes.json()) as Array<{email: string; primary: boolean; verified: boolean}>
+                const primary = emails.find(e => e.primary) ?? emails[0]
+                if (primary) {
+                  email ||= primary.email
+                  emailVerified = primary.verified
+                }
+              }
+              if (!email && profile.id && profile.login) {
+                email = `${profile.id}+${profile.login}@users.noreply.github.com`
+              }
+
+              return {
+                user: {
+                  id: String(profile.id),
+                  name: (profile.name as string) || (profile.login as string),
+                  email,
+                  image: profile.avatar_url as string | undefined,
+                  emailVerified,
+                  githubLogin: typeof profile.login === 'string' ? profile.login : undefined,
+                },
+                data: profile,
+              }
+            },
           },
         }
       : {},
