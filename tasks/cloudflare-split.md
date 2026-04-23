@@ -7,44 +7,60 @@ size: large
 
 ## Status (as of 2026-04-23)
 
-Most of the code is ported. The remaining work is validating the round
-trip end-to-end on the laptop, then tackling prod deploy + cleanup.
+**The full round trip works end-to-end on the laptop.** `pnpm e2e --grep
+showcase` drives a real GitHub workflow that uploads via the action, the
+webhook fires back through the cloudflared tunnel, our webhook handler
+creates the status check, the check's `details_url` opens the rendered
+artifact browser page.
 
-Main completed pieces:
+Completed in this session:
 
-- Three Workers wired via Alchemy (app / docs / frontdoor) with service
-  bindings + Supabase env.
-- Frontdoor Worker owns `/artifact/*` and proxies the rest.
-- App Worker (TanStack Start) now has Better Auth GitHub OAuth + session
-  helpers + `/api/internal/artifacts/resolve` (edge) +
-  **`/github/upload`** + **`/github/events`** + **`/api/trpc/*`** (tRPC
-  artifact-access router with `getDownloadUrl`, `createUploadTokens`,
-  `storeUploadRecords`, `deleteEntries`).
-- Artifact browser UI (`/app/artifacts/…`) ported with TrpcProvider,
-  ArtifactLoader, FileList, DeleteButton, and the "no credit / not
-  authorized / upload missing" branches.
-- Docs content ported (recipes, advanced usage, self-hosting, legal,
-  landing splash).
-- `pnpm dev` auto-spins a **cloudflared quick tunnel**, saves the URL to
-  `.alchemy/tunnel-url.txt`, and re-points the GitHub App webhook there
-  via `PATCH /app/hook/config` (disable with `GITHUB_APP_WEBHOOK_SYNC=0`).
-- `usage.test.ts` reads the tunnel URL, generates workflows using
-  `mmkal/artifact.ci/upload@main` with `artifactci-origin` set to the
-  tunnel, and follows the status-check link through to the rendered
-  artifact page.
+- `pnpm dev` boots three workers via Alchemy, spins a cloudflared quick
+  tunnel, writes its URL to `.alchemy/tunnel-url.txt`, and auto-resyncs
+  the dev GitHub App's webhook URL to `<tunnel>/github/events` via
+  `PATCH /app/hook/config` (signed with node:crypto, no octokit app auth
+  — octokit's App wrapper mis-routes this endpoint inside workerd).
+- Separate `artifact-ci-dev` GitHub App installed on mmkal (all repos),
+  credentials in `.env`. The normalization in `alchemy.run.ts` converts
+  the PKCS#1 key to PKCS#8 before binding — workerd's bundled
+  universal-github-app-jwt only accepts PKCS#8.
+- Workerd auth: `lookupRepoInstallation` and `getInstallationOctokit`
+  both sign JWTs manually and hit the GitHub API via `fetch` with a
+  User-Agent. Going through `octokit`'s App.octokit wrapper silently
+  falls through to installation auth for `/repos/*` paths and 404s.
+- **Every DB access runs through a per-burst `pg.Client`** (open → run
+  statements → `.end()`). pgkit (pg-promise) and `pg.Pool` both get
+  wedged after the first query on a request in workerd — the second
+  call hangs indefinitely until the Workers runtime kills it. Dedicated
+  Client round-trips reliably. Pays a TLS handshake per burst; fine for
+  dev, worth revisiting for prod (Hyperdrive).
+- The upload handler self-heals missing DB rows: looks up the
+  installation live, upserts `github_installations` + `repos`, then
+  proceeds. Same pattern in the webhook handler.
+- Public artifacts render for anonymous viewers (dropped the
+  `beforeLoad: requireCurrentSession` gate; the loader still redirects
+  to `/login` for authenticated-only cases).
+- ArtifactLoader dynamic-imports `@artifact/domain/artifact/client-upload`
+  so that `unzipit` (CJS) doesn't blow up Vite's SSR module runner with
+  "module is not defined".
 
-Main missing pieces:
+Still outstanding:
 
-- No real Cloudflare deploy yet — prod secrets aren't wired through
-  `alchemy.run.ts` and DNS isn't pointed.
+- No real Cloudflare deploy yet — prod secrets aren't wired into
+  `alchemy.run.ts` beyond the dev bindings, and DNS isn't pointed.
 - Dev harness still has Vite HMR disabled (app + docs) and serves docs
-  from a pre-built `dist/` via `python3 -m http.server`.
-- Quick tunnels rotate URLs each session; named-tunnel flow (with a
-  stable `dev.artifact.ci` CNAME) is documented but not wired.
-- Legacy `src/action/*` still bundles the GitHub Action against `~/tag-logger`
-  and `@artifact/domain` — works, but could live under `apps/action/` for
-  symmetry.
+  from a pre-built `dist/` via `python3 -m http.server` (with the IPv4
+  bind + `-u` + `2>&1` dance so Alchemy can latch the URL).
+- Quick tunnels rotate URLs every `pnpm dev`. The `e2e` test re-reads
+  the URL each run, so it's fine for now, but setting up a stable named
+  tunnel would make manual testing less flaky.
+- Legacy `src/action/*` still bundles the GitHub Action here;
+  functional but lives outside the app layout. The action bundle on
+  `main` is what the test pulls via `mmkal/artifact.ci/upload@main`.
 - Sponsors cron not ported (was `src/app/api/cron/update-sponsors`).
+- Existing `usage.test.ts` currently skips the `ArtifactCiAppFixture`
+  (GitHub storage state was stale) via `SKIP_APP_FIXTURE=1`. Needs a
+  fresh interactive login to restore that step when we want it.
 
 ## The goal
 
