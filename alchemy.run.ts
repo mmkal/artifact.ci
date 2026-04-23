@@ -11,7 +11,12 @@ import {TanStackStart, Tunnel, Website, Worker} from 'alchemy/cloudflare'
 const APP_DEV_PORT = 43111
 const DOCS_DEV_PORT = 43112
 
-const app = await alchemy('artifact-ci')
+const app = await alchemy('artifact-ci', {
+  // Required to serialize the Tunnel resource's run token (a Secret) into
+  // .alchemy/artifact-ci state. Any stable local value works — state is
+  // gitignored and machine-local.
+  password: process.env.ALCHEMY_PASSWORD || 'artifact-ci-dev-state-password',
+})
 
 /**
  * workerd's bundled octokit ships universal-github-app-jwt, which only

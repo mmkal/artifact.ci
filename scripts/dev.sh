@@ -80,9 +80,17 @@ for _ in $(seq 1 180); do
   sleep 1
 done
 
-# alchemy has finished provisioning resources by the time the frontdoor
-# responds. Now cloudflared can grab the token it just wrote (or fall
-# back to a quick tunnel if alchemy's Tunnel resource failed).
+# Frontdoor is up, but alchemy provisions the Tunnel resource *after*
+# workers come up. Wait a little longer for the token file specifically
+# so tunnel.sh can take the named-tunnel path instead of falling back
+# to a random trycloudflare URL.
+for _ in $(seq 1 60); do
+  if [[ -s .alchemy/tunnel-token.txt && -s "$tunnel_url_file" ]]; then
+    break
+  fi
+  sleep 1
+done
+
 if ! persistent_tunnel_alive; then
   bash scripts/tunnel.sh start \
     || printf '[dev] tunnel failed to start; continuing without public URL\n' >&2
