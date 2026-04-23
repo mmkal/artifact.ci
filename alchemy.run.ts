@@ -1,4 +1,9 @@
 import {createPrivateKey} from 'node:crypto'
+
+// Pin the Cloudflare account wrangler + alchemy talk to. Can be overridden
+// in .env for deploys that need a different account.
+process.env.CLOUDFLARE_PROFILE ||= 'mishagmail'
+
 import alchemy from 'alchemy'
 import {TanStackStart, Website, Worker} from 'alchemy/cloudflare'
 
