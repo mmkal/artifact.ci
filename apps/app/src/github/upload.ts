@@ -1,7 +1,7 @@
 import {fromError} from 'zod-validation-error'
 import {client, sql, type Id} from '@artifact/domain/db/client'
 import {AliasType, UploadRequest, UploadResponse} from '@artifact/domain/github/upload-types'
-import {getInstallationOctokit, getOctokitApp} from '@artifact/domain/github/installations'
+import {getInstallationOctokit, lookupRepoInstallation} from '@artifact/domain/github/installations'
 import {logger} from '@artifact/domain/logging/tag-logger'
 import {toAppArtifactPath} from '@artifact/domain/artifact/path-params'
 
@@ -85,16 +85,13 @@ async function ensureInstallationAndRepo(owner: string, repo: string) {
   `)
   if (existing) return existing
 
-  const app = getOctokitApp()
-  const response = await app.octokit
-    .request('GET /repos/{owner}/{repo}/installation', {owner, repo})
-    .catch(error => {
-      logger.warn({owner, repo, error}, 'lookup installation via GitHub failed')
-      return null
-    })
-  if (!response) return null
+  const installation = await lookupRepoInstallation(owner, repo).catch(error => {
+    logger.warn({owner, repo, error: String(error)}, 'lookup installation via GitHub failed')
+    return null
+  })
+  if (!installation) return null
 
-  const installationGithubId = response.data.id
+  const installationGithubId = installation.id
   await client.query(sql<queries._void>`
     insert into github_installations (github_id)
     values (${installationGithubId})
