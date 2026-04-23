@@ -9,6 +9,16 @@ import {getPool} from '../auth/server-auth'
 import {insertArtifactRecord} from './upload'
 
 export async function handleWebhookRequest(request: Request): Promise<Response> {
+  try {
+    return await handleWebhookRequestInner(request)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    logger.error('[events] unhandled error', {error: message})
+    return Response.json({ok: false, error: message}, {status: 500})
+  }
+}
+
+async function handleWebhookRequestInner(request: Request): Promise<Response> {
   const json = await request.text()
   logger.debug('event received', {url: request.url, text: json.slice(0, 200)})
 

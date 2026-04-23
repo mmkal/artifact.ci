@@ -6,6 +6,16 @@ import {toAppArtifactPath} from '@artifact/domain/artifact/path-params'
 import {getPool} from '../auth/server-auth'
 
 export async function handleUploadRequest(request: Request): Promise<Response> {
+  try {
+    return await handleUploadRequestInner(request)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    logger.error('[upload] unhandled error', {error: message})
+    return Response.json({success: false, error: message}, {status: 500})
+  }
+}
+
+async function handleUploadRequestInner(request: Request): Promise<Response> {
   const rawBody = (await request.json()) as {}
 
   const parsed = UploadRequest.safeParse(rawBody)
