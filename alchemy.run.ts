@@ -25,9 +25,10 @@ export const docsWorker = await Website('docs', {
     command: 'astro build',
   },
   dev: {
-    // -u so python flushes, 2>&1 so the "Serving on 0.0.0.0:PORT" line alchemy
-    // needs to latch onto reaches stdout instead of getting stuck on stderr.
-    command: `sh -c "python3 -u -m http.server ${DOCS_DEV_PORT} -d dist 2>&1"`,
+    // -u so python flushes, 2>&1 so python's "Serving HTTP on …" banner lands
+    // on stdout (alchemy's URL extractor reads stdout only), --bind so we get
+    // an IPv4 address — the extractor's regex doesn't recognise [::] form.
+    command: `sh -c "python3 -u -m http.server ${DOCS_DEV_PORT} -d dist --bind 127.0.0.1 2>&1"`,
   },
   assets: 'dist',
 })
