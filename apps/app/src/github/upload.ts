@@ -77,9 +77,17 @@ async function handleUploadRequestInner(request: Request): Promise<Response> {
   console.log('[upload] step 6/7 vault.secrets insert')
 
   const origin = process.env.PUBLIC_DEV_URL || new URL(request.url).origin
+  // Direct INSERT into vault.secrets fails on newer Supabase projects
+  // ("permission denied for function _crypto_aead_det_noncegen") because
+  // the on-insert trigger calls pgsodium internals our pooler role can't
+  // execute. The documented API is vault.create_secret — it returns the
+  // row id, so we re-fetch the ciphertext from vault.secrets to keep the
+  // token format unchanged for consumers.
   const tokenRows = await withPg(async c => {
     const res = await c.query<{secret: string | null}>(
-      `insert into vault.secrets (secret) values ($1) returning secret`,
+      `select s.secret
+         from vault.secrets s
+         where s.id = vault.create_secret($1)`,
       [owner],
     )
     return res.rows
