@@ -1,11 +1,11 @@
 import {fromError} from 'zod-validation-error'
-import {client, sql, type Id} from '@artifact/domain/db/client'
 import {AppWebhookEvent} from '@artifact/domain/github/events-types'
 import {getInstallationOctokit} from '@artifact/domain/github/installations'
 import {validateGithubWebhook} from '@artifact/domain/github/webhook-validator'
 import {logger} from '@artifact/domain/logging/tag-logger'
 import {captureServerEvent} from '@artifact/domain/analytics/posthog-server'
 import {toAppArtifactPath} from '@artifact/domain/artifact/path-params'
+import {getPool} from '../auth/server-auth'
 import {insertArtifactRecord} from './upload'
 
 export async function handleWebhookRequest(request: Request): Promise<Response> {
@@ -13,7 +13,7 @@ export async function handleWebhookRequest(request: Request): Promise<Response> 
   logger.debug('event received', {url: request.url, text: json.slice(0, 200)})
 
   const signature = request.headers.get('x-hub-signature-256')
-  const isValid = await validateGithubWebhook(signature, json)
+  const isValid = await validateGithubWebhook(signature, json).catch(() => false)
   if (!isValid) {
     logger.warn('invalid signature was sent')
     return Response.json({error: 'invalid signature'}, {status: 400})
@@ -32,30 +32,29 @@ export async function handleWebhookRequest(request: Request): Promise<Response> 
 }
 
 async function handleEvent(request: Request, event: AppWebhookEvent) {
+  const pool = getPool()
+
   if (event.eventType === 'installation_added') {
-    const repos = event.installation.repositories_added.map(r => {
+    const addedRepos = event.installation.repositories_added.map(r => {
       const [owner, name] = r.full_name.split('/')
       return {owner, name}
     })
-    const createdRepos = await client.any(sql<queries.Repo>`
-      with new_installation as (
-        insert into github_installations (github_id)
-        values (${event.installation.id})
-        on conflict (github_id) do update set updated_at = excluded.updated_at
-        returning id
-      )
-      insert into repos (owner, name, installation_id)
-      select owner, name, new_installation.id as installation_id
-      from jsonb_populate_recordset(
-        null::repos,
-        ${JSON.stringify(repos)}
-      )
-      join new_installation on true
-      on conflict (owner, name) do update
-      set
-        installation_id = excluded.installation_id
-      returning *
-    `)
+    const {rows: createdRepos} = await pool.query<{id: string; owner: string; name: string; installation_id: string}>(
+      `with new_installation as (
+         insert into github_installations (github_id)
+         values ($1)
+         on conflict (github_id) do update set updated_at = excluded.updated_at
+         returning id
+       )
+       insert into repos (owner, name, installation_id)
+       select owner, name, new_installation.id as installation_id
+       from jsonb_populate_recordset(null::repos, $2::jsonb)
+       join new_installation on true
+       on conflict (owner, name) do update set
+         installation_id = excluded.installation_id
+       returning id, owner, name, installation_id`,
+      [event.installation.id, JSON.stringify(addedRepos)],
+    )
     captureServerEvent({
       distinctId: event.installation.id.toString(),
       event: 'installation_created',
@@ -67,24 +66,28 @@ async function handleEvent(request: Request, event: AppWebhookEvent) {
     })
     return Response.json({ok: true, action: event.action, eventType: event.eventType, createdRepos})
   }
+
   if (event.eventType === 'installation_removed') {
-    const removedInstallation = await client.one(sql<queries.GithubInstallation>`
-      update github_installations
-      set removed_at = current_timestamp
-      where github_id = ${event.installation.id}
-      returning *
-    `)
+    const {rows} = await pool.query<{id: string; github_id: number}>(
+      `update github_installations
+       set removed_at = current_timestamp
+       where github_id = $1
+       returning id, github_id`,
+      [event.installation.id],
+    )
+    const removedInstallation = rows[0]
     captureServerEvent({
       distinctId: event.installation.id.toString(),
       event: 'installation_removed',
       properties: {
         githubInstallationId: event.installation.id,
-        dbInstallationId: removedInstallation.id,
+        dbInstallationId: removedInstallation?.id,
         repos: event.installation.repositories_removed.map(r => r.full_name).join(','),
       },
     })
     return Response.json({ok: true, action: event.action, eventType: event.eventType, removedInstallation})
   }
+
   if (event.eventType === 'workflow_job_not_completed' || event.eventType === 'unknown_action') {
     return Response.json({ok: true, action: event.action, eventType: event.eventType})
   }
@@ -116,20 +119,17 @@ async function handleEvent(request: Request, event: AppWebhookEvent) {
     const artifacts = await Promise.all(
       dedupedArtifacts.map(async a => {
         return logger.run(`artifact=${a.name}`, async () => {
-          await client.query(sql<queries._void>`
-            insert into github_installations (github_id)
-            select ${event.installation.id}
-            on conflict (github_id) do nothing
-          `)
-          await client.query(sql<queries._void>`
-            insert into repos (owner, name, installation_id)
-            values (
-              ${owner},
-              ${repo},
-              (select id from github_installations where github_id = ${event.installation.id})
-            )
-            on conflict (owner, name) do nothing;
-          `)
+          await pool.query(
+            `insert into github_installations (github_id) values ($1)
+             on conflict (github_id) do nothing`,
+            [event.installation.id],
+          )
+          await pool.query(
+            `insert into repos (owner, name, installation_id)
+             values ($1, $2, (select id from github_installations where github_id = $3))
+             on conflict (owner, name) do nothing`,
+            [owner, repo, event.installation.id],
+          )
 
           const txResult = await insertArtifactRecord({
             owner,
@@ -142,12 +142,10 @@ async function handleEvent(request: Request, event: AppWebhookEvent) {
           return {
             name: a.name,
             artifactId: txResult.dbArtifact.id,
-            links: txResult.dbIdentifiers.map(({type: aliasType, value: identifier}) => {
-              return {
-                aliasType,
-                url: origin + toAppArtifactPath({owner, repo, aliasType, identifier, artifactName: a.name}),
-              }
-            }),
+            links: txResult.dbIdentifiers.map(({type: aliasType, value: identifier}) => ({
+              aliasType,
+              url: origin + toAppArtifactPath({owner, repo, aliasType, identifier, artifactName: a.name}),
+            })),
           }
         })
       }),
@@ -189,26 +187,4 @@ async function handleEvent(request: Request, event: AppWebhookEvent) {
     }
     return Response.json({ok: true, total: data.total_count, artifacts})
   })
-}
-
-export declare namespace queries {
-  export interface Repo {
-    id: Id<'repos'>
-    owner: string
-    name: string
-    created_at: Date
-    updated_at: Date
-    installation_id: string
-    default_visibility: string
-  }
-
-  export interface GithubInstallation {
-    id: Id<'github_installations'>
-    github_id: number
-    created_at: Date
-    updated_at: Date
-    removed_at: Date | null
-  }
-
-  export type _void = {}
 }

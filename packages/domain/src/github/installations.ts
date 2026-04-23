@@ -43,6 +43,7 @@ export const getInstallationOctokit = async (installationId: number): Promise<Oc
 export const lookupRepoInstallation = async (owner: string, repo: string): Promise<{id: number} | null> => {
   const env = GithubAppEnv.parse(process.env)
   const jwt = await makeAppJwt(env.GITHUB_APP_ID, env.GITHUB_APP_PRIVATE_KEY)
+  console.log('[lookup] using GITHUB_APP_ID:', env.GITHUB_APP_ID, 'private key length:', env.GITHUB_APP_PRIVATE_KEY.length)
   const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/installation`, {
     headers: githubHeaders(jwt),
   })
@@ -50,7 +51,8 @@ export const lookupRepoInstallation = async (owner: string, repo: string): Promi
   if (!response.ok) {
     throw new Error(`lookupRepoInstallation ${owner}/${repo} failed: ${response.status} ${await response.text()}`)
   }
-  const payload = (await response.json()) as {id: number}
+  const payload = (await response.json()) as {id: number; app_id?: number}
+  console.log('[lookup]', owner + '/' + repo, 'returned install id:', payload.id, 'app_id:', payload.app_id)
   return {id: payload.id}
 }
 

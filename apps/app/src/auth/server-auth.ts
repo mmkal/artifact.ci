@@ -9,7 +9,7 @@ const getConnectionString = () => {
   return process.env.DATABASE_URL || process.env.PGKIT_CONNECTION_STRING || 'postgresql://postgres:postgres@localhost:5500/postgres'
 }
 
-const getPool = () => {
+export const getPool = () => {
   globalPool.__artifactBetterAuthPool ??= new Pool({
     connectionString: getConnectionString(),
   })
