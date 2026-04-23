@@ -1,9 +1,20 @@
+import {Client} from 'pg'
 import {type ArtifactResolveRequest, type ArtifactResolveResponse} from '@artifact/domain/artifact/edge-contract'
 import {PathParams, toAppArtifactPath} from '@artifact/domain/artifact/path-params'
 import {resolveArtifactRequest} from '@artifact/domain/artifact/resolve-artifact-request'
-import {client, sql, type Id} from '@artifact/domain/db/client'
+import {type Id} from '@artifact/domain/db/client'
 import {checkCanAccess} from '@artifact/domain/github/access'
 import {getInstallationOctokit} from '@artifact/domain/github/installations'
+
+async function withPg<T>(fn: (c: Client) => Promise<T>): Promise<T> {
+  const c = new Client({connectionString: process.env.DATABASE_URL || process.env.PGKIT_CONNECTION_STRING})
+  await c.connect()
+  try {
+    return await fn(c)
+  } finally {
+    await c.end().catch(() => {})
+  }
+}
 
 export async function resolveArtifactForEdge(
   input: ArtifactResolveRequest,
@@ -13,24 +24,28 @@ export async function resolveArtifactForEdge(
 
   const resolved = await resolveArtifactRequest(githubLogin, params, {
     async findArtifactInfo({owner, repo, aliasType, identifier, artifactName}) {
-      const artifactInfo = await client.maybeOne(sql<queries.ArtifactInfo>`
-        select
-          i.github_id as installation_github_id,
-          a.id as artifact_id,
-          a.visibility,
-          (select array_agg(entry_name) from artifact_entries ae where ae.artifact_id = a.id) entries
-        from artifacts a
-        join artifact_identifiers aid on aid.artifact_id = a.id
-        join github_installations i on i.id = a.installation_id
-        join repos r on r.id = a.repo_id
-        where a.name = ${artifactName}
-        and aid.type = ${aliasType}
-        and aid.value = ${identifier}
-        and r.owner = ${owner}
-        and r.name = ${repo}
-        order by a.created_at desc
-        limit 1
-      `)
+      const artifactInfo = await withPg(async c => {
+        const {rows} = await c.query<queries.ArtifactInfo>(
+          `select
+             i.github_id as installation_github_id,
+             a.id as artifact_id,
+             a.visibility,
+             (select array_agg(entry_name) from artifact_entries ae where ae.artifact_id = a.id) as entries
+           from artifacts a
+           join artifact_identifiers aid on aid.artifact_id = a.id
+           join github_installations i on i.id = a.installation_id
+           join repos r on r.id = a.repo_id
+           where a.name = $1
+             and aid.type = $2
+             and aid.value = $3
+             and r.owner = $4
+             and r.name = $5
+           order by a.created_at desc
+           limit 1`,
+          [artifactName, aliasType, identifier, owner, repo],
+        )
+        return rows[0] ?? null
+      })
 
       if (!artifactInfo) return null
 
@@ -51,19 +66,21 @@ export async function resolveArtifactForEdge(
       })
     },
     async findStoragePathname({artifactId, entry}) {
-      const dbFile = await client.maybeOne(sql<queries.DbFile>`
-        select o.name as storage_pathname
-        from artifacts a
-        join artifact_entries ae on ae.artifact_id = a.id
-        join storage.objects o on ae.storage_object_id = o.id
-        where a.id = ${artifactId}
-        and ${entry} = any(ae.aliases)
-        and o.name is not null
-        order by ae.created_at desc
-        limit 1
-      `)
-
-      return dbFile?.storage_pathname || null
+      return withPg(async c => {
+        const {rows} = await c.query<queries.DbFile>(
+          `select o.name as storage_pathname
+           from artifacts a
+           join artifact_entries ae on ae.artifact_id = a.id
+           join storage.objects o on ae.storage_object_id = o.id
+           where a.id = $1
+             and $2 = any(ae.aliases)
+             and o.name is not null
+           order by ae.created_at desc
+           limit 1`,
+          [artifactId, entry],
+        )
+        return rows[0]?.storage_pathname ?? null
+      })
     },
   })
 
