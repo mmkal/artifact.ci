@@ -101,6 +101,12 @@ for _ in $(seq 1 180); do
   sleep 1
 done
 
+if [[ -s "$tunnel_url_file" && "${GITHUB_APP_WEBHOOK_SYNC:-1}" != "0" ]]; then
+  pnpm exec tsx scripts/sync-github-app-webhook.ts "$(cat "$tunnel_url_file")" || \
+    printf '[dev] webhook sync failed; point the GitHub App webhook at %s/github/events manually\n' \
+      "$(cat "$tunnel_url_file")"
+fi
+
 printf '\nOpen in browser: http://artifactci.localhost:1355\n'
 if [[ -s "$tunnel_url_file" ]]; then
   printf 'Public tunnel:    %s\n' "$(cat "$tunnel_url_file")"

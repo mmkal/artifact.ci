@@ -1,9 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import {expectTypeOf} from 'expect-type'
-import {createProxyClient} from '../src/openapi/client'
-// import {paths as openaiPaths} from '../src/openapi/generated/openai'
-// import {paths as petstorePaths} from '../src/openapi/generated/petstore'
-import {paths as supabaseStoragePaths} from '../src/openapi/generated/supabase-storage'
+import {createProxyClient} from '@artifact/domain/openapi/client'
+import {paths as supabaseStoragePaths} from '@artifact/domain/openapi/generated/supabase-storage'
 
 const test = (title: string, fn: () => void | Promise<void>) => {
   // return fn()

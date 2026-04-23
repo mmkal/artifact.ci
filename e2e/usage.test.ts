@@ -1,5 +1,5 @@
 import {expect, test, type Page} from '@playwright/test'
-import {mkdir, mkdtemp, rm, writeFile} from 'node:fs/promises'
+import {mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import path from 'node:path'
 import {execFile} from 'node:child_process'
@@ -10,6 +10,12 @@ const installRepoSlug = 'mmkal-bot/test-repo'
 const installRepoUrl = `https://github.com/${installRepoSlug}`
 const workflowRepoOwner = 'mmkal'
 const githubApiOrigin = 'https://api.github.com'
+const tunnelUrlFile = path.join(import.meta.dirname, '..', '.alchemy', 'tunnel-url.txt')
+
+async function readTunnelUrl() {
+  const raw = await readFile(tunnelUrlFile, 'utf8').catch(() => '')
+  return raw.trim()
+}
 
 class ArtifactCiAppFixture {
   readonly page: Page
@@ -44,6 +50,7 @@ class WorkflowRepoFixture {
   readonly commitMessage: string
   readonly workflowPath: string
   readonly tempDir: string
+  readonly artifactciOrigin: string
 
   constructor(params: {
     repoName: string
@@ -52,6 +59,7 @@ class WorkflowRepoFixture {
     commitMessage: string
     workflowPath: string
     tempDir: string
+    artifactciOrigin: string
   }) {
     this.repoName = params.repoName
     this.repoSlug = `${workflowRepoOwner}/${params.repoName}`
@@ -61,16 +69,25 @@ class WorkflowRepoFixture {
     this.commitMessage = params.commitMessage
     this.workflowPath = params.workflowPath
     this.tempDir = params.tempDir
+    this.artifactciOrigin = params.artifactciOrigin
   }
 
-  static async create() {
+  static async create(artifactciOrigin: string) {
     const repoName = `artifact-ci-e2e-${Date.now()}`
     const workflowName = `artifact-ci-showcase-${Date.now()}`
     const branch = workflowName
     const commitMessage = `add ${workflowName}`
     const workflowPath = `.github/workflows/${workflowName}.yml`
     const tempDir = await mkdtemp(path.join(tmpdir(), 'artifact-ci-e2e-'))
-    const fixture = new WorkflowRepoFixture({repoName, branch, workflowName, commitMessage, workflowPath, tempDir})
+    const fixture = new WorkflowRepoFixture({
+      repoName,
+      branch,
+      workflowName,
+      commitMessage,
+      workflowPath,
+      tempDir,
+      artifactciOrigin,
+    })
     await fixture.createRepo()
     await fixture.pushWorkflow()
     return fixture
@@ -93,7 +110,7 @@ class WorkflowRepoFixture {
     await git(['checkout', '-b', this.branch], {cwd: this.tempDir})
     const fullPath = path.join(this.tempDir, this.workflowPath)
     await mkdir(path.dirname(fullPath), {recursive: true})
-    await writeFile(fullPath, buildWorkflowYaml(this.workflowName))
+    await writeFile(fullPath, buildWorkflowYaml(this.workflowName, this.artifactciOrigin))
     await git(['add', this.workflowPath], {cwd: this.tempDir})
     await git(['-c', 'user.name=artifact-ci-e2e', '-c', 'user.email=artifact-ci-e2e@users.noreply.github.com', 'commit', '-m', this.commitMessage], {
       cwd: this.tempDir,
@@ -114,8 +131,14 @@ class WorkflowRepoFixture {
 test('showcase', async ({page}) => {
   test.setTimeout(1000 * 60 * 5)
 
+  const tunnelUrl = await readTunnelUrl()
+  test.skip(
+    !tunnelUrl,
+    'No tunnel URL found at .alchemy/tunnel-url.txt — run `pnpm dev` first so the GitHub App can reach your laptop.',
+  )
+
   await using _app = await ArtifactCiAppFixture.create(page)
-  await using repo = await WorkflowRepoFixture.create()
+  await using repo = await WorkflowRepoFixture.create(tunnelUrl)
 
   const run = await waitForWorkflowSuccess(repo)
 
@@ -129,7 +152,16 @@ test('showcase', async ({page}) => {
 
   await page.goto(run.html_url)
 
-  await expect(page.locator('a[href*="/artifacts/"]').first()).toBeVisible({timeout: 120_000})
+  const artifactLink = page.locator('a[href*="/artifacts/"]').first()
+  await expect(artifactLink).toBeVisible({timeout: 120_000})
+
+  const artifactHref = await artifactLink.getAttribute('href')
+  expect(artifactHref, 'artifact link on the workflow run page').toBeTruthy()
+  expect(new URL(artifactHref!).origin, 'artifact link points at the dev tunnel').toBe(new URL(tunnelUrl).origin)
+
+  await page.goto(artifactHref!)
+  await expect(page.getByRole('heading', {name: 'showcase-report'})).toBeVisible({timeout: 30_000})
+  await expect(page.getByRole('link', {name: /index\.html/i}).first()).toBeVisible({timeout: 30_000})
 })
 
 async function waitForWorkflowSuccess(repo: WorkflowRepoFixture) {
@@ -218,7 +250,7 @@ async function git(args: string[], options?: {cwd?: string}) {
   })
 }
 
-function buildWorkflowYaml(workflowName: string) {
+function buildWorkflowYaml(workflowName: string, artifactciOrigin: string) {
   return [
     `name: ${workflowName}`,
     'on:',
@@ -231,9 +263,12 @@ function buildWorkflowYaml(workflowName: string) {
     '        run: |',
     '          mkdir -p html',
     `          printf '<!doctype html><html><body><h1>${workflowName}</h1></body></html>' > html/index.html`,
-    '      - uses: actions/upload-artifact@v4',
+    '      - uses: mmkal/artifact.ci/upload@main',
     '        with:',
     '          name: showcase-report',
     '          path: html',
+    '          artifactci-visibility: public',
+    '          artifactci-mode: eager',
+    `          artifactci-origin: ${artifactciOrigin}`,
   ].join('\n')
 }
