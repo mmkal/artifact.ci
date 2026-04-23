@@ -73,19 +73,21 @@ fi
 NODE_OPTIONS="${NODE_OPTIONS:-} --unhandled-rejections=warn" pnpm dev:server &
 server_pid=$!
 
-# Start cloudflared once alchemy has provisioned the tunnel, in parallel
-# with alchemy continuing to bring up workers.
-if ! persistent_tunnel_alive; then
-  (bash scripts/tunnel.sh start || printf '[dev] tunnel failed to start; continuing without public URL\n' >&2) &
-  tunnel_owned_by_session=1
-fi
-
 for _ in $(seq 1 180); do
   if curl -fsS http://127.0.0.1:1337/ >/dev/null 2>&1; then
     break
   fi
   sleep 1
 done
+
+# alchemy has finished provisioning resources by the time the frontdoor
+# responds. Now cloudflared can grab the token it just wrote (or fall
+# back to a quick tunnel if alchemy's Tunnel resource failed).
+if ! persistent_tunnel_alive; then
+  bash scripts/tunnel.sh start \
+    || printf '[dev] tunnel failed to start; continuing without public URL\n' >&2
+  tunnel_owned_by_session=1
+fi
 
 if [[ -s "$tunnel_url_file" ]]; then
   export PUBLIC_DEV_URL="$(cat "$tunnel_url_file")"
