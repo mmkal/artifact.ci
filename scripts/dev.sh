@@ -39,7 +39,7 @@ done
 portless proxy start >/dev/null 2>&1 || true
 portless alias artifactci 1337 >/dev/null 2>&1 || true
 
-rm -rf .alchemy/artifact-ci apps/app/.alchemy apps/docs/.alchemy apps/docs/.astro apps/docs/.wrangler apps/docs/dist
+rm -rf .alchemy/artifact-ci .alchemy/pids .alchemy/miniflare apps/app/.alchemy apps/docs/.alchemy apps/docs/.astro apps/docs/.wrangler apps/docs/dist
 mkdir -p .alchemy/logs
 
 # Pre-build the docs site so python http.server has real content to serve.
