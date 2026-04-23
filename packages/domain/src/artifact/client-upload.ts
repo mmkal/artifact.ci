@@ -1,8 +1,8 @@
 import {createTRPCClient, httpLink} from '@trpc/client'
 import pMap from 'p-suite/p-map'
 import {unzip} from 'unzipit'
-import {createProxyClient} from '../../../../src/openapi/client'
-import {type paths} from '../../../../src/openapi/generated/supabase-storage'
+import {createProxyClient} from '../openapi/client'
+import {type paths} from '../openapi/generated/supabase-storage'
 
 type UploadClient = {
   getDownloadUrl: {query(input: {artifactId: string}): Promise<{url: string; githubId: number}>}

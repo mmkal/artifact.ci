@@ -1,6 +1,6 @@
 import {z} from 'zod'
-import {createProxyClient} from '~/openapi/client'
-import {paths} from '~/openapi/generated/supabase-storage'
+import {createProxyClient} from '../openapi/client'
+import {paths} from '../openapi/generated/supabase-storage'
 
 const Env = z.object({
   SUPABASE_PROJECT_URL: z.string().url(),
