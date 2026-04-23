@@ -1,7 +1,7 @@
 import {fromError} from 'zod-validation-error'
 import {client, sql, type Id} from '@artifact/domain/db/client'
 import {AliasType, UploadRequest, UploadResponse} from '@artifact/domain/github/upload-types'
-import {getInstallationOctokit} from '@artifact/domain/github/installations'
+import {getInstallationOctokit, getOctokitApp} from '@artifact/domain/github/installations'
 import {logger} from '@artifact/domain/logging/tag-logger'
 import {toAppArtifactPath} from '@artifact/domain/artifact/path-params'
 
@@ -17,14 +17,7 @@ export async function handleUploadRequest(request: Request): Promise<Response> {
 
   const {owner, repo, ...event} = parsed.data
 
-  const installation = await client.maybeOne(sql<queries.Installation>`
-    select github_id id
-    from github_installations
-    join repos on github_installations.id = repos.installation_id
-    where repos.owner = ${owner} and repos.name = ${repo}
-    limit 1
-  `)
-
+  const installation = await ensureInstallationAndRepo(owner, repo)
   if (!installation) {
     logger.warn({owner, repo}, `github installation not found`)
     return Response.json({success: false, error: `not found`}, {status: 404})
@@ -71,6 +64,54 @@ export async function handleUploadRequest(request: Request): Promise<Response> {
     uploadToken: uploadToken.secret!,
   } satisfies UploadResponse)
   return Response.json(responseBody)
+}
+
+/**
+ * Ensures a `github_installations` + `repos` row exist for the given
+ * owner/repo and returns the installation (with GitHub's numeric id).
+ *
+ * In prod the webhook handler usually pre-populates these when the app
+ * gets installed or a repo is added to an existing install. In dev,
+ * and any time the `installation_repositories.added` webhook got
+ * dropped, we just ask GitHub who owns this repo and upsert.
+ */
+async function ensureInstallationAndRepo(owner: string, repo: string) {
+  const existing = await client.maybeOne(sql<queries.Installation>`
+    select github_id id
+    from github_installations
+    join repos on github_installations.id = repos.installation_id
+    where repos.owner = ${owner} and repos.name = ${repo}
+    limit 1
+  `)
+  if (existing) return existing
+
+  const app = getOctokitApp()
+  const response = await app.octokit
+    .request('GET /repos/{owner}/{repo}/installation', {owner, repo})
+    .catch(error => {
+      logger.warn({owner, repo, error}, 'lookup installation via GitHub failed')
+      return null
+    })
+  if (!response) return null
+
+  const installationGithubId = response.data.id
+  await client.query(sql<queries._void>`
+    insert into github_installations (github_id)
+    values (${installationGithubId})
+    on conflict (github_id) do nothing
+  `)
+  await client.query(sql<queries._void>`
+    insert into repos (owner, name, installation_id)
+    values (
+      ${owner},
+      ${repo},
+      (select id from github_installations where github_id = ${installationGithubId})
+    )
+    on conflict (owner, name) do update set
+      installation_id = excluded.installation_id,
+      updated_at = current_timestamp
+  `)
+  return {id: installationGithubId}
 }
 
 type InsertParams = UploadRequest & {
@@ -148,4 +189,6 @@ export declare namespace queries {
     created_at: Date
     updated_at: Date
   }
+
+  export type _void = {}
 }
