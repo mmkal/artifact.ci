@@ -1,6 +1,5 @@
 import {useMutation} from '@tanstack/react-query'
 import {useEffect, useRef, useState, Suspense} from 'react'
-import {clientUpload} from '@artifact/domain/artifact/client-upload'
 import type {PathParams} from '@artifact/domain/artifact/path-params'
 import {FileList} from './file-list'
 
@@ -41,6 +40,10 @@ function ArtifactLoaderInner(props: ArtifactLoaderProps) {
   const mutation = useMutation({
     mutationFn: async (input: {artifactId: string}) => {
       setUpdates(initialUpdates)
+      // Dynamic import: clientUpload pulls in unzipit, which is CJS and
+      // can't be loaded by Vite's SSR module runner. Deferring to runtime
+      // keeps SSR happy while the client fetches the module on demand.
+      const {clientUpload} = await import('@artifact/domain/artifact/client-upload')
       return clientUpload({...input, onProgress, trpcUrl: '/api/trpc'})
     },
     onSuccess: () => {

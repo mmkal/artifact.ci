@@ -1,7 +1,6 @@
 // @ts-nocheck
 import {createFileRoute, redirect} from '@tanstack/react-router'
 import {loadArtifactForBrowser, type LoadArtifactResult} from '../artifacts/load'
-import {requireCurrentSession} from '../auth/session'
 import {ArtifactLoader} from '../ui/artifact-loader'
 import {FileList} from '../ui/file-list'
 import {TrpcProvider} from '../ui/trpc-provider'
@@ -13,7 +12,9 @@ export const Route = createFileRoute('/app/artifacts/$owner/$repo/$aliasType/$id
     reload: search.reload === 'true' ? 'true' : undefined,
     delete: search.delete === 'true' ? 'true' : undefined,
   }),
-  beforeLoad: async ({location}) => requireCurrentSession({data: {redirectTo: location.href}}),
+  // No beforeLoad session gate: public artifacts are viewable without login.
+  // The loader redirects to /login only when access is denied because of a
+  // missing session.
   loader: async ({params, location}) => {
     const data: LoadArtifactResult = await loadArtifactForBrowser({data: params})
     if (data.resolved.code === 'not_authorized' && !data.githubLogin) {

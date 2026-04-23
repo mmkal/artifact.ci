@@ -156,14 +156,25 @@ test('showcase', async ({page}) => {
   await checksBadge.click()
   await expect(page.getByText(repo.workflowName, {exact: true})).toBeVisible({timeout: 30_000})
 
-  await page.goto(run.html_url)
-
-  const artifactLink = page.locator('a[href*="/artifacts/"]').first()
-  await expect(artifactLink).toBeVisible({timeout: 120_000})
-
-  const artifactHref = await artifactLink.getAttribute('href')
-  expect(artifactHref, 'artifact link on the workflow run page').toBeTruthy()
-  expect(new URL(artifactHref!).origin, 'artifact link points at the dev tunnel').toBe(new URL(tunnelUrl).origin)
+  const tunnelHost = new URL(tunnelUrl).host
+  type CheckRun = {name: string; conclusion: string | null; details_url: string | null}
+  let checkRun: CheckRun | null = null
+  await expect
+    .poll(
+      async () => {
+        const data = (await githubJson(`/repos/${repo.repoSlug}/commits/${run.head_sha}/check-runs`, {method: 'GET'})) as {
+          check_runs: CheckRun[]
+        }
+        checkRun = data.check_runs.find(c => c.name === tunnelHost) ?? null
+        return checkRun
+      },
+      {timeout: 60_000, message: `waiting for a check run named ${tunnelHost}`},
+    )
+    .not.toBeNull()
+  expect(checkRun!.conclusion, 'artifact.ci check run conclusion').toBe('success')
+  const artifactHref = checkRun!.details_url
+  expect(artifactHref, 'artifact.ci check run details_url').toBeTruthy()
+  expect(new URL(artifactHref!).origin, 'check run link points at the dev tunnel').toBe(tunnelUrl)
 
   await page.goto(artifactHref!)
   await expect(page.getByRole('heading', {name: 'showcase-report'})).toBeVisible({timeout: 30_000})
@@ -176,7 +187,15 @@ async function waitForWorkflowSuccess(repo: WorkflowRepoFixture) {
 
   while (Date.now() - started < timeoutMs) {
     const data = (await githubJson(`/repos/${repo.repoSlug}/actions/runs?branch=${repo.branch}`, {method: 'GET'})) as {
-      workflow_runs?: Array<{name: string; status: string; conclusion: string | null; id: number; html_url: string; artifacts_url: string}>
+      workflow_runs?: Array<{
+        name: string
+        status: string
+        conclusion: string | null
+        id: number
+        html_url: string
+        artifacts_url: string
+        head_sha: string
+      }>
     }
     const run = data.workflow_runs?.find(x => x.name === repo.workflowName)
 
