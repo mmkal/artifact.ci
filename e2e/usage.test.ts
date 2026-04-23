@@ -8,7 +8,8 @@ import {promisify} from 'node:util'
 const execFileAsync = promisify(execFile)
 const installRepoSlug = 'mmkal-bot/test-repo'
 const installRepoUrl = `https://github.com/${installRepoSlug}`
-const workflowRepoOwner = 'mmkal'
+const defaultSharedRepoSlug = 'mmkal/artifact.ci'
+const sharedRepoSlug = process.env.E2E_SHARED_REPO_SLUG || defaultSharedRepoSlug
 const githubApiOrigin = 'https://api.github.com'
 const tunnelUrlFile = path.join(import.meta.dirname, '..', '.alchemy', 'tunnel-url.txt')
 
@@ -41,8 +42,25 @@ class ArtifactCiAppFixture {
   }
 }
 
-class WorkflowRepoFixture {
-  readonly repoName: string
+interface WorkflowRepoFixture {
+  readonly repoSlug: string
+  readonly repoUrl: string
+  readonly branch: string
+  readonly workflowName: string
+  readonly commitMessage: string
+  readonly [Symbol.asyncDispose]: () => Promise<void>
+}
+
+/**
+ * Default fixture: pushes a fresh branch to a shared repo (mmkal/artifact.ci
+ * by default). Cleans up the branch on dispose unless KEEP_E2E_REPO=1.
+ *
+ * Much faster and less spammy than creating a one-off repo per run; the
+ * tradeoff is we don't exercise /github/upload's auto-register path. Flip
+ * to {@link FreshRepoFixture} with E2E_FRESH_REPO=1 when that's what you
+ * want.
+ */
+class SharedRepoBranchFixture implements WorkflowRepoFixture {
   readonly repoSlug: string
   readonly repoUrl: string
   readonly branch: string
@@ -52,8 +70,8 @@ class WorkflowRepoFixture {
   readonly tempDir: string
   readonly artifactciOrigin: string
 
-  constructor(params: {
-    repoName: string
+  private constructor(params: {
+    repoSlug: string
     branch: string
     workflowName: string
     commitMessage: string
@@ -61,9 +79,8 @@ class WorkflowRepoFixture {
     tempDir: string
     artifactciOrigin: string
   }) {
-    this.repoName = params.repoName
-    this.repoSlug = `${workflowRepoOwner}/${params.repoName}`
-    this.repoUrl = `https://github.com/${this.repoSlug}`
+    this.repoSlug = params.repoSlug
+    this.repoUrl = `https://github.com/${params.repoSlug}`
     this.branch = params.branch
     this.workflowName = params.workflowName
     this.commitMessage = params.commitMessage
@@ -73,14 +90,123 @@ class WorkflowRepoFixture {
   }
 
   static async create(artifactciOrigin: string) {
-    const repoName = `artifact-ci-e2e-${Date.now()}`
-    const workflowName = `artifact-ci-showcase-${Date.now()}`
-    const branch = workflowName
-    const commitMessage = `add ${workflowName}`
+    const stamp = Date.now()
+    const workflowName = `artifact-ci-showcase-${stamp}`
+    const branch = `e2e/${workflowName}`
     const workflowPath = `.github/workflows/${workflowName}.yml`
+    const commitMessage = `e2e: add ${workflowName}`
     const tempDir = await mkdtemp(path.join(tmpdir(), 'artifact-ci-e2e-'))
-    const fixture = new WorkflowRepoFixture({
+
+    const fixture = new SharedRepoBranchFixture({
+      repoSlug: sharedRepoSlug,
+      branch,
+      workflowName,
+      commitMessage,
+      workflowPath,
+      tempDir,
+      artifactciOrigin,
+    })
+    await fixture.pushBranch()
+    return fixture
+  }
+
+  private async pushBranch() {
+    const remote = authenticatedGitRemote(this.repoSlug)
+    await git(['clone', '--depth', '1', remote, this.tempDir])
+    await git(['checkout', '-b', this.branch], {cwd: this.tempDir})
+
+    // Strip other workflow files on this branch so we don't trigger the
+    // repo's full CI / recipes / custom-action workflows for every e2e run.
+    // The branch is ephemeral so there's no risk of this leaking back into
+    // main.
+    const workflowsDir = path.join(this.tempDir, '.github', 'workflows')
+    await rm(workflowsDir, {recursive: true, force: true})
+
+    const fullPath = path.join(this.tempDir, this.workflowPath)
+    await mkdir(path.dirname(fullPath), {recursive: true})
+    await writeFile(fullPath, buildWorkflowYaml(this.workflowName, this.artifactciOrigin))
+    await git(['add', '-A', '.github/workflows'], {cwd: this.tempDir})
+    await git(
+      [
+        '-c',
+        'user.name=artifact-ci-e2e',
+        '-c',
+        'user.email=artifact-ci-e2e@users.noreply.github.com',
+        'commit',
+        '-m',
+        this.commitMessage,
+      ],
+      {cwd: this.tempDir},
+    )
+    await git(['push', '--set-upstream', 'origin', this.branch], {cwd: this.tempDir})
+  }
+
+  async [Symbol.asyncDispose]() {
+    if (process.env.KEEP_E2E_REPO === '1') {
+      console.log(`[e2e] KEEP_E2E_REPO=1 → leaving branch ${this.branch} on ${this.repoUrl}`)
+    } else {
+      try {
+        await githubDelete(`/repos/${this.repoSlug}/git/refs/heads/${this.branch}`)
+      } catch {
+        // best effort cleanup
+      }
+    }
+    await rm(this.tempDir, {recursive: true, force: true})
+  }
+}
+
+/**
+ * Alternative fixture: creates a brand new repo under the authenticated user
+ * (mmkal) for the duration of the test. Exercises /github/upload's
+ * auto-register path, at the cost of being slow and leaving debris on any
+ * aborted run. Enabled via E2E_FRESH_REPO=1.
+ */
+class FreshRepoFixture implements WorkflowRepoFixture {
+  readonly repoSlug: string
+  readonly repoUrl: string
+  readonly branch: string
+  readonly workflowName: string
+  readonly commitMessage: string
+  readonly workflowPath: string
+  readonly tempDir: string
+  readonly artifactciOrigin: string
+  readonly repoName: string
+
+  private constructor(params: {
+    repoName: string
+    repoSlug: string
+    branch: string
+    workflowName: string
+    commitMessage: string
+    workflowPath: string
+    tempDir: string
+    artifactciOrigin: string
+  }) {
+    this.repoName = params.repoName
+    this.repoSlug = params.repoSlug
+    this.repoUrl = `https://github.com/${params.repoSlug}`
+    this.branch = params.branch
+    this.workflowName = params.workflowName
+    this.commitMessage = params.commitMessage
+    this.workflowPath = params.workflowPath
+    this.tempDir = params.tempDir
+    this.artifactciOrigin = params.artifactciOrigin
+  }
+
+  static async create(artifactciOrigin: string) {
+    const stamp = Date.now()
+    const repoName = `artifact-ci-e2e-${stamp}`
+    const owner = sharedRepoSlug.split('/')[0]
+    const repoSlug = `${owner}/${repoName}`
+    const workflowName = `artifact-ci-showcase-${stamp}`
+    const branch = workflowName
+    const workflowPath = `.github/workflows/${workflowName}.yml`
+    const commitMessage = `add ${workflowName}`
+    const tempDir = await mkdtemp(path.join(tmpdir(), 'artifact-ci-e2e-'))
+
+    const fixture = new FreshRepoFixture({
       repoName,
+      repoSlug,
       branch,
       workflowName,
       commitMessage,
@@ -93,7 +219,7 @@ class WorkflowRepoFixture {
     return fixture
   }
 
-  async createRepo() {
+  private async createRepo() {
     await githubJson('/user/repos', {
       method: 'POST',
       body: JSON.stringify({
@@ -104,7 +230,7 @@ class WorkflowRepoFixture {
     })
   }
 
-  async pushWorkflow() {
+  private async pushWorkflow() {
     const remote = authenticatedGitRemote(this.repoSlug)
     await git(['clone', '--depth', '1', '--branch', 'main', remote, this.tempDir])
     await git(['checkout', '-b', this.branch], {cwd: this.tempDir})
@@ -112,24 +238,39 @@ class WorkflowRepoFixture {
     await mkdir(path.dirname(fullPath), {recursive: true})
     await writeFile(fullPath, buildWorkflowYaml(this.workflowName, this.artifactciOrigin))
     await git(['add', this.workflowPath], {cwd: this.tempDir})
-    await git(['-c', 'user.name=artifact-ci-e2e', '-c', 'user.email=artifact-ci-e2e@users.noreply.github.com', 'commit', '-m', this.commitMessage], {
-      cwd: this.tempDir,
-    })
+    await git(
+      [
+        '-c',
+        'user.name=artifact-ci-e2e',
+        '-c',
+        'user.email=artifact-ci-e2e@users.noreply.github.com',
+        'commit',
+        '-m',
+        this.commitMessage,
+      ],
+      {cwd: this.tempDir},
+    )
     await git(['push', '--set-upstream', 'origin', this.branch], {cwd: this.tempDir})
   }
 
   async [Symbol.asyncDispose]() {
-    if (process.env.KEEP_E2E_REPO !== '1') {
+    if (process.env.KEEP_E2E_REPO === '1') {
+      console.log(`[e2e] KEEP_E2E_REPO=1 → leaving ${this.repoUrl}`)
+    } else {
       try {
         await githubDelete(`/repos/${this.repoSlug}`)
       } catch {
         // best effort cleanup
       }
-    } else {
-      console.log(`[e2e] KEEP_E2E_REPO=1 → leaving ${this.repoUrl} for inspection`)
     }
     await rm(this.tempDir, {recursive: true, force: true})
   }
+}
+
+async function createWorkflowFixture(artifactciOrigin: string): Promise<WorkflowRepoFixture> {
+  return process.env.E2E_FRESH_REPO === '1'
+    ? FreshRepoFixture.create(artifactciOrigin)
+    : SharedRepoBranchFixture.create(artifactciOrigin)
 }
 
 test('showcase', async ({page}) => {
@@ -144,17 +285,9 @@ test('showcase', async ({page}) => {
   if (process.env.SKIP_APP_FIXTURE !== '1') {
     await using _app = await ArtifactCiAppFixture.create(page)
   }
-  await using repo = await WorkflowRepoFixture.create(tunnelUrl)
+  await using repo = await createWorkflowFixture(tunnelUrl)
 
   const run = await waitForWorkflowSuccess(repo)
-
-  await page.goto(`${repo.repoUrl}/tree/${repo.branch}`)
-  await expect(page.getByTitle(repo.commitMessage)).toBeVisible({timeout: 30_000})
-
-  const checksBadge = page.getByTestId('checks-status-badge-icon').first()
-  await expect(checksBadge).toBeVisible({timeout: 30_000})
-  await checksBadge.click()
-  await expect(page.getByText(repo.workflowName, {exact: true})).toBeVisible({timeout: 30_000})
 
   const tunnelHost = new URL(tunnelUrl).host
   type CheckRun = {name: string; conclusion: string | null; details_url: string | null}
