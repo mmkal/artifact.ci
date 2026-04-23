@@ -1,17 +1,73 @@
 ---
 title: artifact.ci
-description: A docs-first home for uploading, browsing, and serving build artifacts.
-head:
-  - tag: title
-    content: artifact.ci
+description: View your GitHub artifacts in the browser.
+template: splash
+hero:
+  tagline: View your GitHub artifacts in the browser.
+  actions:
+    - text: Install GitHub App
+      link: https://github.com/apps/artifact-ci
+      icon: external
+      variant: primary
+    - text: Recipes
+      link: /recipes/viewing-artifacts/
+      icon: right-arrow
+      variant: minimal
 ---
 
-# artifact.ci
+## How
 
-artifact.ci is splitting into three focused surfaces:
+artifact.ci is a GitHub App that provides browsable links for artifacts uploaded during GitHub Actions workflow runs.
 
-- docs on Astro + Starlight
-- signed-in app UI on TanStack Start + Better Auth
-- binary delivery on a Cloudflare frontdoor Worker
+View test reports, code coverage, PDFs, images, and more, directly in your browser. No more downloading and unzipping.
 
-That split keeps markdown docs simple, keeps product UI in React, and lets the thing that actually matters most - serving artifacts quickly and correctly - stay at the edge.
+It's a small tool which solves a specific, hopefully temporary, [shortcoming of GitHub Actions](https://github.com/actions/upload-artifact/issues/14). To use it, all you need to do is [install the app](https://github.com/apps/artifact-ci). Then use `actions/upload-artifact` as normal in your workflow. It will add a link to view any artifacts uploaded via GitHub checks.
+
+Here's an example of what the GitHub App produces, on the [expect-type](https://github.com/mmkal/expect-type) repo: a simple link to the viewable artifact as a GitHub check: [https://github.com/mmkal/expect-type/runs/31567129309](https://github.com/mmkal/expect-type/runs/31567129309).
+
+## Why
+
+CI jobs often generate useful HTML reports (test results, coverage, etc.). GitHub Actions doesn't provide a way to view these directly. The existing option is to use `actions/upload-artifact`, then download it as a zip file, unzip it on your local machine, and then poke around at the files or run a local server. This app fills that gap, letting you view artifacts in your browser without downloading and unzipping.
+
+This _should_ really be a feature built into GitHub, and likely one day will be, but [for now it isn't](https://github.com/actions/upload-artifact/issues/14) (even though that issue was closed). Note: it _is_ built into some other CI providers like CircleCI.
+
+## Usage
+
+Guides for common tools:
+
+### Testing frameworks
+
+- [Vitest](/recipes/testing/vitest/)
+- [Playwright](/recipes/testing/playwright/)
+- [Jest](/recipes/testing/jest/)
+- [Mocha](/recipes/testing/mocha/)
+- [AVA](/recipes/testing/ava/)
+
+### Other languages
+
+- [Python](/recipes/other-languages/python/)
+- [Go](/recipes/other-languages/go/)
+
+### More
+
+- [Static websites](/recipes/more/website/)
+- [PDFs](/recipes/more/pdf/)
+- [Badges](/recipes/badges/)
+
+If you can render it statically in a web browser, you can upload it to artifact.ci.
+
+## Security
+
+The app requires minimal permissions, operates read-only, and uses GitHub's APIs and authentication. It maintains your repository's existing access controls. See [the privacy policy](/legal/privacy/) for more details.
+
+## Who
+
+This is [my](https://x.com/mmkalmmkal) side project, something I built over a week or so, initially for my own use in support of another project I'm working on, so assume it exists as-is with no guarantees of new features. But feel free to file issues.
+
+## Pricing
+
+The actual service doesn't have a paywall for now, and usage is free to start out with. Access may be limited to my [GitHub sponsors](https://github.com/sponsors/mmkal) due to storage costs. I'm giving some users and organizations free access — this is based on how much I use them myself, but if you would like to use this without sponsorship, [contact me](https://x.com/mmkalmmkal).
+
+## Usage and Availability
+
+There's no API surface right now. Just install the app and it should "just work" — it'll find your artifacts automatically. There are a small number of options that can be customised, see [advanced usage](/advanced/). Usage limits may be introduced in future, or a proper payments setup.
