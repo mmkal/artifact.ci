@@ -54,6 +54,10 @@ case "$cmd" in
     echo "$pid" >"$pid_file"
     if url=$(wait_for_url); then
       printf '[tunnel] started: %s (pid %s)\n' "$url" "$pid"
+      if [[ "${GITHUB_APP_WEBHOOK_SYNC:-1}" != "0" ]]; then
+        pnpm exec tsx scripts/sync-github-app-webhook.ts "$url" \
+          || printf '[tunnel] webhook sync failed; point the GitHub App webhook at %s/github/events manually\n' "$url" >&2
+      fi
     else
       printf '[tunnel] did not surface a URL in time; see %s\n' "$log_file" >&2
       kill "$pid" 2>/dev/null || true
