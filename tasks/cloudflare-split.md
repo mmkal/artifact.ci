@@ -5,32 +5,46 @@ size: large
 
 # Cloudflare split: move off Next.js/Vercel to three Cloudflare Workers
 
-## Status (as of 2026-04-21)
+## Status (as of 2026-04-23)
 
-Infra + auth shell is ~80% done. Product pipeline (upload, webhooks, artifact browser UI) is ~0% done — the old Next.js routes were deleted without replacements.
+Most of the code is ported. The remaining work is validating the round
+trip end-to-end on the laptop, then tackling prod deploy + cleanup.
 
 Main completed pieces:
 
-- Monorepo layout under `apps/{app,docs,frontdoor}` + `packages/{config,domain}`.
-- Alchemy config for three Workers with service bindings + Supabase env.
-- Frontdoor Worker routes `/artifact/*` and proxies/dispatches everything else.
-- App Worker (TanStack Start) with Better Auth GitHub OAuth + session helpers + edge resolver endpoint.
-- Docs worker (Astro + Starlight) with the architecture/routing/recipes pages ported.
-- DB schema consolidated (`definitions.sql`) including Better Auth tables.
-- Dev harness: `pnpm dev` → `alchemy dev` behind a single portless origin
-  (`http://artifactci.localhost:1355`).
-- E2E smoke tests aligned to the new stack (homepage, login, `/app → /login` redirect).
+- Three Workers wired via Alchemy (app / docs / frontdoor) with service
+  bindings + Supabase env.
+- Frontdoor Worker owns `/artifact/*` and proxies the rest.
+- App Worker (TanStack Start) now has Better Auth GitHub OAuth + session
+  helpers + `/api/internal/artifacts/resolve` (edge) +
+  **`/github/upload`** + **`/github/events`** + **`/api/trpc/*`** (tRPC
+  artifact-access router with `getDownloadUrl`, `createUploadTokens`,
+  `storeUploadRecords`, `deleteEntries`).
+- Artifact browser UI (`/app/artifacts/…`) ported with TrpcProvider,
+  ArtifactLoader, FileList, DeleteButton, and the "no credit / not
+  authorized / upload missing" branches.
+- Docs content ported (recipes, advanced usage, self-hosting, legal,
+  landing splash).
+- `pnpm dev` auto-spins a **cloudflared quick tunnel**, saves the URL to
+  `.alchemy/tunnel-url.txt`, and re-points the GitHub App webhook there
+  via `PATCH /app/hook/config` (disable with `GITHUB_APP_WEBHOOK_SYNC=0`).
+- `usage.test.ts` reads the tunnel URL, generates workflows using
+  `mmkal/artifact.ci/upload@main` with `artifactci-origin` set to the
+  tunnel, and follows the status-check link through to the rendered
+  artifact page.
 
 Main missing pieces:
 
-- No upload endpoint (`/github/upload`) and no tRPC server — the GitHub Action
-  uploader can't actually round-trip.
-- No GitHub webhook handler (`/github/events`).
-- Artifact browser route is a literal placeholder.
-- Legacy `src/` folder still partially live; some of it is genuinely still
-  imported (action code, openapi client, tag-logger).
-- No real deploy yet — prod secrets aren't wired through `alchemy.run.ts`.
-- Dev harness is still a bit wobbly around Vite HMR / websocket proxying.
+- No real Cloudflare deploy yet — prod secrets aren't wired through
+  `alchemy.run.ts` and DNS isn't pointed.
+- Dev harness still has Vite HMR disabled (app + docs) and serves docs
+  from a pre-built `dist/` via `python3 -m http.server`.
+- Quick tunnels rotate URLs each session; named-tunnel flow (with a
+  stable `dev.artifact.ci` CNAME) is documented but not wired.
+- Legacy `src/action/*` still bundles the GitHub Action against `~/tag-logger`
+  and `@artifact/domain` — works, but could live under `apps/action/` for
+  symmetry.
+- Sponsors cron not ported (was `src/app/api/cron/update-sponsors`).
 
 ## The goal
 
@@ -76,46 +90,52 @@ statement.
 
 ## What's left
 
-### Upload pipeline (the big one)
+### Upload pipeline
 
-- [ ] Port the upload ingest endpoint
-  _the GitHub Action at `src/action/upload.ts` + `src/action/badge.ts` still POST to `/github/upload` and then drive uploads over `/api/trpc/*` via `packages/domain/src/artifact/client-upload.ts`. Both endpoints no longer exist. Decide whether to keep tRPC (port it onto the app worker) or replace with plain REST/JSON and adjust `client-upload.ts` accordingly. Either way, `getDownloadUrl` / `createUploadTokens` / `storeUploadRecords` need real implementations backed by pg + Supabase storage signed URLs._
-- [ ] Port the GitHub webhook handler (`/github/events`)
-  _legacy file was `src/app/github/events/route.ts` (337 lines) — installation created/deleted, push events, artifact discovery. Needs reinstating on the app worker, likely as a POST handler in `apps/app/src/server.ts` wired to domain-level handlers in `packages/domain/src/github/`._
-- [ ] End-to-end `usage.test.ts` passes again
-  _today the showcase flow fails because the action can't upload._
+- [x] `/github/upload` POST handler ported into the app worker
+  _`apps/app/src/github/upload.ts` — does the GitHub app install lookup, confirms the run is in-progress, inserts artifact + identifiers, mints a vault-backed upload token, and returns the list of viewable URLs (pointing at `/app/artifacts/…`)._
+- [x] `/github/events` webhook handler ported
+  _`apps/app/src/github/events.ts` — handles `installation_added/removed` and `workflow_job_completed`. For completed runs it lists artifacts, inserts DB records, and posts a GitHub check run whose `details_url` points at the incoming origin (dev tunnel or prod)._
+- [x] `/api/trpc/*` router ported
+  _`apps/app/src/trpc/{server,router}.ts` — `getDownloadUrl`, `createUploadTokens`, `storeUploadRecords`, `deleteEntries`. Auth middleware checks either a Better Auth session or a recently-minted vault upload token (same shape as legacy)._
+- [x] Webhook signature validator ported
+  _`packages/domain/src/github/webhook-validator.ts` — Cloudflare-friendly wrapper around `@octokit/webhooks`, no NextRequest dependency._
+- [ ] **End-to-end `usage.test.ts` round trip on the laptop**
+  _code is in place; never actually run. Needs `pnpm dev` up, cloudflared tunnel live, GitHub App webhook synced, `GH_TOKEN` exported, then `pnpm e2e`. First pass will almost certainly turn up bugs._
 
 ### Artifact browser UI
 
-- [ ] Real `/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName` page
-  _currently `apps/app/src/routes/app.artifacts.*.tsx` is a placeholder. The old Next.js components (FileList, ArtifactLoader, entrypoints, DeleteButton, client-upload UI) were all deleted. Rebuild in TanStack Start; pull from `/api/internal/artifacts/resolve` (or a sibling metadata endpoint) + `/artifact/blob/*` for file bytes._
-- [ ] Real signed-in nav
-  _`apps/app/src/routes/__root.tsx` has a nav bar of placeholders. Fill in once the browser page exists._
+- [x] Real `/app/artifacts/$owner/$repo/…` route
+  _`apps/app/src/routes/app.artifacts.*.tsx` now runs `loadArtifactForBrowser` (server function wrapping `resolveArtifactRequest`), branches on `artifact_not_found / not_authorized / upload_not_found / not_uploaded_yet / 2xx`, and renders one of `ArtifactLoader` / `FileList`. Shares the `getEntrypoints` heuristic with the server._
+- [x] Client-side loader + file browser
+  _`apps/app/src/ui/{artifact-loader,file-list,delete-button,trpc-provider}.tsx` — TrpcProvider wraps React Query + the tRPC client; `ArtifactLoader` drives `clientUpload` (from `@artifact/domain/artifact/client-upload`) via tRPC and streams stage updates. FileList links to `/artifact/blob/…` for file bytes (served by the frontdoor)._
+- [ ] Nav + signed-in shell polish
+  _`apps/app/src/routes/__root.tsx` has a basic link list. Could lift the old "breadcrumb" nav, but the site-wide UI is no longer blocking._
 
 ### Product surface gaps
 
 - [ ] Sponsors cron
-  _legacy `src/app/api/cron/update-sponsors/route.ts` (115 lines) is gone. Either port it to a Cloudflare Worker Cron Trigger or drop it._
-- [ ] OpenAPI proxy route
-  _legacy `src/app/api/openapi/[...url]/route.ts` (331 lines) is gone — used by `src/openapi/client.ts` which is still imported by `packages/domain/src/artifact/client-upload.ts`. Decide whether the proxy is still needed once upload lands on the new stack._
-- [ ] Analytics wiring
-  _PostHog server/client modules exist in `packages/domain/src/analytics/` but aren't called from the app worker yet._
+  _legacy `src/app/api/cron/update-sponsors/route.ts` is gone. Port to a Cloudflare Worker Cron Trigger or drop it. Not blocking for feature parity._
+- [ ] OpenAPI proxy route — decide whether to keep
+  _legacy `src/app/api/openapi/[...url]/route.ts` is gone. The client-upload path hits Supabase directly with signed URLs, so the proxy may no longer be needed._
+- [ ] Analytics wiring in the app worker
+  _`captureServerEvent` is called from the webhook handler; the client still needs PostHog init if we want pageview coverage._
 - [ ] Replace placeholder pages
-  _`/account`, `/billing`, `/settings`, `/dashboard`, `/` are all stubs. `/billing` in particular is labelled "Polar or Stripe can slot in here later"._
-- [ ] Marketing / docs landing
-  _docs homepage (`apps/docs/src/content/docs/index.mdx`) is 17 lines of "docs on Astro + Starlight"; needs real copy to replace the Nextra landing._
+  _`/account`, `/billing`, `/settings`, `/dashboard`, `/` are still stubs (`apps/app/src/routes/`). Not blocking for feature parity but feels empty on first visit._
 
 ### Legacy `src/` folder cleanup
 
-- [ ] Move `src/action/{badge,upload,types}.ts` into `apps/action/` (or similar) — they bundle the GitHub Action via esbuild (see `package.json` `build-badge-action`/`build-upload-action` scripts). Today they still import from `~/tag-logger` and `@artifact/domain`.
-- [ ] Move `src/openapi/` + `src/storage/supabase.ts` into `packages/domain` (the Supabase proxy client is used from `packages/domain/src/artifact/client-upload.ts` via a `../../../../src/openapi/client` relative path — nasty).
-- [ ] Decide about `src/gh/sponsors.ts` along with the sponsors cron decision above.
-- [ ] Delete `src/tag-logger.ts` once nothing outside `packages/domain/src/logging/tag-logger.ts` depends on it.
+- [x] Move `src/openapi/` → `packages/domain/src/openapi/`
+- [x] Move `src/storage/supabase.ts` → `packages/domain/src/storage/supabase.ts`
+- [ ] Move `src/action/{badge,upload,types}.ts` into a dedicated `apps/action/` (non-blocking — esbuild bundles still work as-is)
+- [ ] Delete `src/tag-logger.ts` and `src/db.ts` once nothing outside `packages/domain` imports them
+  _both currently duplicated. `src/action/*` imports `~/tag-logger`, which resolves to the root `src/tag-logger.ts`. Swap its import to `@artifact/domain/logging/tag-logger` and delete._
+- [ ] `src/gh/sponsors.ts` — delete along with the sponsors cron decision
 
 ### Deploy
 
 - [ ] Wire prod secrets through `alchemy.run.ts`
-  _today only `SUPABASE_PROJECT_URL` and `SUPABASE_SERVICE_ROLE_KEY` are passed to the frontdoor. The app worker needs `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, `DATABASE_URL`, plus (once webhooks land) GitHub App private key and webhook secret._
+  _today only `SUPABASE_PROJECT_URL` and `SUPABASE_SERVICE_ROLE_KEY` reach the frontdoor. The **app worker** needs `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, `GITHUB_APP_WEBHOOK_SECRET`, `DATABASE_URL`, and the Supabase keys (for the storage proxy)._
 - [ ] First real Cloudflare deploy to a staging stage
   _`pnpm deploy` has never run for real on this branch — needs Cloudflare account + DNS for `artifact.ci` pointed at the frontdoor Worker._
 - [ ] Decide cutover plan vs. the Vercel deploy
@@ -123,10 +143,16 @@ statement.
 
 ### Dev harness stabilisation (ongoing)
 
-- [ ] Get Vite HMR working through the frontdoor
-  _today `apps/app/vite.config.mjs` has `server: {hmr: false}` and `apps/docs/astro.config.mjs` also sets `hmr: false`; docs dev is served via `python3 -m http.server` off a pre-built `dist/`. That's why the frontdoor has to rewrite `/src/`, `/@vite/`, `/@react-refresh`, etc. behind an `/__app_proxy__` prefix. This works but is fragile. Ideally the frontdoor would proxy the raw vite dev server cleanly and both apps would re-enable HMR._
+- [x] Expose the dev box to GitHub via cloudflared quick tunnel, auto-sync webhook URL
+  _`scripts/dev.sh` + `scripts/sync-github-app-webhook.ts`. Disable with `GITHUB_APP_WEBHOOK_SYNC=0`. `CLOUDFLARE_TUNNEL=<name>` switches to a named tunnel if you want a stable URL._
+- [ ] Support stable `dev.artifact.ci` named tunnel as a first-class flow
+  _today `CLOUDFLARE_TUNNEL=<name>` is half-wired: it runs `cloudflared tunnel run <name>` but expects the user to also set `PUBLIC_DEV_URL`. Would be nicer to derive the URL from the tunnel's ingress config._
+- [ ] Re-enable Vite HMR cleanly through the frontdoor
+  _today `apps/app/vite.config.mjs` has `server: {hmr: false}` and `apps/docs/astro.config.mjs` also sets `hmr: false`; docs dev is served via `python3 -m http.server` off a pre-built `dist/`. The `/__app_proxy__` rewrite in the frontdoor is a workaround that feels fragile._
 - [ ] Flatten the `/__app_proxy__` asset-rewriting in prod
-  _that whole branch in `apps/frontdoor/src/index.ts` is dev-only; the prod path should never hit it. Double-check it can't leak into prod responses._
+  _that whole branch in `apps/frontdoor/src/index.ts` is dev-only; make sure it can't leak into prod responses._
+- [ ] Fix `astro build` in `apps/docs`
+  _fails at the end with `Received protocol 'astro:'` — ESM loader doesn't recognise astro's virtual modules. Pre-existing on branch; partial `dist/` is still produced (which is what dev serves), but `pnpm deploy` will want a clean build._
 
 ## Ground rules / design decisions already locked in
 
@@ -143,11 +169,25 @@ statement.
 
 ## Open questions
 
-- Keep tRPC or drop it? The old app used tRPC heavily; the new app worker
-  has no tRPC server. Upload client still imports `@trpc/client`. Dropping
-  tRPC would simplify the edge a lot but requires refactoring
-  `client-upload.ts` and the action bundle.
-- How to handle the artifact-browser data layer in TanStack Start — server
-  functions vs. loaders vs. a small JSON API on the app worker.
+- Keep tRPC or drop it? We kept it for feature parity. Reevaluate once
+  the pipeline is green — a JSON API might simplify things.
 - Where to host `docs.artifact.ci` long-term — same Cloudflare account, or
   just a CNAME to the current static deploy.
+
+## Dev loop (what to run on the laptop)
+
+1. Bring up supabase/postgres (docker-compose or a real DATABASE_URL).
+2. Make sure `.env` has all the `GITHUB_APP_*`, `SUPABASE_*`,
+   `BETTER_AUTH_SECRET`, and `DATABASE_URL` vars set.
+3. `pnpm dev` — this starts alchemy dev, opens a cloudflared quick
+   tunnel, writes the URL to `.alchemy/tunnel-url.txt`, and repoints the
+   GitHub App webhook at `<tunnel>/github/events` automatically.
+4. Drive a workflow in a test repo. The full round trip to verify:
+   upload action hits `<tunnel>/github/upload`, `workflow_job_completed`
+   webhook hits `<tunnel>/github/events`, the app posts a check run
+   with `details_url` pointing at the tunnel, clicking it opens the
+   artifact browser on the tunnel, and the file list renders with a
+   link to `/artifact/blob/…`.
+5. For the automated version, export `GH_TOKEN` and run `pnpm e2e`.
+   `usage.test.ts` orchestrates 1–4 above against a freshly-created
+   `mmkal/artifact-ci-e2e-<timestamp>` repo.
