@@ -79,6 +79,13 @@ a { color: inherit; }
   border-radius: 6px;
   text-decoration: none;
   color: var(--ink);
+  /* LogoutButton renders as <button>, so reset the browser's default
+     buttonface/buttontext colors that otherwise make "Sign Out" show
+     up as near-white pill against the dark background. */
+  background: transparent;
+  border: 1px solid transparent;
+  font: inherit;
+  cursor: pointer;
   transition: background 120ms ease, color 120ms ease;
 }
 
