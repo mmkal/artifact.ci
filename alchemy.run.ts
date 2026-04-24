@@ -98,6 +98,10 @@ export const frontdoorWorker = await Worker('frontdoor', {
   entrypoint: './apps/frontdoor/src/index.ts',
   compatibility: 'node',
   url: true,
+  // In prod, bind the apex (+ www) to this Worker so artifact.ci goes
+  // straight to the frontdoor. Requires the zone to already exist on
+  // this Cloudflare account.
+  ...(app.stage === 'prod' ? {domains: ['artifact.ci', 'www.artifact.ci']} : {}),
   bindings: {
     APP: appWorker,
     DOCS: docsWorker,
@@ -113,7 +117,9 @@ export const frontdoorWorker = await Worker('frontdoor', {
 // required locally — alchemy reuses the same CF creds it uses for Worker
 // deploys. The token flows to scripts/tunnel.sh which runs cloudflared
 // as a detached daemon.
-if (app.phase === 'up' && process.env.ARTIFACTCI_DEV_TUNNEL !== 'off') {
+// Cloudflared tunnel is a dev-only thing — in prod artifact.ci is served
+// by the frontdoor Worker behind a real Cloudflare route/domain.
+if (app.phase === 'up' && app.stage !== 'prod' && process.env.ARTIFACTCI_DEV_TUNNEL !== 'off') {
   const hostname = TUNNEL_HOSTNAME
   const tunnel = await Tunnel('dev-tunnel', {
     name: `${app.name}-${app.stage}-dev-tunnel`,

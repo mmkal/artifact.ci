@@ -5,8 +5,10 @@
   "type": "module",
   "packageManager": "pnpm@10.24.0",
   "scripts": {
-    "deploy": "alchemy deploy",
-    "destroy": "alchemy destroy",
+    "deploy:dev": "alchemy deploy",
+    "deploy:prod": "node --env-file=.env.prod ./node_modules/.bin/alchemy deploy --stage prod",
+    "destroy:dev": "alchemy destroy",
+    "destroy:prod": "node --env-file=.env.prod ./node_modules/.bin/alchemy destroy --stage prod",
     "auth:generate": "mkdir -p ./tmp && better-auth generate --config ./auth.ts --output ./tmp/better-auth-generated.sql --yes",
     "pgkit-link": "npx link ../pgkit/packages/pgkit",
     "pgkit": "node node_modules/pgkit/dist/cli.js",
