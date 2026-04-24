@@ -4,6 +4,11 @@ import {defineConfig} from 'astro/config'
 export default defineConfig({
   site: 'https://artifact.ci',
   output: 'static',
+  // Canonical URLs have no trailing slash. Keep Astro's default directory
+  // output (`/foo/index.html`) so generated anchor hrefs stay extensionless
+  // — the frontdoor rewrites `/foo` to `/foo/index.html` on the upstream
+  // fetch, and 308s any `/foo/` back to `/foo`.
+  trailingSlash: 'never',
   vite: {
     server: {
       hmr: false,
@@ -20,6 +25,8 @@ export default defineConfig({
       social: [
         {icon: 'github', label: 'GitHub', href: 'https://github.com/mmkal/artifact.ci'},
       ],
+      // Priority order mirrors index.mdx's "Usage" section — autogenerate
+      // would fall back to alphabetical, so items are listed explicitly.
       sidebar: [
         {
           label: 'Start here',
@@ -27,15 +34,21 @@ export default defineConfig({
         },
         {
           label: 'Recipes — JS test frameworks',
-          autogenerate: {directory: 'recipes/testing'},
+          items: [
+            'recipes/testing/vitest',
+            'recipes/testing/playwright',
+            'recipes/testing/jest',
+            'recipes/testing/mocha',
+            'recipes/testing/ava',
+          ],
         },
         {
           label: 'Recipes — other languages',
-          autogenerate: {directory: 'recipes/other-languages'},
+          items: ['recipes/other-languages/python', 'recipes/other-languages/go'],
         },
         {
           label: 'Recipes — more',
-          autogenerate: {directory: 'recipes/more'},
+          items: ['recipes/more/website', 'recipes/more/pdf', 'recipes/more/eslint'],
         },
         {
           label: 'Recipes — misc',

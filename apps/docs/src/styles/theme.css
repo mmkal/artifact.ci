@@ -83,8 +83,12 @@ aside.right-sidebar {
   background: var(--sl-color-bg-sidebar);
 }
 
-.sidebar-content a,
-aside.right-sidebar a {
+/* Starlight wraps sidebar labels in nested spans that would otherwise
+   inherit the serif body font. Cover the whole tree. */
+nav.sidebar,
+nav.sidebar *,
+aside.right-sidebar,
+aside.right-sidebar * {
   font-family: var(--sl-font-system);
 }
 
