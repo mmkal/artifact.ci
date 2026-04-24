@@ -14,9 +14,15 @@ const DOCS_DEV_PORT = 43112
 // Tunnel hostname is deterministic, so we can seed PUBLIC_DEV_URL
 // before worker bindings evaluate. Otherwise the app worker binds an
 // empty string and Better Auth falls through to whatever stale URL
-// happens to be in .env.
+// happens to be in .env. Only meaningful in dev; prod pins
+// BETTER_AUTH_URL directly and doesn't want the dev tunnel URL baked
+// into its worker vars.
 const TUNNEL_HOSTNAME = process.env.ARTIFACTCI_TUNNEL_HOSTNAME?.replace(/^https?:\/\//, '') || 'artifactci.dev'
-process.env.PUBLIC_DEV_URL ||= `https://${TUNNEL_HOSTNAME}`
+const STAGE = process.argv.find(a => a.startsWith('--stage='))?.slice('--stage='.length)
+  ?? (process.argv.indexOf('--stage') >= 0 ? process.argv[process.argv.indexOf('--stage') + 1] : undefined)
+if (STAGE !== 'prod') {
+  process.env.PUBLIC_DEV_URL ||= `https://${TUNNEL_HOSTNAME}`
+}
 
 const app = await alchemy('artifact-ci', {
   // Required to serialize the Tunnel resource's run token (a Secret) into
@@ -68,7 +74,7 @@ const appBindings = passthroughEnv([
 export const appWorker = await TanStackStart('app', {
   cwd: './apps/app',
   name: `${app.name}-${app.stage}-app`,
-  entrypoint: 'dist/server/server.js',
+  entrypoint: 'dist/server/index.js',
   build: {
     command: 'vite build',
   },
