@@ -1,0 +1,74 @@
+/**
+ * Tune Starlight's CSS variables to match the app's slate-950 + amber
+ * palette. Starlight exposes a set of custom properties documented at
+ * https://starlight.astro.build/guides/css-and-tailwind — we only need
+ * to override the dark theme tokens, since the app is dark-only and
+ * the docs follow.
+ */
+
+:root {
+  --sl-font: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --sl-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+/* Force dark-only to match the app. */
+:root,
+:root[data-theme='light'],
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* accent = amber-300 */
+  --sl-color-accent-low: #422006;    /* amber-950 */
+  --sl-color-accent: #d97706;        /* amber-600 */
+  --sl-color-accent-high: #fcd34d;   /* amber-300 */
+
+  /* text on dark */
+  --sl-color-white: rgba(253, 230, 138, 0.92);
+  --sl-color-gray-1: rgba(253, 230, 138, 0.85);
+  --sl-color-gray-2: rgba(253, 230, 138, 0.75);
+  --sl-color-gray-3: rgba(253, 230, 138, 0.55);
+  --sl-color-gray-4: rgba(253, 230, 138, 0.35);
+  --sl-color-gray-5: rgba(253, 230, 138, 0.2);
+  --sl-color-gray-6: rgba(252, 211, 77, 0.08);
+
+  /* backgrounds — slate-950 + slight variations */
+  --sl-color-black: #020617;
+  --sl-color-black-alpha: rgba(2, 6, 23, 0.8);
+  --sl-color-bg: #020617;
+  --sl-color-bg-nav: #020617;
+  --sl-color-bg-sidebar: #020617;
+  --sl-color-bg-inline-code: rgba(252, 211, 77, 0.08);
+  --sl-color-bg-accent: rgba(252, 211, 77, 0.12);
+
+  --sl-color-hairline-light: rgba(252, 211, 77, 0.2);
+  --sl-color-hairline: rgba(252, 211, 77, 0.15);
+  --sl-color-hairline-shade: rgba(252, 211, 77, 0.08);
+
+  --sl-color-text: rgba(253, 230, 138, 0.8);
+  --sl-color-text-accent: #fcd34d;
+  --sl-color-text-invert: #020617;
+}
+
+/* Brand logo spot — moai emoji next to the title, matching the app nav. */
+.site-title::before {
+  content: '🗿 ';
+}
+
+/* App link pinned to the right of the nav */
+.app-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  margin-inline-start: 0.5rem;
+  border: 1px solid var(--sl-color-hairline-light);
+  border-radius: 0.25rem;
+  color: var(--sl-color-text-accent);
+  font-size: var(--sl-text-sm);
+  text-decoration: none;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.app-link:hover {
+  background: rgba(252, 211, 77, 0.1);
+  border-color: var(--sl-color-text-accent);
+}

@@ -14,6 +14,10 @@ export default defineConfig({
       title: 'artifact.ci',
       description: 'Docs for publishing and viewing build artifacts without cargo-culting a full app framework into the docs stack.',
       pagefind: false,
+      customCss: ['./src/styles/theme.css'],
+      components: {
+        SocialIcons: './src/components/SocialIcons.astro',
+      },
       social: [
         {icon: 'github', label: 'GitHub', href: 'https://github.com/mmkal/artifact.ci'},
       ],

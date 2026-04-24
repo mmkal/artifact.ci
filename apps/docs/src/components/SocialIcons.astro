@@ -1,0 +1,10 @@
+---
+// Override of Starlight's SocialIcons component. Renders the default
+// social links (configured in astro.config.mjs) followed by a prominent
+// "App" button that points visitors to the web app. The button is a
+// plain link, not styled by social-icon logic — keeps us from fighting
+// Starlight's icon rendering.
+import Default from '@astrojs/starlight/components/SocialIcons.astro'
+---
+<Default><slot /></Default>
+<a href="/account" class="app-link">App →</a>

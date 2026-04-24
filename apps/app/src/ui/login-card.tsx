@@ -11,7 +11,7 @@ export function LoginCard({callbackUrl}: {callbackUrl?: string}) {
         onClick={async () => {
           await authClient.signIn.social({
             provider: 'github',
-            callbackURL: callbackUrl || '/',
+            callbackURL: callbackUrl || '/account',
           })
         }}
       >

@@ -1,15 +1,19 @@
 // @ts-nocheck
 import {createFileRoute} from '@tanstack/react-router'
 import {requireCurrentSession} from '../auth/session'
+import {searchRepos} from '../artifacts/search'
 import {LogoutButton} from '../ui/logout-button'
+import {RepoList} from '../ui/search-lists'
 
 export const Route = createFileRoute('/account')({
   beforeLoad: async ({location}) => requireCurrentSession({data: {redirectTo: location.href}}),
+  loader: async () => searchRepos({data: {}}),
   component: AccountPage,
 })
 
 function AccountPage() {
   const {user} = Route.useRouteContext().session
+  const repos = Route.useLoaderData()
 
   return (
     <section className="page">
@@ -33,6 +37,9 @@ function AccountPage() {
           Manage GitHub App installations →
         </a>
       </p>
+      <h2>Your repositories</h2>
+      <p>Repos the GitHub App can see for you. Open one to browse its artifacts.</p>
+      <RepoList data={repos} />
       <LogoutButton />
     </section>
   )
