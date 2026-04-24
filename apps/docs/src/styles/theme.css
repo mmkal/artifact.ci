@@ -83,13 +83,14 @@ aside.right-sidebar {
   background: var(--sl-color-bg-sidebar);
 }
 
-/* Starlight wraps sidebar labels in nested spans that would otherwise
-   inherit the serif body font. Cover the whole tree. */
+/* Sidebar + TOC are UI chrome like the headings/buttons, so they get
+   the same mono treatment. Cover the whole tree because Starlight
+   wraps labels in nested spans that would otherwise inherit serif. */
 nav.sidebar,
 nav.sidebar *,
 aside.right-sidebar,
 aside.right-sidebar * {
-  font-family: var(--sl-font-system);
+  font-family: var(--sl-font-system-mono);
 }
 
 /* Main content */
