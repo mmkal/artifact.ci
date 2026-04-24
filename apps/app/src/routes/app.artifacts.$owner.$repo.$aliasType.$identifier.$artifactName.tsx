@@ -20,7 +20,7 @@ export const Route = createFileRoute('/app/artifacts/$owner/$repo/$aliasType/$id
     if (data.resolved.code === 'not_authorized' && !data.githubLogin) {
       throw redirect({
         to: '/login',
-        search: {callbackUrl: location.pathname + location.search},
+        search: {callbackUrl: location.href},
       })
     }
     return data
