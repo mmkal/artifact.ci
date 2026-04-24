@@ -3,7 +3,15 @@ import {HeadContent, Outlet, Scripts, createRootRouteWithContext} from '@tanstac
 import type {ReactNode} from 'react'
 import {getCurrentSession, type AppSessionSnapshot} from '../auth/session'
 import {LogoutButton} from '../ui/logout-button'
-import appCss from '../styles.css?url'
+import appCssRaw from '../styles.css?raw'
+import appCssUrl from '../styles.css?url'
+
+// djb2-ish — we just need something short and stable per file contents.
+const hashCss = (s: string) => {
+  let h = 5381
+  for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0
+  return h.toString(36)
+}
 
 export const Route = createRootRouteWithContext<{session: AppSessionSnapshot}>()({
   beforeLoad: async () => {
@@ -20,7 +28,10 @@ export const Route = createRootRouteWithContext<{session: AppSessionSnapshot}>()
         content: 'View GitHub Actions artifacts in the browser.',
       },
     ],
-    links: [{rel: 'stylesheet', href: appCss}],
+    // miniflare serves /src/styles.css with `Cache-Control: max-age=14400`
+    // in dev, so previously the CDN + browser happily pinned yesterday's
+    // rules. Append a content hash so every CSS edit gets a fresh URL.
+    links: [{rel: 'stylesheet', href: `${appCssUrl}?v=${hashCss(appCssRaw)}`}],
     scripts: [
       // Runtime shim: @tanstack/start-client-core reads
       // process.env.TSS_SERVER_FN_BASE at module load. Vite's `define` is
