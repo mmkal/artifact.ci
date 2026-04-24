@@ -1,9 +1,9 @@
 // @ts-nocheck
 import {createFileRoute, redirect} from '@tanstack/react-router'
 import {toBreadcrumbs} from '@artifact/domain/artifact/path-params'
-import {Fragment} from 'react'
 import {loadArtifactForBrowser, type LoadArtifactResult} from '../artifacts/load'
 import {ArtifactLoader} from '../ui/artifact-loader'
+import {Crumbs} from '../ui/crumbs'
 import {FileList} from '../ui/file-list'
 import {TrpcProvider} from '../ui/trpc-provider'
 
@@ -87,28 +87,9 @@ function ArtifactBrowserPage() {
     )
   }
 
-  const crumbs = toBreadcrumbs(params)
   const header = (
     <>
-      <nav aria-label="Breadcrumb">
-        <ol className="crumbs">
-          {crumbs.map((crumb, i) => {
-            const isLast = i === crumbs.length - 1
-            return (
-              <Fragment key={crumb.path}>
-                {i > 0 && <li className="crumbs__sep">/</li>}
-                <li>
-                  {isLast ? (
-                    <span className="crumbs__current">{crumb.label}</span>
-                  ) : (
-                    <a href={crumb.path}>{crumb.label}</a>
-                  )}
-                </li>
-              </Fragment>
-            )
-          })}
-        </ol>
-      </nav>
+      <Crumbs trail={toBreadcrumbs(params)} />
       <h1>{params.artifactName}</h1>
     </>
   )
