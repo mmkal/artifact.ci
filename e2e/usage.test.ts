@@ -311,7 +311,34 @@ test('showcase', async ({page}) => {
 
   await page.goto(artifactHref!)
   await expect(page.getByRole('heading', {name: 'showcase-report'})).toBeVisible({timeout: 30_000})
-  await expect(page.getByRole('link', {name: /index\.html/i}).first()).toBeVisible({timeout: 30_000})
+  const entryLink = page.getByRole('link', {name: /index\.html/i}).first()
+  await expect(entryLink).toBeVisible({timeout: 30_000})
+
+  await test.step('clicking an entry serves the blob, not JSON', async () => {
+    const entryHref = await entryLink.getAttribute('href')
+    expect(entryHref, 'entry link href').toMatch(/^\/artifact\/blob\//)
+    const [blobResponse] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/artifact/blob/') && r.request().resourceType() === 'document'),
+      entryLink.click(),
+    ])
+    expect(blobResponse.status(), 'blob response status').toBe(200)
+    expect(blobResponse.headers()['content-type'] || '', 'blob content-type').not.toMatch(/application\/json/)
+  })
+
+  await test.step('unauthenticated visitor to private artifact page redirects to /login', async () => {
+    // Fresh fetch with no cookies — the showcase fixture defaults to
+    // private visibility, so an anonymous visit must bounce to /login with
+    // callbackUrl encoded. Regression for "Cannot convert object to
+    // primitive value" from the old location.pathname + location.search
+    // coercion in the viewer loader.
+    const unauth = await fetch(artifactHref!, {redirect: 'manual'})
+    expect([302, 307]).toContain(unauth.status)
+    const location = unauth.headers.get('location')
+    expect(location, 'unauth redirect location').toBeTruthy()
+    const loginUrl = new URL(location!, artifactHref!)
+    expect(loginUrl.pathname).toBe('/login')
+    expect(loginUrl.searchParams.get('callbackUrl'), 'callbackUrl roundtrip').toBe(new URL(artifactHref!).pathname)
+  })
 })
 
 async function waitForWorkflowSuccess(repo: WorkflowRepoFixture) {
