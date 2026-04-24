@@ -82,10 +82,32 @@ const getRefererTarget = (request: Request) => {
 const isWebsocketUpgrade = (request: Request) => request.headers.get('upgrade')?.toLowerCase() === 'websocket'
 const isViteWebsocketPath = (pathname: string) => VITE_DEV_PREFIXES.some(prefix => pathname.startsWith(prefix))
 
+const disableCacheIfDev = (response: Response, env: FrontdoorEnv): Response => {
+  // Only intervene in local dev — miniflare + python http.server both slap
+  // `Cache-Control: max-age=14400` on every response (including 404s),
+  // which Cloudflare Tunnel's edge happily caches for 4 hours. That ate
+  // the image 404s we saw before the public/reports symlink landed.
+  if (!/^https?:\/\/(127\.0\.0\.1|localhost):\d+/.test(env.APP_URL || '')) return response
+  const headers = new Headers(response.headers)
+  headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate')
+  headers.delete('Etag')
+  headers.delete('Last-Modified')
+  return new Response(response.body, {status: response.status, statusText: response.statusText, headers})
+}
+
 export default {
   async fetch(request: Request, env: FrontdoorEnv): Promise<Response> {
     try {
-      const url = new URL(request.url)
+      return disableCacheIfDev(await handle(request, env), env)
+    } catch (error) {
+      console.error('frontdoor request failed', {url: request.url, method: request.method, error: String(error)})
+      return new Response('Bad Gateway', {status: 502})
+    }
+  },
+}
+
+async function handle(request: Request, env: FrontdoorEnv): Promise<Response> {
+  const url = new URL(request.url)
 
       // Vite's HMR client doesn't survive a Cloudflare Tunnel: the HMR
       // WebSocket's upgrade gets mangled, the client reports "server
@@ -173,15 +195,6 @@ export default {
         return proxyToOrigin(new Request(docsUrl, request), env.DOCS_URL)
       }
       return proxyToOrigin(request, env.DOCS_URL)
-    } catch (error) {
-      console.error('frontdoor request failed', {
-        url: request.url,
-        method: request.method,
-        error: String(error),
-      })
-      return new Response('Bad Gateway', {status: 502})
-    }
-  },
 }
 
 async function proxyAppResponse(request: Request, origin: string) {
