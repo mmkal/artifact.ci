@@ -51,7 +51,7 @@ export async function handleArtifactRequest(request: Request, env: ArtifactHandl
     return Response.json(resolveResult.body, {status: resolveResult.status})
   }
 
-  return buildArtifactFileResponse(
+  const response = await buildArtifactFileResponse(
     resolveResult.storagePathname,
     resolveResult.params,
     {
@@ -59,6 +59,29 @@ export async function handleArtifactRequest(request: Request, env: ArtifactHandl
     },
     {raw: resolveResult.raw},
   )
+  return withBlobCaching(response, resolveResult.params.aliasType)
+}
+
+/**
+ * Apply the cache semantics implied by the alias type in the URL:
+ *
+ * - `run` / `sha` identifiers are immutable (a given run id or commit sha
+ *   always points at the same content), so we hand Cloudflare + the
+ *   browser a year-long immutable TTL.
+ * - `branch` points at whatever was last uploaded for that branch and
+ *   will change on every push, so we have to opt out of caching.
+ * - Anything else we don't know — default to no-store to avoid serving
+ *   stale content we can't reason about.
+ */
+function withBlobCaching(response: Response, aliasType: string): Response {
+  const isImmutable = aliasType === 'run' || aliasType === 'sha'
+  const cacheControl = isImmutable
+    ? 'public, max-age=31536000, immutable'
+    : 'no-store'
+  const headers = new Headers(response.headers)
+  headers.set('Cache-Control', cacheControl)
+  if (!isImmutable) headers.delete('Etag')
+  return new Response(response.body, {status: response.status, statusText: response.statusText, headers})
 }
 
 async function resolveArtifactRequestViaApp(
