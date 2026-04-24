@@ -9,7 +9,7 @@ import {TrpcProvider} from '../ui/trpc-provider'
 
 type Search = {reload?: 'true'; delete?: 'true'}
 
-export const Route = createFileRoute('/artifact/view/$owner/$repo/$aliasType/$identifier/$artifactName')({
+export const Route = createFileRoute('/artifact/view_/$owner_/$repo_/$aliasType_/$identifier_/$artifactName')({
   validateSearch: (search: Record<string, unknown>): Search => ({
     reload: search.reload === 'true' ? 'true' : undefined,
     delete: search.delete === 'true' ? 'true' : undefined,

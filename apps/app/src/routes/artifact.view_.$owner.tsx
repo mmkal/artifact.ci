@@ -5,7 +5,7 @@ import {searchRepos} from '../artifacts/search'
 import {Crumbs} from '../ui/crumbs'
 import {RepoList} from '../ui/search-lists'
 
-export const Route = createFileRoute('/artifact/view/$owner')({
+export const Route = createFileRoute('/artifact/view_/$owner')({
   loader: async ({params}) => searchRepos({data: {owner: params.owner}}),
   component: OwnerRepos,
 })

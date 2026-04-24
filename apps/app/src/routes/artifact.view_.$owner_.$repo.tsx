@@ -5,7 +5,7 @@ import {searchArtifacts} from '../artifacts/search'
 import {Crumbs} from '../ui/crumbs'
 import {ArtifactList} from '../ui/search-lists'
 
-export const Route = createFileRoute('/artifact/view/$owner/$repo')({
+export const Route = createFileRoute('/artifact/view_/$owner_/$repo')({
   loader: async ({params}) => searchArtifacts({data: {owner: params.owner, repo: params.repo}}),
   component: RepoArtifacts,
 })
