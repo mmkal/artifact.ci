@@ -1,13 +1,17 @@
-export const ARTIFACT_ROUTE_PREFIX = '/artifact/'
+// Blob-serving lives on the frontdoor worker so it can stream from Supabase
+// Storage without bouncing through the app. Everything else under /artifact/
+// (notably /artifact/view/*, matching main's URL shape) renders in the app.
 export const ARTIFACT_BLOB_ROUTE_PREFIX = '/artifact/blob/'
-export const LEGACY_ARTIFACT_VIEW_PREFIX = '/artifact/view/'
+export const ARTIFACT_VIEW_ROUTE_PREFIX = '/artifact/view/'
+/** @deprecated retained so old /artifact/view/... links continue to resolve */
+export const LEGACY_ARTIFACT_VIEW_PREFIX = ARTIFACT_VIEW_ROUTE_PREFIX
 
-export const APP_EXACT_ROUTES = ['/login', '/account'] as const
+export const APP_EXACT_ROUTES = ['/login', '/account', '/artifact/view'] as const
 
-export const APP_ROUTE_PREFIXES = ['/app/', '/api/', '/github/'] as const
+export const APP_ROUTE_PREFIXES = ['/app/', '/api/', '/github/', ARTIFACT_VIEW_ROUTE_PREFIX] as const
 export const APP_PREFIX_ROOTS = ['/app', '/api'] as const
 
-export const isArtifactRoute = (pathname: string) => pathname.startsWith(ARTIFACT_ROUTE_PREFIX)
+export const isArtifactBlobRoute = (pathname: string) => pathname.startsWith(ARTIFACT_BLOB_ROUTE_PREFIX)
 
 export const isAppRoute = (pathname: string) => {
   if (APP_EXACT_ROUTES.includes(pathname as (typeof APP_EXACT_ROUTES)[number])) return true

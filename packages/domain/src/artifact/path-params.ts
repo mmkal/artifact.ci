@@ -34,7 +34,7 @@ export const toPath = (params: Partial<PathParams>) => {
 
 export const toAppArtifactPath = (params: Partial<PathParams>) => {
   const {owner, repo, aliasType, identifier, artifactName, filepath = []} = params
-  return ['/app/artifacts', owner, repo, aliasType, identifier, artifactName, ...filepath]
+  return ['/artifact/view', owner, repo, aliasType, identifier, artifactName, ...filepath]
     .filter((segment): segment is string => typeof segment === 'string' && segment.length > 0)
     .join('/')
 }

@@ -1,5 +1,7 @@
 // @ts-nocheck
 import {createFileRoute, redirect} from '@tanstack/react-router'
+import {toBreadcrumbs} from '@artifact/domain/artifact/path-params'
+import {Fragment} from 'react'
 import {loadArtifactForBrowser, type LoadArtifactResult} from '../artifacts/load'
 import {ArtifactLoader} from '../ui/artifact-loader'
 import {FileList} from '../ui/file-list'
@@ -7,7 +9,7 @@ import {TrpcProvider} from '../ui/trpc-provider'
 
 type Search = {reload?: 'true'; delete?: 'true'}
 
-export const Route = createFileRoute('/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName')({
+export const Route = createFileRoute('/artifact/view/$owner/$repo/$aliasType/$identifier/$artifactName')({
   validateSearch: (search: Record<string, unknown>): Search => ({
     reload: search.reload === 'true' ? 'true' : undefined,
     delete: search.delete === 'true' ? 'true' : undefined,
@@ -85,15 +87,29 @@ function ArtifactBrowserPage() {
     )
   }
 
+  const crumbs = toBreadcrumbs(params)
   const header = (
     <>
-      <div className="eyebrow">Artifact Browser</div>
+      <nav aria-label="Breadcrumb">
+        <ol className="crumbs">
+          {crumbs.map((crumb, i) => {
+            const isLast = i === crumbs.length - 1
+            return (
+              <Fragment key={crumb.path}>
+                {i > 0 && <li className="crumbs__sep">/</li>}
+                <li>
+                  {isLast ? (
+                    <span className="crumbs__current">{crumb.label}</span>
+                  ) : (
+                    <a href={crumb.path}>{crumb.label}</a>
+                  )}
+                </li>
+              </Fragment>
+            )
+          })}
+        </ol>
+      </nav>
       <h1>{params.artifactName}</h1>
-      <div className="browser__breadcrumbs">
-        <code>
-          {params.owner}/{params.repo} · {params.aliasType}/{params.identifier}
-        </code>
-      </div>
     </>
   )
 

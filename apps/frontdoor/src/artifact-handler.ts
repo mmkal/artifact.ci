@@ -3,8 +3,8 @@ import {
   type ArtifactResolveRequest,
   type ArtifactResolveResponse,
 } from '@artifact/domain/artifact/edge-contract'
-import {PathParams, toAppArtifactPath} from '@artifact/domain/artifact/path-params'
-import {ARTIFACT_BLOB_ROUTE_PREFIX, LEGACY_ARTIFACT_VIEW_PREFIX} from '@artifact/config/routes'
+import {PathParams} from '@artifact/domain/artifact/path-params'
+import {ARTIFACT_BLOB_ROUTE_PREFIX} from '@artifact/config/routes'
 
 export interface ArtifactHandlerEnv {
   APP: {fetch(request: Request): Promise<Response>}
@@ -25,20 +25,11 @@ const isLocalHttpOrigin = (origin: string | undefined) =>
 export async function handleArtifactRequest(request: Request, env: ArtifactHandlerEnv): Promise<Response> {
   const url = new URL(request.url)
 
-  if (url.pathname === LEGACY_ARTIFACT_VIEW_PREFIX.slice(0, -1)) {
-    return Response.redirect(new URL('/app/artifacts', url.origin), 308)
-  }
-
-  if (url.pathname.startsWith(LEGACY_ARTIFACT_VIEW_PREFIX)) {
-    const nextPath = toAppArtifactPath(parseLegacyViewPath(url.pathname))
-    return Response.redirect(new URL(withSearch(nextPath, url.search), url.origin), 308)
-  }
-
   if (!url.pathname.startsWith(ARTIFACT_BLOB_ROUTE_PREFIX)) {
     return Response.json(
       {
-        message: 'Unsupported artifact route.',
-        supportedPrefixes: [ARTIFACT_BLOB_ROUTE_PREFIX, LEGACY_ARTIFACT_VIEW_PREFIX],
+        message: 'Unsupported artifact route (only /artifact/blob/* is served by the artifact worker; /artifact/view/* is rendered by the app).',
+        supportedPrefixes: [ARTIFACT_BLOB_ROUTE_PREFIX],
       },
       {status: 404},
     )
@@ -124,12 +115,3 @@ function parseBlobPath(pathname: string) {
   return PathParams.parse({owner, repo, aliasType, identifier, artifactName, filepath})
 }
 
-function parseLegacyViewPath(pathname: string) {
-  const segments = pathname.slice(LEGACY_ARTIFACT_VIEW_PREFIX.length).split('/').filter(Boolean)
-  const [owner, repo, aliasType, identifier, artifactName, ...filepath] = segments
-  return PathParams.parse({owner, repo, aliasType, identifier, artifactName, filepath})
-}
-
-function withSearch(pathname: string, search: string) {
-  return `${pathname}${search}`
-}

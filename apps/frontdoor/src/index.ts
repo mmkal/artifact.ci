@@ -125,6 +125,13 @@ export default {
         return Response.redirect(new URL('/login', url.origin), 307)
       }
 
+      // Old /app/artifacts/* URLs predate the rename to /artifact/view/*.
+      // Keep previously-issued check-run links working.
+      if (url.pathname.startsWith('/app/artifacts/') || url.pathname === '/app/artifacts') {
+        const next = url.pathname.replace(/^\/app\/artifacts/, '/artifact/view')
+        return Response.redirect(new URL(`${next}${url.search}`, url.origin), 308)
+      }
+
       if (url.pathname.startsWith(APP_DEV_PREFIX)) {
         const appPath = url.pathname.slice(APP_DEV_PREFIX.length) || '/'
         return proxyAppResponse(new Request(new URL(`${appPath}${url.search}`, env.APP_URL), request), env.APP_URL)

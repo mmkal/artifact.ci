@@ -65,9 +65,7 @@ function Document({children}: {children: ReactNode}) {
         <div className="shell">
           <div className="shell__frame">
             <nav className="shell__nav">
-              <div className="shell__brand">
-                <a href="/" className="shell__brand-link">artifact.ci</a>
-              </div>
+              <a href="/" className="shell__brand-link">🗿 artifact.ci</a>
               <div className="shell__links">
                 {session.user ? (
                   <>
@@ -82,6 +80,7 @@ function Document({children}: {children: ReactNode}) {
               </div>
             </nav>
             <main className="shell__body">{children}</main>
+            <footer className="shell__footer">artifact.ci</footer>
           </div>
         </div>
         <Scripts />

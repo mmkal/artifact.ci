@@ -12,7 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRouteImport } from './routes/app.artifacts.$owner.$repo.$aliasType.$identifier.$artifactName'
+import { Route as ArtifactViewOwnerRepoAliasTypeIdentifierArtifactNameRouteImport } from './routes/artifact.view.$owner.$repo.$aliasType.$identifier.$artifactName'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -29,10 +29,10 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRoute =
-  AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRouteImport.update({
-    id: '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName',
-    path: '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName',
+const ArtifactViewOwnerRepoAliasTypeIdentifierArtifactNameRoute =
+  ArtifactViewOwnerRepoAliasTypeIdentifierArtifactNameRouteImport.update({
+    id: '/artifact/view/$owner/$repo/$aliasType/$identifier/$artifactName',
+    path: '/artifact/view/$owner/$repo/$aliasType/$identifier/$artifactName',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -40,20 +40,20 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/login': typeof LoginRoute
-  '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName': typeof AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRoute
+  '/artifact/view/$owner/$repo/$aliasType/$identifier/$artifactName': typeof ArtifactViewOwnerRepoAliasTypeIdentifierArtifactNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/login': typeof LoginRoute
-  '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName': typeof AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRoute
+  '/artifact/view/$owner/$repo/$aliasType/$identifier/$artifactName': typeof ArtifactViewOwnerRepoAliasTypeIdentifierArtifactNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/login': typeof LoginRoute
-  '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName': typeof AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRoute
+  '/artifact/view/$owner/$repo/$aliasType/$identifier/$artifactName': typeof ArtifactViewOwnerRepoAliasTypeIdentifierArtifactNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -61,26 +61,26 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/login'
-    | '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName'
+    | '/artifact/view/$owner/$repo/$aliasType/$identifier/$artifactName'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/account'
     | '/login'
-    | '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName'
+    | '/artifact/view/$owner/$repo/$aliasType/$identifier/$artifactName'
   id:
     | '__root__'
     | '/'
     | '/account'
     | '/login'
-    | '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName'
+    | '/artifact/view/$owner/$repo/$aliasType/$identifier/$artifactName'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRoute: typeof AccountRoute
   LoginRoute: typeof LoginRoute
-  AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRoute: typeof AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRoute
+  ArtifactViewOwnerRepoAliasTypeIdentifierArtifactNameRoute: typeof ArtifactViewOwnerRepoAliasTypeIdentifierArtifactNameRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -106,11 +106,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName': {
-      id: '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName'
-      path: '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName'
-      fullPath: '/app/artifacts/$owner/$repo/$aliasType/$identifier/$artifactName'
-      preLoaderRoute: typeof AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRouteImport
+    '/artifact/view/$owner/$repo/$aliasType/$identifier/$artifactName': {
+      id: '/artifact/view/$owner/$repo/$aliasType/$identifier/$artifactName'
+      path: '/artifact/view/$owner/$repo/$aliasType/$identifier/$artifactName'
+      fullPath: '/artifact/view/$owner/$repo/$aliasType/$identifier/$artifactName'
+      preLoaderRoute: typeof ArtifactViewOwnerRepoAliasTypeIdentifierArtifactNameRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -120,8 +120,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
   LoginRoute: LoginRoute,
-  AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRoute:
-    AppArtifactsOwnerRepoAliasTypeIdentifierArtifactNameRoute,
+  ArtifactViewOwnerRepoAliasTypeIdentifierArtifactNameRoute:
+    ArtifactViewOwnerRepoAliasTypeIdentifierArtifactNameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
