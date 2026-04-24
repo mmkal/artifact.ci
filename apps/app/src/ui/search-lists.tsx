@@ -36,13 +36,13 @@ export function RepoList({data}: {data: ListResponse<RepoResult>}) {
       <h2>Repositories</h2>
       <ul className="search__list">
         {data.results.map(repo => (
-          <li key={`${repo.owner}/${repo.repo}`} className="search__row">
-            <a href={toViewPath({owner: repo.owner, repo: repo.repo})} className="search__title">
-              {repo.owner}/{repo.repo}
+          <li key={`${repo.owner}/${repo.repo}`}>
+            <a href={toViewPath({owner: repo.owner, repo: repo.repo})} className="search__row">
+              <span className="search__title">{repo.owner}/{repo.repo}</span>
+              <span className="search__meta">
+                artifacts: <code>{repo.artifact_count}</code>
+              </span>
             </a>
-            <span className="search__meta">
-              artifacts: <code>{repo.artifact_count}</code>
-            </span>
           </li>
         ))}
       </ul>
@@ -69,11 +69,13 @@ export function ArtifactList({data}: {data: ListResponse<ArtifactResult>}) {
       <h2>Artifacts</h2>
       <ul className="search__list">
         {data.results.map(artifact => (
-          <li key={artifact.artifactId} className="search__row">
-            {artifact.label && <span className="search__label">{artifact.label}</span>}
-            <span className="search__title">{artifact.name}</span>
-            <span className="search__meta">{new Date(artifact.createdAt).toLocaleString()}</span>
-            <span className="search__aliases">
+          <li key={artifact.artifactId} className="search__artifact">
+            <div className="search__artifact-head">
+              {artifact.label && <span className="search__label">{artifact.label}</span>}
+              <span className="search__title">{artifact.name}</span>
+              <span className="search__meta">{new Date(artifact.createdAt).toLocaleString()}</span>
+            </div>
+            <div className="search__aliases">
               {artifact.pathParams.map(p => (
                 <a
                   key={`${p.aliasType}/${p.identifier}`}
@@ -85,7 +87,7 @@ export function ArtifactList({data}: {data: ListResponse<ArtifactResult>}) {
                   <span className="search__alias-value">{p.identifier}</span>
                 </a>
               ))}
-            </span>
+            </div>
           </li>
         ))}
       </ul>
