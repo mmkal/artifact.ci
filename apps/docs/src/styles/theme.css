@@ -1,68 +1,165 @@
 /**
- * Tune Starlight's CSS variables to match the app's slate-950 + amber
- * palette. Starlight exposes a set of custom properties documented at
- * https://starlight.astro.build/guides/css-and-tailwind — we only need
- * to override the dark theme tokens, since the app is dark-only and
- * the docs follow.
+ * Starlight theme overrides — slate night background, amber accents, and
+ * the same serif-body / mono-heading split the app uses now. Inspired by
+ * sqlfu.dev's custom.css but kept amber-on-dark instead of warm sepia.
+ *
+ * Starlight exposes a handful of CSS custom properties; we pin the dark
+ * variant to match the app and let `color-scheme` opt us out of light.
+ * https://starlight.astro.build/guides/css-and-tailwind/
  */
 
 :root {
-  --sl-font: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --sl-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --sl-font: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
+  --sl-font-system: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --sl-font-system-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
-/* Force dark-only to match the app. */
+/* Dark-only — keep in sync with the app nav. */
 :root,
 :root[data-theme='light'],
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  /* accent = amber-300 */
   --sl-color-accent-low: #422006;    /* amber-950 */
   --sl-color-accent: #d97706;        /* amber-600 */
   --sl-color-accent-high: #fcd34d;   /* amber-300 */
 
-  /* text on dark */
   --sl-color-white: rgba(253, 230, 138, 0.92);
   --sl-color-gray-1: rgba(253, 230, 138, 0.85);
   --sl-color-gray-2: rgba(253, 230, 138, 0.75);
-  --sl-color-gray-3: rgba(253, 230, 138, 0.55);
-  --sl-color-gray-4: rgba(253, 230, 138, 0.35);
-  --sl-color-gray-5: rgba(253, 230, 138, 0.2);
-  --sl-color-gray-6: rgba(252, 211, 77, 0.08);
+  --sl-color-gray-3: rgba(253, 230, 138, 0.6);
+  --sl-color-gray-4: rgba(253, 230, 138, 0.4);
+  --sl-color-gray-5: rgba(253, 230, 138, 0.22);
+  --sl-color-gray-6: rgba(252, 211, 77, 0.1);
+  --sl-color-gray-7: rgba(252, 211, 77, 0.05);
 
-  /* backgrounds — slate-950 + slight variations */
   --sl-color-black: #020617;
   --sl-color-black-alpha: rgba(2, 6, 23, 0.8);
-  --sl-color-bg: #020617;
-  --sl-color-bg-nav: #020617;
-  --sl-color-bg-sidebar: #020617;
-  --sl-color-bg-inline-code: rgba(252, 211, 77, 0.08);
-  --sl-color-bg-accent: rgba(252, 211, 77, 0.12);
+  --sl-color-bg: transparent;         /* let the gradient below show through */
+  --sl-color-bg-nav: rgba(2, 6, 23, 0.72);
+  --sl-color-bg-sidebar: rgba(2, 6, 23, 0.45);
+  --sl-color-bg-inline-code: rgba(252, 211, 77, 0.1);
+  --sl-color-bg-accent: rgba(252, 211, 77, 0.14);
 
-  --sl-color-hairline-light: rgba(252, 211, 77, 0.2);
-  --sl-color-hairline: rgba(252, 211, 77, 0.15);
-  --sl-color-hairline-shade: rgba(252, 211, 77, 0.08);
+  --sl-color-hairline-light: rgba(252, 211, 77, 0.18);
+  --sl-color-hairline: rgba(252, 211, 77, 0.12);
+  --sl-color-hairline-shade: rgba(252, 211, 77, 0.06);
 
-  --sl-color-text: rgba(253, 230, 138, 0.8);
+  --sl-color-text: rgba(253, 230, 138, 0.85);
   --sl-color-text-accent: #fcd34d;
   --sl-color-text-invert: #020617;
 }
 
-/* Brand logo spot — moai emoji next to the title, matching the app nav. */
+/* Soft radial glow under a slate-950 base — very faint aztec amber sunset. */
+html {
+  min-height: 100%;
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(252, 211, 77, 0.1), transparent 45%),
+    linear-gradient(180deg, #020617 0%, #060b1f 100%);
+  background-attachment: fixed;
+}
+
+body { color: var(--sl-color-text); }
+
+/* Header */
+header.header {
+  background: var(--sl-color-bg-nav);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--sl-color-hairline);
+}
+
+.site-title {
+  font-family: var(--sl-font-system-mono);
+  font-weight: 700;
+}
+
 .site-title::before {
   content: '🗿 ';
 }
 
-/* App link pinned to the right of the nav */
+/* Sidebar + TOC use sans so they don't fight the serif body. */
+nav.sidebar,
+aside.right-sidebar {
+  background: var(--sl-color-bg-sidebar);
+}
+
+.sidebar-content a,
+aside.right-sidebar a {
+  font-family: var(--sl-font-system);
+}
+
+/* Main content */
+main {
+  font-family: var(--sl-font);
+}
+
+main h1,
+main h2,
+main h3,
+main h4,
+main h5,
+main h6 {
+  font-family: var(--sl-font-system-mono);
+  letter-spacing: -0.01em;
+  color: var(--sl-color-text-accent);
+}
+
+main h1 { font-size: clamp(2rem, 4vw, 2.8rem); }
+main h2 { margin-top: 2rem; font-size: 1.5rem; }
+main h3 { margin-top: 1.5rem; font-size: 1.2rem; }
+
+main p,
+main li,
+main blockquote {
+  font-size: 1.02rem;
+  line-height: 1.7;
+}
+
+main :not(pre) > code {
+  font-family: var(--sl-font-system-mono);
+  font-size: 0.9em;
+  background: var(--sl-color-bg-inline-code);
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  color: var(--sl-color-text-accent);
+}
+
+main pre {
+  border-radius: 0.5rem;
+  border: 1px solid var(--sl-color-hairline);
+}
+
+main blockquote {
+  margin: 1rem 0;
+  padding-left: 1rem;
+  border-left: 2px solid var(--sl-color-text-accent);
+  color: var(--sl-color-gray-3);
+}
+
+/* Buttons / CTAs — hero "Install GitHub App" etc. */
+.sl-link-button,
+.action.primary,
+.action.secondary,
+.action.minimal {
+  font-family: var(--sl-font-system-mono);
+  letter-spacing: -0.01em;
+}
+
+/* Starlight's native search button in the header */
+button[data-open-modal] {
+  font-family: var(--sl-font-system-mono);
+}
+
+/* App link pinned next to the social icons */
 .app-link {
   display: inline-flex;
   align-items: center;
-  padding: 0.25rem 0.75rem;
+  padding: 0.3rem 0.8rem;
   margin-inline-start: 0.5rem;
   border: 1px solid var(--sl-color-hairline-light);
   border-radius: 0.25rem;
   color: var(--sl-color-text-accent);
+  font-family: var(--sl-font-system-mono);
   font-size: var(--sl-text-sm);
   text-decoration: none;
   transition: background 120ms ease, border-color 120ms ease;
