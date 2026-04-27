@@ -9,6 +9,10 @@ permissions:
 
 jobs:
   autofix:
+    # Skip on feat/cloudflare-native — that PR is being reviewed
+    # commit-by-commit and autofix.ci's reformatting churn made the diff
+    # unreviewable. Re-enable when the branch goes away.
+    if: github.head_ref != 'feat/cloudflare-native'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
