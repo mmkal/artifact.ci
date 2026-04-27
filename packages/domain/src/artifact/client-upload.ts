@@ -63,10 +63,21 @@ export async function clientUpload({
   const {entries} = await unzip(await response.arrayBuffer())
 
   onProgress('preparing', 'Getting upload tokens')
-  const {tokens: uploads, supabaseUrl} = await client.createUploadTokens.mutate({
-    artifactId,
-    entries: Object.keys(entries),
-  })
+  // Cloudflare Workers cap subrequests per invocation (50 on Free, low
+  // hundreds on Standard). Each entry → one Supabase signing call, so an
+  // artifact with many files easily blows the limit. Chunk the mutation
+  // client-side and concatenate the results.
+  const allEntries = Object.keys(entries)
+  const SIGNING_CHUNK = 30
+  const uploads: Array<Awaited<ReturnType<typeof client.createUploadTokens.mutate>>['tokens'][number]> = []
+  let supabaseUrl = ''
+  for (let i = 0; i < allEntries.length; i += SIGNING_CHUNK) {
+    const chunk = allEntries.slice(i, i + SIGNING_CHUNK)
+    const result = await client.createUploadTokens.mutate({artifactId, entries: chunk})
+    uploads.push(...result.tokens)
+    supabaseUrl = result.supabaseUrl
+    onProgress('preparing', `Getting upload tokens (${Math.min(i + SIGNING_CHUNK, allEntries.length)}/${allEntries.length})`)
+  }
 
   onProgress('uploading', 'Uploading files')
   const storage = createProxyClient<paths>().configure({baseUrl: supabaseUrl})
