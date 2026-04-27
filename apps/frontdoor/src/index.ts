@@ -194,12 +194,17 @@ async function handle(request: Request, env: FrontdoorEnv): Promise<Response> {
 
       // Docs target — canonicalise to no trailing slash, then map
       // extensionless paths onto Astro's `/foo/index.html` output.
+      // Workers Assets is set to html_handling: 'none' in prod so it
+      // serves files at literal paths only; we have to spell out the
+      // index.html lookup ourselves, including for the root.
       if (url.pathname.length > 1 && url.pathname.endsWith('/')) {
         const stripped = url.pathname.replace(/\/+$/, '') || '/'
         return Response.redirect(new URL(stripped + url.search, url.origin), 308)
       }
-      if (url.pathname !== '/' && !/\.[a-z0-9]+$/i.test(url.pathname)) {
-        const docsUrl = new URL(`${url.pathname}/index.html${url.search}`, env.DOCS_URL)
+      const hasExtension = /\.[a-z0-9]+$/i.test(url.pathname)
+      if (!hasExtension) {
+        const upstreamPath = url.pathname === '/' ? '/index.html' : `${url.pathname}/index.html`
+        const docsUrl = new URL(`${upstreamPath}${url.search}`, env.DOCS_URL)
         return proxyToOrigin(new Request(docsUrl, request), env.DOCS_URL)
       }
       return proxyToOrigin(request, env.DOCS_URL)
