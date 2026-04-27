@@ -1,5 +1,5 @@
 ---
-status: needs-grilling
+status: in-progress
 size: large
 ---
 
@@ -22,6 +22,25 @@ Decision recap (recorded so future-me doesn't re-litigate):
   on the storage side).
 - **NOT durable-object-per-artifact**. Considered, rejected: artifacts
   are write-once read-many static data, DOs are for coordination.
+
+### Tooling decisions
+
+- **sqlfu** for the SQLite client + migrations + query type generation,
+  installed from pkg.pr.new (`https://pkg.pr.new/mmkal/sqlfu/sqlfu@main`).
+  If we hit an sqlfu rough edge that needs upstream changes, we can pin
+  to a branch URL instead while we iterate on sqlfu.
+  - Adapter: `createD1Client(env.ARTIFACT_DB)` →
+    `client.sql\`select … where x = \${x}\``.
+  - Note from sqlfu's d1.ts source: D1 doesn't support `begin/savepoint`
+    in raw SQL, so `client.transaction(fn)` does NOT roll back on error.
+    Anywhere we need atomicity (the upload write path), we have to
+    either accept partial writes or batch via `db.batch([…])` outside
+    sqlfu.
+- **R2 presigned PUTs** via `aws4fetch` (small, browser-safe, runs in
+  workerd). Worker generates presigned URL → client PUTs file directly
+  to R2.
+- **Better Auth** uses its built-in Kysely D1 dialect; we drop the
+  fresh-pg-client shim entirely.
 
 ## Checklist
 
