@@ -51,13 +51,13 @@ async function main() {
     compressionLevel: z.coerce.number().int().min(0).max(9),
     overwrite: StringyBoolean,
     includeHiddenFiles: StringyBoolean,
-    artifactciOrigin: z
-      .string()
-      .default(
-        env.GITHUB_REPOSITORY === 'mmkal/artifact.ci' && branchName !== 'main'
-          ? `https://artifactci-git-${branchName.replaceAll(/\W/g, '-')}-mmkals-projects.vercel.app`
-          : 'https://www.artifact.ci',
-      ),
+    // Always defaults to prod. The old branch-aware Vercel-preview URL
+    // ("artifactci-git-${branch}-mmkals-projects.vercel.app") was only
+    // valid when prod was hosted on Vercel and Vercel auto-deployed
+    // every branch. Now that prod is on Cloudflare and the Vercel
+    // project is abandoned, those preview URLs return HTML 404s and
+    // crash the action when it tries to JSON.parse the response.
+    artifactciOrigin: z.string().default('https://www.artifact.ci'),
     artifactciVisibility: z.enum(['private', 'public']).optional(),
     artifactciAliasTypes: z
       .string()
