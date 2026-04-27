@@ -1,5 +1,5 @@
-// Blob-serving lives on the frontdoor worker so it can stream from Supabase
-// Storage without bouncing through the app. Everything else under /artifact/
+// Blob-serving lives on the frontdoor worker so it can stream from R2 without
+// bouncing through the app. Everything else under /artifact/
 // (notably /artifact/view/*, matching main's URL shape) renders in the app.
 export const ARTIFACT_BLOB_ROUTE_PREFIX = '/artifact/blob/'
 export const ARTIFACT_VIEW_ROUTE_PREFIX = '/artifact/view/'
