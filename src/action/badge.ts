@@ -40,11 +40,9 @@ async function main() {
 
   logger.debug({env, branchName})
 
-  let defaultBackend = 'https://www.artifact.ci'
-  if (env.GITHUB_REPOSITORY === 'mmkal/artifact.ci' && branchName !== 'main') {
-    // use vercel preview url - this isn't an exact match for their slugify algorithm but for simple branch names it works: https://github.com/orgs/vercel/discussions/472
-    defaultBackend = `https://artifactci-git-${branchName.replaceAll(/\W/g, '-')}-mmkals-projects.vercel.app`
-  }
+  // Always default to prod. The previous Vercel-preview URL fallback is
+  // dead since prod moved to Cloudflare; same fix applied to upload.ts.
+  const defaultBackend = 'https://www.artifact.ci'
   /** camelCase version of the inputs in action.yml. Note that *most* don't have defaults because the defaults are defined in action.yml */
   const Inputs = z.object({
     name: z

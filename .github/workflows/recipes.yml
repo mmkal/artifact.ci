@@ -75,6 +75,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # `npm create astro` now requires Node 22+; runner default is 20.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - run: mkdir -p website
       - name: setup
         run: |
