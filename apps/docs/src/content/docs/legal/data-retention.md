@@ -3,7 +3,7 @@ title: Data Retention
 description: What artifact.ci stores and for how long.
 ---
 
-artifact.ci is intended only as a temporary storage for the sake of viewing artifacts — the source of truth is GitHub. So, when you view an artifact, it is pulled from GitHub and uploaded to our storage service (Supabase).
+artifact.ci is intended only as temporary storage for the sake of viewing artifacts — the source of truth is GitHub. So, when you view an artifact, it is pulled from GitHub and uploaded to our storage service.
 
 Stored files will be periodically deleted from the storage service. Old artifacts can still be viewed, but they will need to be pulled from GitHub and uploaded again (this process is automatic, it usually just means waiting a few seconds to view your artifact again).
 

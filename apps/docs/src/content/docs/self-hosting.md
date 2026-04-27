@@ -17,15 +17,12 @@ The code is open-source, so you can self-host it if you want to (e.g. to run on 
 - Auth setup:
   - Add a `BETTER_AUTH_SECRET` to your server deployment.
 - Blob storage setup:
-  - This project uses [Supabase Storage](https://supabase.com/docs/reference/api/supabase-storage-from-create), but in theory you may be able to use a service that wraps another blob storage provider like AWS, Azure or Cloudflare's offerings, to make them usable with the Supabase API format.
-  - Set the `SUPABASE_PROJECT_URL` environment variable to the URL of the storage service you're using.
-  - Set the `SUPABASE_SERVICE_ROLE_KEY` environment variable to a token that has read/write access to the storage service.
+  - This project uses Cloudflare R2 for artifact blobs.
+  - The app Worker needs `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` so it can mint presigned PUT URLs.
 - Database setup:
-  - This project also uses Supabase for the database, but you should be able to use any other PostgreSQL database.
-  - Create a database and user, and set `DATABASE_URL` in your server deployment to the connection string.
-  - The client uses [pgkit.dev](https://pgkit.dev):
-    - Migrations: run `pnpm pgkit migrate.definitions.updateDb` to create/update/delete tables, views, functions, indexes etc. based on the `definitions.sql` file.
-    - Types: if you change the source code, you can run `pnpm pgkit generate` to add TypeScript types to all DB queries.
+  - This project uses Cloudflare D1 for metadata.
+  - The schema lives in `definitions.sql`; apply it to a new D1 database before serving real traffic.
+  - The client uses `sqlfu`: if you change database queries, run `pnpm typegen`.
 - You'll need to manage the `usage_credits` table to whitelist your organization/users to make sure they aren't denied access to artifacts.
 - Local development:
   - Run `pnpm dev` to start the development server.
