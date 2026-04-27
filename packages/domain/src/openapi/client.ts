@@ -33,7 +33,11 @@ const createProxyClientInner = <Paths extends {}, const RO extends RequestOption
 
       headers.set('content-type', contentType)
       const content = input.content[contentType]
-      if (content instanceof Buffer || content instanceof Blob) {
+      // Buffer is Node-only; this client also runs in browsers (the
+      // artifact viewer's client-upload path), so guard against it
+      // being undefined.
+      const isBuffer = typeof Buffer !== 'undefined' && content instanceof Buffer
+      if (isBuffer || content instanceof Blob || content instanceof ArrayBuffer || content instanceof Uint8Array) {
         body = content
       } else {
         const serializer = options.serializers?.[contentType as never] as RequestOptionSerializer | undefined
