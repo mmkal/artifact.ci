@@ -101,7 +101,12 @@ export const docsWorker = await Website('docs', {
     // an IPv4 address — the extractor's regex doesn't recognise [::] form.
     command: `sh -c "python3 -u -m http.server ${DOCS_DEV_PORT} -d dist --bind 127.0.0.1 2>&1"`,
   },
-  assets: 'dist',
+  // Workers Assets defaults to html_handling: "auto-trailing-slash"
+  // which 30x's `/foo/index.html` → `/foo/`. Combined with our
+  // frontdoor's `/foo/` → `/foo` 308 that's an infinite loop. Tell
+  // assets to serve files at the literal path the frontdoor asked
+  // for and let the frontdoor own URL semantics.
+  assets: {directory: 'dist', html_handling: 'none'},
 })
 
 export const frontdoorWorker = await Worker('frontdoor', {
