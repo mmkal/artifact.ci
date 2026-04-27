@@ -8,7 +8,18 @@ export const LEGACY_ARTIFACT_VIEW_PREFIX = ARTIFACT_VIEW_ROUTE_PREFIX
 
 export const APP_EXACT_ROUTES = ['/login', '/account', '/artifact/view'] as const
 
-export const APP_ROUTE_PREFIXES = ['/app/', '/api/', '/github/', ARTIFACT_VIEW_ROUTE_PREFIX] as const
+export const APP_ROUTE_PREFIXES = [
+  '/app/',
+  '/api/',
+  '/github/',
+  ARTIFACT_VIEW_ROUTE_PREFIX,
+  // TanStack Start prod outputs reference these directly from the
+  // generated HTML — route them to the app Worker, which has the
+  // ASSETS binding pointing at apps/app/dist/client and serves
+  // /_serverFn/* via createServerFn.
+  '/assets/',
+  '/_serverFn/',
+] as const
 export const APP_PREFIX_ROOTS = ['/app', '/api'] as const
 
 export const isArtifactBlobRoute = (pathname: string) => pathname.startsWith(ARTIFACT_BLOB_ROUTE_PREFIX)
