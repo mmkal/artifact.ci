@@ -8,8 +8,8 @@ import {writeFile} from 'node:fs/promises'
 import alchemy from 'alchemy'
 import {TanStackStart, Tunnel, Website, Worker} from 'alchemy/cloudflare'
 
-const APP_DEV_PORT = 43111
-const DOCS_DEV_PORT = 43112
+const APP_DEV_PORT = 43_111
+const DOCS_DEV_PORT = 43_112
 
 // Tunnel hostname is deterministic, so we can seed PUBLIC_DEV_URL
 // before worker bindings evaluate. Otherwise the app worker binds an
@@ -19,7 +19,7 @@ const DOCS_DEV_PORT = 43112
 // into its worker vars.
 const TUNNEL_HOSTNAME = process.env.ARTIFACTCI_TUNNEL_HOSTNAME?.replace(/^https?:\/\//, '') || 'artifactci.dev'
 const STAGE = process.argv.find(a => a.startsWith('--stage='))?.slice('--stage='.length)
-  ?? (process.argv.indexOf('--stage') >= 0 ? process.argv[process.argv.indexOf('--stage') + 1] : undefined)
+  ?? (process.argv.includes('--stage') ? process.argv[process.argv.indexOf('--stage') + 1] : undefined)
 if (STAGE !== 'prod') {
   process.env.PUBLIC_DEV_URL ||= `https://${TUNNEL_HOSTNAME}`
 }

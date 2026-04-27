@@ -52,7 +52,7 @@ const getBaseUrl = () => {
 
 const getTrustedOrigins = () => {
   const extras = [process.env.PUBLIC_DEV_URL, process.env.BETTER_AUTH_URL, process.env.AUTH_URL]
-    .filter((u): u is string => Boolean(u))
+    .filter(Boolean)
   return Array.from(new Set(['http://localhost:3000', 'http://artifactci.localhost:1355', 'https://artifact.ci', ...extras]))
 }
 

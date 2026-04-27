@@ -22,7 +22,7 @@ setup('setup: do login', async ({page}, testInfo) => {
   testInfo.setTimeout(MANUAL_LOGIN_TIMEOUT_MS + 60_000)
 
   if (process.env[AUTH_STATE_ENV]) {
-    writeStorageStateFromEnv(process.env[AUTH_STATE_ENV]!)
+    writeStorageStateFromEnv(process.env[AUTH_STATE_ENV])
     await confirmLoggedIn(browser)
     return
   }
@@ -81,11 +81,11 @@ async function watchForSuccessfulLogin(context: BrowserContext, page: Page) {
   while (Date.now() - started < MANUAL_LOGIN_TIMEOUT_MS) {
     try {
       await page.goto(REPO_URL, {waitUntil: 'domcontentloaded'})
-      await page.locator(REPO_READY_SELECTOR).waitFor({timeout: 5_000})
+      await page.locator(REPO_READY_SELECTOR).waitFor({timeout: 5000})
       await context.storageState({path: STORAGE_STATE})
       return
     } catch {
-      await new Promise(resolve => setTimeout(resolve, 2_000))
+      await new Promise(resolve => setTimeout(resolve, 2000))
     }
   }
 }
@@ -102,7 +102,7 @@ async function waitForStorageStateFile() {
   }
 
   throw new Error(
-    `[e2e] Timed out waiting ${MANUAL_LOGIN_TIMEOUT_MS / 60000} minutes for ${STORAGE_STATE} to be created.`,
+    `[e2e] Timed out waiting ${MANUAL_LOGIN_TIMEOUT_MS / 60_000} minutes for ${STORAGE_STATE} to be created.`,
   )
 }
 
@@ -131,7 +131,7 @@ function hasStorageStateFile() {
 function interactiveInstructions() {
   return [
     '[e2e] YOU HAVE TO LOG IN MATE.',
-    `[e2e] A headed browser window is open. Complete GitHub sign-in and any device verification within ${MANUAL_LOGIN_TIMEOUT_MS / 60000} minutes.`,
+    `[e2e] A headed browser window is open. Complete GitHub sign-in and any device verification within ${MANUAL_LOGIN_TIMEOUT_MS / 60_000} minutes.`,
     `[e2e] When login reaches ${REPO_URL}, the auth state will be saved automatically.`,
     `[e2e] After it saves, you can copy it for CI with:\n  cat ${STORAGE_STATE} | pbcopy && open ${GITHUB_ACTIONS_SECRETS_URL}`,
   ].join('\n')

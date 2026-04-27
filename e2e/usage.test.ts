@@ -33,7 +33,7 @@ class ArtifactCiAppFixture {
 
   async assertInstalled() {
     await this.page.goto(`${installRepoUrl}/settings/installations`)
-    await expect.poll(async () => (await this.page.locator('body').innerText()).includes('artifact.ci'), {timeout: 30_000}).toBe(true)
+    await expect.poll(async () => (await this.page.locator('body').textContent() ?? '').includes('artifact.ci'), {timeout: 30_000}).toBe(true)
     await expect(this.page.getByRole('link', {name: 'Configure'}).last()).toBeVisible({timeout: 30_000})
   }
 
@@ -393,7 +393,7 @@ async function githubJson(pathname: string, init: RequestInit) {
       authorization: `Bearer ${requiredGithubToken()}`,
       'x-github-api-version': '2022-11-28',
       'content-type': 'application/json',
-      ...(init.headers || {}),
+      ...init.headers,
     },
   })
 

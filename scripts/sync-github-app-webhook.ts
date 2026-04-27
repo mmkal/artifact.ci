@@ -73,7 +73,7 @@ async function ghRequest(method: string, path: string, jwt: string, body?: unkno
     const text = await response.text()
     throw new Error(`GitHub ${method} ${path} failed: ${response.status} ${text}`)
   }
-  return (await response.json()) as any
+  return (await response.json())
 }
 
 main().catch(error => {

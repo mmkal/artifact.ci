@@ -201,7 +201,7 @@ async function handle(request: Request, env: FrontdoorEnv): Promise<Response> {
         const stripped = url.pathname.replace(/\/+$/, '') || '/'
         return Response.redirect(new URL(stripped + url.search, url.origin), 308)
       }
-      const hasExtension = /\.[a-z0-9]+$/i.test(url.pathname)
+      const hasExtension = /\.[\da-z]+$/i.test(url.pathname)
       if (!hasExtension) {
         const upstreamPath = url.pathname === '/' ? '/index.html' : `${url.pathname}/index.html`
         const docsUrl = new URL(`${upstreamPath}${url.search}`, env.DOCS_URL)

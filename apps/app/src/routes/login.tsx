@@ -7,7 +7,7 @@ export const Route = createFileRoute('/login')({
 })
 
 function LoginPage() {
-  const search = Route.useSearch() as {callbackUrl?: string}
+  const search = Route.useSearch()
 
   return (
     <section className="page">

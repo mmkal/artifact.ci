@@ -88,7 +88,7 @@ async function handleUploadRequestInner(request: Request): Promise<Response> {
       `select vault.create_secret($1) as id`,
       [owner],
     )
-    const id = idRes.rows[0]!.id
+    const id = idRes.rows[0].id
     const secretRes = await c.query<{secret: string | null}>(
       `select secret from vault.secrets where id = $1`,
       [id],

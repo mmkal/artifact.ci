@@ -33,7 +33,7 @@ export const Route = createFileRoute('/artifact/view_/$owner_/$repo_/$aliasType_
 function ArtifactBrowserPage() {
   const params = Route.useParams()
   const search = Route.useSearch()
-  const data = Route.useLoaderData() as LoadArtifactResult
+  const data = Route.useLoaderData()
 
   const reload = search.reload === 'true'
   const allowDelete = search.delete === 'true'

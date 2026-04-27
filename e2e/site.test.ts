@@ -21,7 +21,7 @@ test('frontdoor navigation from docs root to /app lands on login without websock
   page.on('console', msg => {
     if (msg.type() !== 'error') return
     const text = msg.text()
-    if (/Websocket error:.*Unexpected server response: 500/i.test(text)) {
+    if (/websocket error:.*unexpected server response: 500/i.test(text)) {
       websocketErrors.push(text)
     }
   })

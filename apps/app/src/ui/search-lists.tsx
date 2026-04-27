@@ -22,7 +22,7 @@ export function RepoList({data}: {data: ListResponse<RepoResult>}) {
   if (data.code === 'no_access') {
     return (
       <div className="search__empty">
-        The GitHub App can't confirm access for this owner. Make sure{' '}
+        The GitHub App can&apos;t confirm access for this owner. Make sure{' '}
         <a href="https://github.com/apps/artifact-ci" rel="noreferrer noopener" target="_blank">the app</a>
         {' '}is installed on the repositories you want to list.
       </div>
@@ -59,7 +59,7 @@ export function ArtifactList({data}: {data: ListResponse<ArtifactResult>}) {
     )
   }
   if (data.code === 'no_access') {
-    return <div className="search__empty">The GitHub App can't confirm access for this repository.</div>
+    return <div className="search__empty">The GitHub App can&apos;t confirm access for this repository.</div>
   }
   if (data.results.length === 0) {
     return <div className="search__empty">No artifacts match these filters.</div>
