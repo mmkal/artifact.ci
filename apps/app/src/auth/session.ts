@@ -14,7 +14,7 @@ export interface AppSessionSnapshot {
   user: AppViewer | null
 }
 
-// The handlers are server-only. Dynamic-import anything that pulls in pg /
+// The handlers are server-only. Dynamic-import anything that pulls in
 // better-auth / request-headers APIs so the module can still be imported
 // from client components (TanStack Start RPC-ifies .handler() at build time,
 // but eager top-level imports land in the client bundle and break with

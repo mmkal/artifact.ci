@@ -15,57 +15,45 @@ export type LoadArtifactResult = {
 }
 
 // Everything server-only goes behind a dynamic import so the module can
-// still be imported from client route loaders without dragging pg /
-// octokit / better-auth into the browser bundle.
+// still be imported from client route loaders without dragging octokit /
+// better-auth into the browser bundle.
 export const loadArtifactForBrowser = createServerFn({method: 'GET'})
   .inputValidator((input: PathParams) => PathParams.parse(input))
   .handler(async ({data: params}): Promise<LoadArtifactResult> => {
-    const [{Client}, {checkCanAccess}, {getInstallationOctokit, lookupRepoInstallation}, {resolveArtifactRequest}, {getCurrentSession}] =
+    const [{checkCanAccess}, {getInstallationOctokit, lookupRepoInstallation}, {resolveArtifactRequest}, {getCurrentSession}, {getDb, parseJsonStringArray}] =
       await Promise.all([
-        import('pg'),
         import('@artifact/domain/github/access'),
         import('@artifact/domain/github/installations'),
         import('@artifact/domain/artifact/resolve-artifact-request'),
         import('../auth/session'),
+        import('../cloudflare-env'),
       ])
 
-    const withPg = async <T,>(fn: (c: InstanceType<typeof Client>) => Promise<T>): Promise<T> => {
-      const c = new Client({connectionString: process.env.DATABASE_URL || process.env.PGKIT_CONNECTION_STRING})
-      await c.connect()
-      try {
-        return await fn(c)
-      } finally {
-        await c.end().catch(() => {})
-      }
-    }
-
+    const db = getDb()
     const session = await getCurrentSession()
     const githubLogin = session.user?.githubLogin ?? undefined
 
     const resolved = await resolveArtifactRequest(githubLogin, {...params, filepath: []}, {
       async findArtifactInfo({owner, repo, aliasType, identifier, artifactName}) {
-        const artifactInfo = await withPg(async c => {
-          const {rows} = await c.query<queries.ArtifactInfo>(
-            `select
-               i.github_id as installation_github_id,
-               a.id as artifact_id,
-               a.visibility,
-               (select array_agg(entry_name) from artifact_entries ae where ae.artifact_id = a.id) as entries
-             from artifacts a
-             join artifact_identifiers aid on aid.artifact_id = a.id
-             join github_installations i on i.id = a.installation_id
-             join repos r on r.id = a.repo_id
-             where a.name = $1
-               and aid.type = $2
-               and aid.value = $3
-               and r.owner = $4
-               and r.name = $5
-             order by a.created_at desc
-             limit 1`,
-            [artifactName, aliasType, identifier, owner, repo],
-          )
-          return rows[0] ?? null
-        })
+        const rows = await db.sql.all<queries.ArtifactInfo>`
+          select
+            i.github_id as installation_github_id,
+            a.id as artifact_id,
+            a.visibility,
+            coalesce((select json_group_array(entry_name) from artifact_entries ae where ae.artifact_id = a.id), '[]') as entries_json
+          from artifacts a
+          join artifact_identifiers aid on aid.artifact_id = a.id
+          join github_installations i on i.id = a.installation_id
+          join repos r on r.id = a.repo_id
+          where a.name = ${artifactName}
+            and aid.type = ${aliasType}
+            and aid.value = ${identifier}
+            and r.owner = ${owner}
+            and r.name = ${repo}
+          order by a.created_at desc
+          limit 1
+        `
+        const artifactInfo = rows[0] || null
 
         if (!artifactInfo) return null
 
@@ -73,7 +61,7 @@ export const loadArtifactForBrowser = createServerFn({method: 'GET'})
           installationGithubId: artifactInfo.installation_github_id,
           artifactId: artifactInfo.artifact_id,
           visibility: artifactInfo.visibility,
-          entries: artifactInfo.entries,
+          entries: parseJsonStringArray(artifactInfo.entries_json),
         }
       },
       async checkAccess({installationGithubId, artifactId, owner, repo, githubLogin}) {
@@ -91,7 +79,7 @@ export const loadArtifactForBrowser = createServerFn({method: 'GET'})
           repo,
           username: githubLogin,
           artifactId,
-        })
+        }, {db})
       },
       async findStoragePathname() {
         return null
@@ -102,10 +90,10 @@ export const loadArtifactForBrowser = createServerFn({method: 'GET'})
   })
 
 export declare namespace queries {
-  export interface ArtifactInfo {
+  export interface ArtifactInfo extends Record<string, unknown> {
     installation_github_id: number
     artifact_id: Id<'artifacts'>
     visibility: string
-    entries: string[] | null
+    entries_json: string | null
   }
 }
