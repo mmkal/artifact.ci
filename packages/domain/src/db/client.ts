@@ -8,23 +8,20 @@ const _globalThis = globalThis as {
 }
 _globalThis._pgkit_clients ||= {}
 
-export const client = (_globalThis._pgkit_clients[config.client.connectionString] ||= createClient(
-  config.client.connectionString,
-  {
-    pgpOptions: {
-      initialize: {
-        noWarnings: new Date(process.env.SILENCE_PG_PROMISE_WARNINGS_UNTIL || 0) > new Date(),
-      },
-    },
-    wrapQueryFn: queryFn => {
-      return async query => {
-        const result = await queryFn(query)
-        logger.debug('queryResult', {query, result})
-        return result
-      }
+export const client = (_globalThis._pgkit_clients[config.client.connectionString] ||= createClient(config.client.connectionString, {
+  pgpOptions: {
+    initialize: {
+      noWarnings: new Date(process.env.SILENCE_PG_PROMISE_WARNINGS_UNTIL || 0) > new Date(),
     },
   },
-))
+  wrapQueryFn: queryFn => {
+    return async query => {
+      const result = await queryFn(query)
+      logger.debug('queryResult', {query, result})
+      return result
+    }
+  },
+}))
 
 export {sql} from 'pgkit/client'
 

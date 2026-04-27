@@ -43,12 +43,7 @@ export const getInstallationOctokit = async (installationId: number): Promise<Oc
 export const lookupRepoInstallation = async (owner: string, repo: string): Promise<{id: number} | null> => {
   const env = GithubAppEnv.parse(process.env)
   const jwt = await makeAppJwt(env.GITHUB_APP_ID, env.GITHUB_APP_PRIVATE_KEY)
-  console.log(
-    '[lookup] using GITHUB_APP_ID:',
-    env.GITHUB_APP_ID,
-    'private key length:',
-    env.GITHUB_APP_PRIVATE_KEY.length,
-  )
+  console.log('[lookup] using GITHUB_APP_ID:', env.GITHUB_APP_ID, 'private key length:', env.GITHUB_APP_PRIVATE_KEY.length)
   const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/installation`, {
     headers: githubHeaders(jwt),
   })

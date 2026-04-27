@@ -17,8 +17,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'artifact.ci',
-      description:
-        'Docs for publishing and viewing build artifacts without cargo-culting a full app framework into the docs stack.',
+      description: 'Docs for publishing and viewing build artifacts without cargo-culting a full app framework into the docs stack.',
       customCss: ['./src/styles/theme.css'],
       // Data-URI SVG with the moai emoji — matches the app's favicon and
       // avoids needing a real .ico file in apps/docs/public.
@@ -34,7 +33,9 @@ export default defineConfig({
       components: {
         SocialIcons: './src/components/SocialIcons.astro',
       },
-      social: [{icon: 'github', label: 'GitHub', href: 'https://github.com/mmkal/artifact.ci'}],
+      social: [
+        {icon: 'github', label: 'GitHub', href: 'https://github.com/mmkal/artifact.ci'},
+      ],
       // Priority order mirrors index.mdx's "Usage" section — autogenerate
       // would fall back to alphabetical, so items are listed explicitly.
       sidebar: [

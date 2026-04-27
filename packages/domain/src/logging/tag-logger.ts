@@ -88,10 +88,7 @@ export class TagLogger {
 
   memories() {
     if (this.context.logs.length === 0) return []
-    return [
-      'memories:',
-      ...this.context.logs.map(log => [log.timestamp.toISOString(), log.level, ...log.prefix, ...log.args]),
-    ]
+    return ['memories:', ...this.context.logs.map(log => [log.timestamp.toISOString(), log.level, ...log.prefix, ...log.args])]
   }
 
   try<T>(tag: string, fn: () => Promise<T>): Promise<T> {

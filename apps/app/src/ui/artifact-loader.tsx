@@ -1,6 +1,6 @@
-import type {PathParams} from '@artifact/domain/artifact/path-params'
 import {useMutation} from '@tanstack/react-query'
 import {useEffect, useRef, useState, Suspense} from 'react'
+import type {PathParams} from '@artifact/domain/artifact/path-params'
 import {FileList} from './file-list'
 
 type Update = {stage: string; message: string; onClick?: () => void}
@@ -22,7 +22,9 @@ export function ArtifactLoader(props: ArtifactLoaderProps) {
 
 function ArtifactLoaderInner(props: ArtifactLoaderProps) {
   const {reload} = props
-  const initialUpdates: Update[] = [{stage: 'welcome', message: 'Welcome, ' + (props.githubLogin || 'guest')}]
+  const initialUpdates: Update[] = [
+    {stage: 'welcome', message: 'Welcome, ' + (props.githubLogin || 'guest')},
+  ]
 
   const [updates, setUpdates] = useState<Update[]>(initialUpdates)
   const fileListRef = useRef<HTMLDivElement>(null)
@@ -91,7 +93,11 @@ function ArtifactLoaderInner(props: ArtifactLoaderProps) {
       </div>
       {mutation.isSuccess && (
         <div ref={fileListRef} className="browser__post-load">
-          <FileList names={mutation.data.records.map(r => r.entry_name)} params={props} artifactId={props.artifactId} />
+          <FileList
+            names={mutation.data.records.map(r => r.entry_name)}
+            params={props}
+            artifactId={props.artifactId}
+          />
         </div>
       )}
     </div>

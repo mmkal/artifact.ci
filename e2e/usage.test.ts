@@ -1,8 +1,8 @@
 import {expect, test, type Page} from '@playwright/test'
-import {execFile} from 'node:child_process'
 import {mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import path from 'node:path'
+import {execFile} from 'node:child_process'
 import {promisify} from 'node:util'
 
 const execFileAsync = promisify(execFile)
@@ -33,11 +33,7 @@ class ArtifactCiAppFixture {
 
   async assertInstalled() {
     await this.page.goto(`${installRepoUrl}/settings/installations`)
-    await expect
-      .poll(async () => ((await this.page.locator('body').textContent()) ?? '').includes('artifact.ci'), {
-        timeout: 30_000,
-      })
-      .toBe(true)
+    await expect.poll(async () => (await this.page.locator('body').textContent() ?? '').includes('artifact.ci'), {timeout: 30_000}).toBe(true)
     await expect(this.page.getByRole('link', {name: 'Configure'}).last()).toBeVisible({timeout: 30_000})
   }
 
@@ -299,9 +295,7 @@ test('showcase', async ({page}) => {
   await expect
     .poll(
       async () => {
-        const data = (await githubJson(`/repos/${repo.repoSlug}/commits/${run.head_sha}/check-runs`, {
-          method: 'GET',
-        })) as {
+        const data = (await githubJson(`/repos/${repo.repoSlug}/commits/${run.head_sha}/check-runs`, {method: 'GET'})) as {
           check_runs: CheckRun[]
         }
         checkRun = data.check_runs.find(c => c.name === tunnelHost) ?? null
@@ -370,9 +364,7 @@ async function waitForWorkflowSuccess(repo: WorkflowRepoFixture) {
         throw new Error(`Workflow ${repo.workflowName} completed with ${run.conclusion}`)
       }
 
-      const artifacts = (await githubJson(`/repos/${repo.repoSlug}/actions/runs/${run.id}/artifacts`, {
-        method: 'GET',
-      })) as {
+      const artifacts = (await githubJson(`/repos/${repo.repoSlug}/actions/runs/${run.id}/artifacts`, {method: 'GET'})) as {
         total_count: number
       }
       if (artifacts.total_count === 0) {

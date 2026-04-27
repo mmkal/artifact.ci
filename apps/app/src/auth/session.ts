@@ -1,6 +1,6 @@
 // @ts-nocheck
-import {redirect} from '@tanstack/react-router'
 import {createServerFn} from '@tanstack/react-start'
+import {redirect} from '@tanstack/react-router'
 
 export interface AppViewer {
   id: string

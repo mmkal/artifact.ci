@@ -1,6 +1,6 @@
 // @ts-nocheck
-import {toBreadcrumbs} from '@artifact/domain/artifact/path-params'
 import {createFileRoute} from '@tanstack/react-router'
+import {toBreadcrumbs} from '@artifact/domain/artifact/path-params'
 import {searchArtifacts} from '../artifacts/search'
 import {Crumbs} from '../ui/crumbs'
 import {ArtifactList} from '../ui/search-lists'
@@ -16,9 +16,7 @@ function RepoArtifacts() {
   return (
     <section className="page">
       <Crumbs trail={toBreadcrumbs(params)} />
-      <h1>
-        {params.owner}/{params.repo}
-      </h1>
+      <h1>{params.owner}/{params.repo}</h1>
       <ArtifactList data={data} />
     </section>
   )

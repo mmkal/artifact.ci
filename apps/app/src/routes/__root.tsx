@@ -2,9 +2,9 @@
 import {HeadContent, Outlet, Scripts, createRootRouteWithContext} from '@tanstack/react-router'
 import type {ReactNode} from 'react'
 import {getCurrentSession, type AppSessionSnapshot} from '../auth/session'
+import {LogoutButton} from '../ui/logout-button'
 import appCssRaw from '../styles.css?raw'
 import appCssUrl from '../styles.css?url'
-import {LogoutButton} from '../ui/logout-button'
 
 // djb2-ish — we just need something short and stable per file contents.
 const hashCss = (s: string) => {
@@ -84,13 +84,13 @@ function Document({children}: {children: ReactNode}) {
         <div className="shell">
           <div className="shell__frame">
             <nav className="shell__nav">
-              <a href="/" className="shell__brand-link">
-                🗿 artifact.ci
-              </a>
+              <a href="/" className="shell__brand-link">🗿 artifact.ci</a>
               <div className="shell__links">
                 {session.user ? (
                   <>
-                    <NavLink to="/account">{session.user.githubLogin || session.user.email || 'Account'}</NavLink>
+                    <NavLink to="/account">
+                      {session.user.githubLogin || session.user.email || 'Account'}
+                    </NavLink>
                     <LogoutButton />
                   </>
                 ) : (

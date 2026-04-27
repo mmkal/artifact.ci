@@ -60,20 +60,18 @@ export const searchRepos = createServerFn({method: 'GET'})
     let rows: RepoResult[]
     try {
       const res = await c.query<RepoResult>(
-        `
-          select
-                     r.owner,
-                     r.name as repo,
-                     gi.github_id::int as installation_github_id,
-                     (select count(1)::int from artifacts where repo_id = r.id) as artifact_count
-                   from repos r
-                   join github_installations gi on gi.id = r.installation_id
-                   where r.owner = $1
-                     and ($2::text is null or r.name = $2)
-                   group by r.id, gi.github_id
-                   order by r.owner, r.name
-                   limit 100
-        `,
+        `select
+           r.owner,
+           r.name as repo,
+           gi.github_id::int as installation_github_id,
+           (select count(1)::int from artifacts where repo_id = r.id) as artifact_count
+         from repos r
+         join github_installations gi on gi.id = r.installation_id
+         where r.owner = $1
+           and ($2::text is null or r.name = $2)
+         group by r.id, gi.github_id
+         order by r.owner, r.name
+         limit 100`,
         [owner, params.repo ?? null],
       )
       rows = res.rows
@@ -123,28 +121,26 @@ export const searchArtifacts = createServerFn({method: 'GET'})
     let rows: Row[]
     try {
       const res = await c.query<Row>(
-        `
-          select
-                     a.id as artifact_id,
-                     a.name,
-                     r.owner,
-                     r.name as repo,
-                     gi.github_id::int as installation_github_id,
-                     array_agg(ai.type || '/' || ai.value) as aggregated_identifiers,
-                     max(a.created_at)::text as created_at
-                   from artifacts a
-                   join artifact_identifiers ai on ai.artifact_id = a.id
-                   join repos r on r.id = a.repo_id
-                   join github_installations gi on gi.id = a.installation_id
-                   where r.owner = $1
-                     and ($2::text is null or r.name = $2)
-                     and ($3::text is null or ai.type = $3)
-                     and ($4::text is null or ai.value = $4)
-                     and ($5::text is null or a.name = $5)
-                   group by a.id, a.name, r.owner, r.name, gi.github_id
-                   order by max(a.created_at) desc, a.name
-                   limit 100
-        `,
+        `select
+           a.id as artifact_id,
+           a.name,
+           r.owner,
+           r.name as repo,
+           gi.github_id::int as installation_github_id,
+           array_agg(ai.type || '/' || ai.value) as aggregated_identifiers,
+           max(a.created_at)::text as created_at
+         from artifacts a
+         join artifact_identifiers ai on ai.artifact_id = a.id
+         join repos r on r.id = a.repo_id
+         join github_installations gi on gi.id = a.installation_id
+         where r.owner = $1
+           and ($2::text is null or r.name = $2)
+           and ($3::text is null or ai.type = $3)
+           and ($4::text is null or ai.value = $4)
+           and ($5::text is null or a.name = $5)
+         group by a.id, a.name, r.owner, r.name, gi.github_id
+         order by max(a.created_at) desc, a.name
+         limit 100`,
         [owner, params.repo ?? null, params.aliasType ?? null, params.identifier ?? null, params.artifactName ?? null],
       )
       rows = res.rows

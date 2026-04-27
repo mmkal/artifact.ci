@@ -1,6 +1,6 @@
 // @ts-nocheck
-import {toBreadcrumbs} from '@artifact/domain/artifact/path-params'
 import {createFileRoute} from '@tanstack/react-router'
+import {toBreadcrumbs} from '@artifact/domain/artifact/path-params'
 import {searchRepos} from '../artifacts/search'
 import {Crumbs} from '../ui/crumbs'
 import {RepoList} from '../ui/search-lists'

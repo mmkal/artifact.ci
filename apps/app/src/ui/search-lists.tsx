@@ -15,11 +15,7 @@ export function RepoList({data}: {data: ListResponse<RepoResult>}) {
   if (data.code === 'not_logged_in') {
     return (
       <div className="search__empty">
-        Not signed in.{' '}
-        <a href="/login" className="search__link">
-          Sign in
-        </a>{' '}
-        to see repositories the dev app can access.
+        Not signed in. <a href="/login" className="search__link">Sign in</a> to see repositories the dev app can access.
       </div>
     )
   }
@@ -27,10 +23,8 @@ export function RepoList({data}: {data: ListResponse<RepoResult>}) {
     return (
       <div className="search__empty">
         The GitHub App can&apos;t confirm access for this owner. Make sure{' '}
-        <a href="https://github.com/apps/artifact-ci" rel="noreferrer noopener" target="_blank">
-          the app
-        </a>{' '}
-        is installed on the repositories you want to list.
+        <a href="https://github.com/apps/artifact-ci" rel="noreferrer noopener" target="_blank">the app</a>
+        {' '}is installed on the repositories you want to list.
       </div>
     )
   }
@@ -44,9 +38,7 @@ export function RepoList({data}: {data: ListResponse<RepoResult>}) {
         {data.results.map(repo => (
           <li key={`${repo.owner}/${repo.repo}`}>
             <a href={toViewPath({owner: repo.owner, repo: repo.repo})} className="search__row">
-              <span className="search__title">
-                {repo.owner}/{repo.repo}
-              </span>
+              <span className="search__title">{repo.owner}/{repo.repo}</span>
               <span className="search__meta">
                 artifacts: <code>{repo.artifact_count}</code>
               </span>
@@ -62,11 +54,7 @@ export function ArtifactList({data}: {data: ListResponse<ArtifactResult>}) {
   if (data.code === 'not_logged_in') {
     return (
       <div className="search__empty">
-        Not signed in.{' '}
-        <a href="/login" className="search__link">
-          Sign in
-        </a>{' '}
-        to list artifacts.
+        Not signed in. <a href="/login" className="search__link">Sign in</a> to list artifacts.
       </div>
     )
   }
