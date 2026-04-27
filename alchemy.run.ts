@@ -18,8 +18,9 @@ const DOCS_DEV_PORT = 43_112
 // BETTER_AUTH_URL directly and doesn't want the dev tunnel URL baked
 // into its worker vars.
 const TUNNEL_HOSTNAME = process.env.ARTIFACTCI_TUNNEL_HOSTNAME?.replace(/^https?:\/\//, '') || 'artifactci.dev'
-const STAGE = process.argv.find(a => a.startsWith('--stage='))?.slice('--stage='.length)
-  ?? (process.argv.includes('--stage') ? process.argv[process.argv.indexOf('--stage') + 1] : undefined)
+const STAGE =
+  process.argv.find(a => a.startsWith('--stage='))?.slice('--stage='.length) ??
+  (process.argv.includes('--stage') ? process.argv[process.argv.indexOf('--stage') + 1] : undefined)
 if (STAGE !== 'prod') {
   process.env.PUBLIC_DEV_URL ||= `https://${TUNNEL_HOSTNAME}`
 }
@@ -39,8 +40,7 @@ const app = await alchemy('artifact-ci', {
 const normalizePrivateKey = (value: string | undefined) => {
   if (!value) return ''
   if (value.includes('BEGIN PRIVATE KEY')) return value
-  return createPrivateKey({key: value, format: 'pem'})
-    .export({format: 'pem', type: 'pkcs8'}) as string
+  return createPrivateKey({key: value, format: 'pem'}).export({format: 'pem', type: 'pkcs8'}) as string
 }
 
 const passthroughEnv = (names: string[]): Record<string, string> => {
@@ -141,10 +141,7 @@ if (app.phase === 'up' && app.stage !== 'prod' && process.env.ARTIFACTCI_DEV_TUN
   const tunnel = await Tunnel('dev-tunnel', {
     name: `${app.name}-${app.stage}-dev-tunnel`,
     adopt: true,
-    ingress: [
-      {hostname, service: `http://127.0.0.1:1337`},
-      {service: 'http_status:404'},
-    ],
+    ingress: [{hostname, service: `http://127.0.0.1:1337`}, {service: 'http_status:404'}],
   })
   await writeFile('.alchemy/tunnel-token.txt', tunnel.token.unencrypted)
   await writeFile('.alchemy/tunnel-url.txt', `https://${hostname}`)

@@ -1,9 +1,9 @@
+import {toAppArtifactPath} from '@artifact/domain/artifact/path-params'
+import {getInstallationOctokit, lookupRepoInstallation} from '@artifact/domain/github/installations'
+import {AliasType, UploadRequest, UploadResponse} from '@artifact/domain/github/upload-types'
+import {logger} from '@artifact/domain/logging/tag-logger'
 import {Client} from 'pg'
 import {fromError} from 'zod-validation-error'
-import {AliasType, UploadRequest, UploadResponse} from '@artifact/domain/github/upload-types'
-import {getInstallationOctokit, lookupRepoInstallation} from '@artifact/domain/github/installations'
-import {logger} from '@artifact/domain/logging/tag-logger'
-import {toAppArtifactPath} from '@artifact/domain/artifact/path-params'
 
 async function withPg<T>(fn: (c: Client) => Promise<T>): Promise<T> {
   const c = new Client({connectionString: process.env.DATABASE_URL || process.env.PGKIT_CONNECTION_STRING})
@@ -84,15 +84,9 @@ async function handleUploadRequestInner(request: Request): Promise<Response> {
   // row id, so we re-fetch the ciphertext from vault.secrets to keep the
   // token format unchanged for consumers.
   const tokenRows = await withPg(async c => {
-    const idRes = await c.query<{id: string}>(
-      `select vault.create_secret($1) as id`,
-      [owner],
-    )
+    const idRes = await c.query<{id: string}>(`select vault.create_secret($1) as id`, [owner])
     const id = idRes.rows[0].id
-    const secretRes = await c.query<{secret: string | null}>(
-      `select secret from vault.secrets where id = $1`,
-      [id],
-    )
+    const secretRes = await c.query<{secret: string | null}>(`select secret from vault.secrets where id = $1`, [id])
     return secretRes.rows
   })
   console.log('[upload] step 7/7 respond')
@@ -124,17 +118,21 @@ async function ensureInstallationAndRepo(owner: string, repo: string) {
 
   await withPg(async c => {
     await c.query(
-      `insert into github_installations (github_id)
-       values ($1)
-       on conflict (github_id) do update set updated_at = current_timestamp`,
+      `
+        insert into github_installations (github_id)
+               values ($1)
+               on conflict (github_id) do update set updated_at = current_timestamp
+      `,
       [installation.id],
     )
     await c.query(
-      `insert into repos (owner, name, installation_id)
-       values ($1, $2, (select id from github_installations where github_id = $3))
-       on conflict (owner, name) do update set
-         installation_id = excluded.installation_id,
-         updated_at = current_timestamp`,
+      `
+        insert into repos (owner, name, installation_id)
+               values ($1, $2, (select id from github_installations where github_id = $3))
+               on conflict (owner, name) do update set
+                 installation_id = excluded.installation_id,
+                 updated_at = current_timestamp
+      `,
       [owner, repo, installation.id],
     )
   })
@@ -177,32 +175,36 @@ export const insertArtifactRecord = async ({
 
   return withPg(async c => {
     const artifactRes = await c.query<InsertArtifactRow>(
-      `with repo as (select * from repos where owner = $1 and name = $2)
-       insert into artifacts (repo_id, name, github_id, installation_id, visibility)
-       select
-         repo.id as repo_id,
-         $3 as name,
-         $4 as github_id,
-         (select id from github_installations where github_id = $5) as installation_id,
-         coalesce($6, repo.default_visibility) as visibility
-       from repo
-       on conflict (repo_id, name, github_id)
-         do update set
-           installation_id = excluded.installation_id,
-           visibility = coalesce($6, artifacts.visibility),
-           updated_at = excluded.updated_at
-       returning *`,
+      `
+        with repo as (select * from repos where owner = $1 and name = $2)
+               insert into artifacts (repo_id, name, github_id, installation_id, visibility)
+               select
+                 repo.id as repo_id,
+                 $3 as name,
+                 $4 as github_id,
+                 (select id from github_installations where github_id = $5) as installation_id,
+                 coalesce($6, repo.default_visibility) as visibility
+               from repo
+               on conflict (repo_id, name, github_id)
+                 do update set
+                   installation_id = excluded.installation_id,
+                   visibility = coalesce($6, artifacts.visibility),
+                   updated_at = excluded.updated_at
+               returning *
+      `,
       [owner, repo, a.name, a.id, installation.id, a.visibility || null],
     )
     const dbArtifact = artifactRes.rows[0]
 
     const payload = identifiers.map(i => ({artifact_id: dbArtifact.id, type: i.type, value: i.value}))
     const identifierRes = await c.query<InsertIdentifierRow>(
-      `insert into artifact_identifiers (artifact_id, type, value)
-       select artifact_id, type, value
-       from jsonb_populate_recordset(null::artifact_identifiers, $1::jsonb)
-       on conflict (artifact_id, type, value) do update set updated_at = current_timestamp
-       returning *`,
+      `
+        insert into artifact_identifiers (artifact_id, type, value)
+               select artifact_id, type, value
+               from jsonb_populate_recordset(null::artifact_identifiers, $1::jsonb)
+               on conflict (artifact_id, type, value) do update set updated_at = current_timestamp
+               returning *
+      `,
       [JSON.stringify(payload)],
     )
 

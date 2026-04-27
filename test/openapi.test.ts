@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import {expectTypeOf} from 'expect-type'
 import {createProxyClient} from '@artifact/domain/openapi/client'
 import {paths as supabaseStoragePaths} from '@artifact/domain/openapi/generated/supabase-storage'
+import {expectTypeOf} from 'expect-type'
 
 const test = (title: string, fn: () => void | Promise<void>) => {
   // return fn()

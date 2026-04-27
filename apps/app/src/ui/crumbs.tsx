@@ -11,9 +11,7 @@ export function Crumbs({trail}: {trail: Crumb[]}) {
           return (
             <Fragment key={c.path}>
               {i > 0 && <li className="crumbs__sep">/</li>}
-              <li>
-                {last ? <span className="crumbs__current">{c.label}</span> : <a href={c.path}>{c.label}</a>}
-              </li>
+              <li>{last ? <span className="crumbs__current">{c.label}</span> : <a href={c.path}>{c.label}</a>}</li>
             </Fragment>
           )
         })}

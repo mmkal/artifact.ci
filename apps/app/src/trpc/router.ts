@@ -1,14 +1,14 @@
+import {getEntrypoints} from '@artifact/domain/artifact/entrypoints'
+import {Id} from '@artifact/domain/db/client'
+import {checkCanAccess} from '@artifact/domain/github/access'
+import {getInstallationOctokit} from '@artifact/domain/github/installations'
+import {logger} from '@artifact/domain/logging/tag-logger'
+import {supabaseStorageServiceRoleClient} from '@artifact/domain/storage/supabase'
 import {initTRPC, TRPCError} from '@trpc/server'
 import mime from 'mime'
 import pMap from 'p-suite/p-map'
 import {Client} from 'pg'
 import {z} from 'zod'
-import {Id} from '@artifact/domain/db/client'
-import {getEntrypoints} from '@artifact/domain/artifact/entrypoints'
-import {checkCanAccess} from '@artifact/domain/github/access'
-import {getInstallationOctokit} from '@artifact/domain/github/installations'
-import {logger} from '@artifact/domain/logging/tag-logger'
-import {supabaseStorageServiceRoleClient} from '@artifact/domain/storage/supabase'
 
 async function withPg<T>(fn: (c: Client) => Promise<T>): Promise<T> {
   const c = new Client({connectionString: process.env.DATABASE_URL || process.env.PGKIT_CONNECTION_STRING})
@@ -56,10 +56,12 @@ export const artifactAccessProcedure = unmodifiedTRPC.procedure
         const uploadToken = ctx.getHeader('artifactci-upload-token')
         if (uploadToken) {
           const {rows} = await c.query<{decrypted_secret: string | null}>(
-            `select decrypted_secret
-             from vault.decrypted_secrets
-             where secret = $1
-               and created_at > now() - interval '10 minutes'`,
+            `
+              select decrypted_secret
+                           from vault.decrypted_secrets
+                           where secret = $1
+                             and created_at > now() - interval '10 minutes'
+            `,
             [uploadToken],
           )
           githubLogin = rows[0]?.decrypted_secret ?? undefined
@@ -69,11 +71,13 @@ export const artifactAccessProcedure = unmodifiedTRPC.procedure
         throw new TRPCError({code: 'UNAUTHORIZED', message: 'not authenticated'})
       }
       const {rows: artifactRows} = await c.query<ArtifactRow>(
-        `select a.*, gi.github_id as installation_github_id, r.owner, r.name as repo
-         from artifacts a
-         join github_installations gi on gi.id = a.installation_id
-         join repos r on r.id = a.repo_id
-         where a.id = $1`,
+        `
+          select a.*, gi.github_id as installation_github_id, r.owner, r.name as repo
+                   from artifacts a
+                   join github_installations gi on gi.id = a.installation_id
+                   join repos r on r.id = a.repo_id
+                   where a.id = $1
+        `,
         [input.artifactId],
       )
       if (!artifactRows[0]) {
@@ -183,32 +187,34 @@ export const appRouter = router({
 
       const records = await withPg(async c => {
         const {rows} = await c.query<{entry_name: string; aliases: string[]; storage_object_id: string}>(
-        `insert into artifact_entries (
-           artifact_id,
-           entry_name,
-           aliases,
-           storage_object_id
-         )
-         select
-           $1 as artifact_id,
-           entries.entry_name,
-           entries.aliases,
-           (
-             select id
-             from storage.objects
-             where name = entries.storage_key
-           ) as storage_object_id
-         from jsonb_to_recordset($2::jsonb) as entries(
-           entry_name text,
-           aliases text[],
-           storage_key text
-         )
-         on conflict (artifact_id, entry_name) do update set
-           entry_name = excluded.entry_name
-         returning entry_name, aliases, storage_object_id`,
-        [input.artifactId, JSON.stringify(payload)],
-      )
-      return rows
+          `
+            insert into artifact_entries (
+                       artifact_id,
+                       entry_name,
+                       aliases,
+                       storage_object_id
+                     )
+                     select
+                       $1 as artifact_id,
+                       entries.entry_name,
+                       entries.aliases,
+                       (
+                         select id
+                         from storage.objects
+                         where name = entries.storage_key
+                       ) as storage_object_id
+                     from jsonb_to_recordset($2::jsonb) as entries(
+                       entry_name text,
+                       aliases text[],
+                       storage_key text
+                     )
+                     on conflict (artifact_id, entry_name) do update set
+                       entry_name = excluded.entry_name
+                     returning entry_name, aliases, storage_object_id
+          `,
+          [input.artifactId, JSON.stringify(payload)],
+        )
+        return rows
       })
 
       return {
@@ -226,26 +232,28 @@ export const appRouter = router({
         object_names: string[] | null
         deleted_entries_count: number
       }>(
-      `with deleted_entries as (
-         delete from artifact_entries where artifact_id = $1
-         returning *
-       ),
-       storage_objects as (
-         select name
-         from storage.objects
-         where id = any(select storage_object_id from deleted_entries)
-       )
-       select
-         artifacts.id,
-         r.owner,
-         r.name as repo,
-         (select array_agg(name) from storage_objects) as object_names,
-         (select count(*)::int from deleted_entries) as deleted_entries_count
-       from artifacts
-       join repos r on r.id = artifacts.repo_id
-       where artifacts.id = $1`,
-      [input.artifactId],
-    )
+        `
+          with deleted_entries as (
+                   delete from artifact_entries where artifact_id = $1
+                   returning *
+                 ),
+                 storage_objects as (
+                   select name
+                   from storage.objects
+                   where id = any(select storage_object_id from deleted_entries)
+                 )
+                 select
+                   artifacts.id,
+                   r.owner,
+                   r.name as repo,
+                   (select array_agg(name) from storage_objects) as object_names,
+                   (select count(*)::int from deleted_entries) as deleted_entries_count
+                 from artifacts
+                 join repos r on r.id = artifacts.repo_id
+                 where artifacts.id = $1
+        `,
+        [input.artifactId],
+      )
       return rows[0]
     })
 

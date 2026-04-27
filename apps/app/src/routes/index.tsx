@@ -19,7 +19,8 @@ function AppHomePage() {
       <ArtifactLookup />
       {session.user ? (
         <p>
-          Signed in as <code>{session.user.githubLogin || session.user.email || session.user.id}</code>. <a href="/account">Account</a>.
+          Signed in as <code>{session.user.githubLogin || session.user.email || session.user.id}</code>.{' '}
+          <a href="/account">Account</a>.
         </p>
       ) : (
         <p>

@@ -1,6 +1,6 @@
 // @ts-nocheck
-import {createFileRoute, redirect} from '@tanstack/react-router'
 import {toBreadcrumbs} from '@artifact/domain/artifact/path-params'
+import {createFileRoute, redirect} from '@tanstack/react-router'
 import {loadArtifactForBrowser, type LoadArtifactResult} from '../artifacts/load'
 import {ArtifactLoader} from '../ui/artifact-loader'
 import {Crumbs} from '../ui/crumbs'

@@ -76,7 +76,10 @@ export async function clientUpload({
     const result = await client.createUploadTokens.mutate({artifactId, entries: chunk})
     uploads.push(...result.tokens)
     supabaseUrl = result.supabaseUrl
-    onProgress('preparing', `Getting upload tokens (${Math.min(i + SIGNING_CHUNK, allEntries.length)}/${allEntries.length})`)
+    onProgress(
+      'preparing',
+      `Getting upload tokens (${Math.min(i + SIGNING_CHUNK, allEntries.length)}/${allEntries.length})`,
+    )
   }
 
   onProgress('uploading', 'Uploading files')
@@ -92,10 +95,13 @@ export async function clientUpload({
         onProgress('uploaded_file', message() + ' (already uploaded)')
         return
       }
-      await storage.object.upload.sign.bucketName('artifact_files').wildcard(item.artifactFullPath).put({
-        query: {token: item.token},
-        content: {[item.contentType]: await entries[item.entry].blob()},
-      })
+      await storage.object.upload.sign
+        .bucketName('artifact_files')
+        .wildcard(item.artifactFullPath)
+        .put({
+          query: {token: item.token},
+          content: {[item.contentType]: await entries[item.entry].blob()},
+        })
       onProgress('uploaded_file', message())
     },
     {concurrency: 10},

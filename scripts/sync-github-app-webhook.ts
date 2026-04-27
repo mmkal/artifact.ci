@@ -8,8 +8,8 @@
  * Calls `PATCH /app/hook/config` via the app's JWT — no user token needed.
  */
 import 'dotenv/config'
-import {readFile} from 'node:fs/promises'
 import {createSign} from 'node:crypto'
+import {readFile} from 'node:fs/promises'
 
 async function main() {
   const argUrl = process.argv[2]
@@ -51,8 +51,7 @@ function makeAppJwt(appId: string, privateKey: string) {
   const now = Math.floor(Date.now() / 1000)
   const header = {alg: 'RS256', typ: 'JWT'}
   const payload = {iat: now - 60, exp: now + 9 * 60, iss: appId}
-  const encode = (value: object) =>
-    Buffer.from(JSON.stringify(value)).toString('base64url')
+  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
   const signingInput = `${encode(header)}.${encode(payload)}`
   const signature = createSign('RSA-SHA256').update(signingInput).sign(privateKey).toString('base64url')
   return `${signingInput}.${signature}`
@@ -73,7 +72,7 @@ async function ghRequest(method: string, path: string, jwt: string, body?: unkno
     const text = await response.text()
     throw new Error(`GitHub ${method} ${path} failed: ${response.status} ${text}`)
   }
-  return (await response.json())
+  return await response.json()
 }
 
 main().catch(error => {
