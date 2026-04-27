@@ -74,6 +74,10 @@ const appBindings = passthroughEnv([
 export const appWorker = await TanStackStart('app', {
   cwd: './apps/app',
   name: `${app.name}-${app.stage}-app`,
+  // Re-deploy on top of any worker that already exists at this name.
+  // Without adopt:true a partial first deploy leaves CF holding the
+  // worker and the next attempt fails with "already exists".
+  adopt: true,
   entrypoint: 'dist/server/index.js',
   build: {
     command: 'vite build',
@@ -87,6 +91,7 @@ export const appWorker = await TanStackStart('app', {
 export const docsWorker = await Website('docs', {
   cwd: './apps/docs',
   name: `${app.name}-${app.stage}-docs`,
+  adopt: true,
   build: {
     command: 'astro build',
   },
@@ -101,6 +106,7 @@ export const docsWorker = await Website('docs', {
 
 export const frontdoorWorker = await Worker('frontdoor', {
   name: `${app.name}-${app.stage}-frontdoor`,
+  adopt: true,
   entrypoint: './apps/frontdoor/src/index.ts',
   compatibility: 'node',
   url: true,
