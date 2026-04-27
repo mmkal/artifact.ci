@@ -19,6 +19,17 @@ export default defineConfig({
       title: 'artifact.ci',
       description: 'Docs for publishing and viewing build artifacts without cargo-culting a full app framework into the docs stack.',
       customCss: ['./src/styles/theme.css'],
+      // Data-URI SVG with the moai emoji — matches the app's favicon and
+      // avoids needing a real .ico file in apps/docs/public.
+      head: [
+        {
+          tag: 'link',
+          attrs: {
+            rel: 'icon',
+            href: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗿</text></svg>',
+          },
+        },
+      ],
       components: {
         SocialIcons: './src/components/SocialIcons.astro',
       },
