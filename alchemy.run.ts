@@ -37,6 +37,16 @@ const artifactDb = await D1Database('artifact-db', {
   migrationsDir: './migrations',
   adopt: true,
 })
+// Browser PUTs to presigned R2 URLs (lazy-rebuild path) require a CORS
+// allow-origin rule on the bucket — without it the preflight fails and
+// the upload returns "Failed to fetch". Eager mode runs in Node so it's
+// unaffected, which is why the e2e showcase didn't catch this. Allow the
+// app's own origins per stage.
+const r2AllowedOrigins =
+  app.stage === 'prod'
+    ? ['https://artifact.ci', 'https://www.artifact.ci']
+    : [`https://${TUNNEL_HOSTNAME}`, 'http://localhost:1337']
+
 const artifactBlobs = await R2Bucket('artifact-blobs', {
   name: `artifact-ci-${app.stage}-blobs`,
   adopt: true,
@@ -45,6 +55,17 @@ const artifactBlobs = await R2Bucket('artifact-blobs', {
   // to real CF R2 in dev too — the bucket is stage-scoped so dev never
   // touches prod's bucket.
   dev: {remote: true},
+  cors: [
+    {
+      allowed: {
+        methods: ['PUT', 'GET', 'HEAD'],
+        origins: r2AllowedOrigins,
+        headers: ['*'],
+      },
+      exposeHeaders: ['ETag'],
+      maxAgeSeconds: 3600,
+    },
+  ],
 })
 
 /**
