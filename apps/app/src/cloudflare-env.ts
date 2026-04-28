@@ -67,4 +67,4 @@ export const getAppEnv = () => {
 
 export const getDb = (): AsyncClient<D1DatabaseLike> => createD1Client(getAppEnv().ARTIFACT_DB)
 
-export const parseJsonStringArray = (value: string | null): string[] => value ? JSON.parse(value) : []
+export const parseJsonStringArray = (value: string | null): string[] => (value ? JSON.parse(value) : [])

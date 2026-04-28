@@ -46,12 +46,16 @@ export async function resolveArtifactForEdge(
     },
     async checkAccess({installationGithubId, artifactId, owner, repo, githubLogin}) {
       const octokit = await getInstallationOctokit(installationGithubId)
-      return checkCanAccess(octokit, {
-        owner,
-        repo,
-        username: githubLogin,
-        artifactId,
-      }, {db})
+      return checkCanAccess(
+        octokit,
+        {
+          owner,
+          repo,
+          username: githubLogin,
+          artifactId,
+        },
+        {db},
+      )
     },
     async findStoragePathname({artifactId, entry}) {
       const rows = await db.sql.all<queries.DbFile>`

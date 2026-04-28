@@ -1,10 +1,10 @@
-import {fromError} from 'zod-validation-error'
+import {captureServerEvent} from '@artifact/domain/analytics/posthog-server'
+import {toAppArtifactPath} from '@artifact/domain/artifact/path-params'
 import {AppWebhookEvent} from '@artifact/domain/github/events-types'
 import {getInstallationOctokit} from '@artifact/domain/github/installations'
 import {validateGithubWebhook} from '@artifact/domain/github/webhook-validator'
 import {logger} from '@artifact/domain/logging/tag-logger'
-import {captureServerEvent} from '@artifact/domain/analytics/posthog-server'
-import {toAppArtifactPath} from '@artifact/domain/artifact/path-params'
+import {fromError} from 'zod-validation-error'
 import {getDb} from '../cloudflare-env'
 import {insertArtifactRecord, storeInstallationAndRepo} from './upload'
 
@@ -47,9 +47,11 @@ async function handleEvent(request: Request, event: AppWebhookEvent) {
       const [owner, name] = r.full_name.split('/')
       return {owner, name}
     })
-    const createdRepos = await Promise.all(addedRepos.map(repo => {
-      return storeInstallationAndRepo({owner: repo.owner, repo: repo.name, installationId: event.installation.id})
-    }))
+    const createdRepos = await Promise.all(
+      addedRepos.map(repo => {
+        return storeInstallationAndRepo({owner: repo.owner, repo: repo.name, installationId: event.installation.id})
+      }),
+    )
     captureServerEvent({
       distinctId: event.installation.id.toString(),
       event: 'installation_created',

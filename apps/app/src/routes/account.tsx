@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {createFileRoute} from '@tanstack/react-router'
-import {requireCurrentSession} from '../auth/session'
 import {searchRepos} from '../artifacts/search'
+import {requireCurrentSession} from '../auth/session'
 import {LogoutButton} from '../ui/logout-button'
 import {RepoList} from '../ui/search-lists'
 
