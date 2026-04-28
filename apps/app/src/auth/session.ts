@@ -37,7 +37,7 @@ export const getCurrentSession = createServerFn({method: 'GET'}).handler(async (
       name: session.user.name,
       email: session.user.email,
       image: session.user.image,
-      githubLogin: 'githubLogin' in session.user ? (session.user.githubLogin as string | null | undefined) : undefined,
+      githubLogin: 'githubLogin' in session.user ? session.user.githubLogin : undefined,
     },
   } satisfies AppSessionSnapshot
 })
