@@ -8,9 +8,17 @@ package-lock.json
 yarn.lock
 .sst
 .next
+.alchemy
+**/.alchemy
+.sqlfu
+.astro
+**/.astro
+.wrangler
+**/.wrangler
 
 .env
 .env.*
+!.env.*.example
 .DS_Store
 .eslint-config-inspector
 test-results
@@ -20,3 +28,4 @@ playwright/.auth
 *.log
 playwriter*
 *.tsbuildinfo
+.claude/

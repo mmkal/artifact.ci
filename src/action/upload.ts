@@ -3,15 +3,13 @@ import {getInput, isDebug as isDebugCore, setFailed, setOutput} from '@actions/c
 import * as github from '@actions/github'
 import * as glob from '@actions/glob'
 import {HttpClient} from '@actions/http-client'
-import {createTRPCClient, httpLink} from '@trpc/client'
+import {clientUpload} from '@artifact/domain/artifact/client-upload'
+import {UploadRequest, UploadResponse} from '@artifact/domain/github/upload-types'
+import {logger} from '@artifact/domain/logging/tag-logger'
 import {readFile, stat} from 'fs/promises'
 import * as path from 'path'
 import {z} from 'zod'
 import {EventType} from './types'
-import {clientUpload} from '~/app/artifact/view/[owner]/[repo]/[aliasType]/[identifier]/[artifactName]/client-upload'
-import {UploadRequest, UploadResponse} from '~/app/github/upload/types'
-import {AppRouter} from '~/server/trpc'
-import {logger} from '~/tag-logger'
 
 async function main() {
   const event = JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH!, {encoding: 'utf8'})) as EventType
@@ -53,13 +51,13 @@ async function main() {
     compressionLevel: z.coerce.number().int().min(0).max(9),
     overwrite: StringyBoolean,
     includeHiddenFiles: StringyBoolean,
-    artifactciOrigin: z
-      .string()
-      .default(
-        env.GITHUB_REPOSITORY === 'mmkal/artifact.ci' && branchName !== 'main'
-          ? `https://artifactci-git-${branchName.replaceAll(/\W/g, '-')}-mmkals-projects.vercel.app`
-          : 'https://www.artifact.ci',
-      ),
+    // Always defaults to prod. The old branch-aware Vercel-preview URL
+    // ("artifactci-git-${branch}-mmkals-projects.vercel.app") was only
+    // valid when prod was hosted on Vercel and Vercel auto-deployed
+    // every branch. Now that prod is on Cloudflare and the Vercel
+    // project is abandoned, those preview URLs return HTML 404s and
+    // crash the action when it tries to JSON.parse the response.
+    artifactciOrigin: z.string().default('https://www.artifact.ci'),
     artifactciVisibility: z.enum(['private', 'public']).optional(),
     artifactciAliasTypes: z
       .string()
@@ -158,14 +156,8 @@ async function main() {
         onProgress(stage, message) {
           logger.info(`${stage}: ${message}`)
         },
-        trpcClient: createTRPCClient<AppRouter>({
-          links: [
-            httpLink({
-              url: inputs.artifactciOrigin + '/api/trpc',
-              headers: {'artifactci-upload-token': result.uploadToken},
-            }),
-          ],
-        }),
+        trpcUrl: inputs.artifactciOrigin + '/api/trpc',
+        uploadToken: result.uploadToken,
       })
 
       const {entrypoints} = records.entrypoints

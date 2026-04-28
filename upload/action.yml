@@ -50,4 +50,4 @@ inputs:
     default: "lazy"
 runs:
   using: node20
-  main: ../bundled-action/upload.min.js
+  main: ../bundled-action/upload.min.cjs

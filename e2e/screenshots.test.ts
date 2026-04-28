@@ -1,12 +1,14 @@
 import {
   expect,
-  PageAssertionsToHaveScreenshotOptions,
   test as baseTest,
-  Page as BasePage,
-  TestInfo,
+  type PageAssertionsToHaveScreenshotOptions,
+  type Page as BasePage,
+  type TestInfo,
 } from '@playwright/test'
 import {copyFile} from 'node:fs/promises'
 import {setTimeout} from 'node:timers/promises'
+
+const hasScreenshotEnv = Boolean(process.env.RUN_BASE_URL && process.env.GH_TOKEN)
 
 type Page = BasePage & {snapshotScreen: (options?: PageAssertionsToHaveScreenshotOptions) => Promise<void>}
 const test = baseTest.extend<{page: Page}>({
@@ -25,7 +27,10 @@ const test = baseTest.extend<{page: Page}>({
 
 const runBaseUrl = process.env.RUN_BASE_URL
 
+test.skip(!hasScreenshotEnv, 'screenshot tests need RUN_BASE_URL and GH_TOKEN')
+
 test.beforeEach(async ({context}) => {
+  if (!hasScreenshotEnv) return
   await context.addCookies([
     {
       name: 'gh_token',
@@ -37,6 +42,7 @@ test.beforeEach(async ({context}) => {
 })
 
 test.afterEach(async ({page: _page}, testInfo) => {
+  if (testInfo.status !== 'passed') return
   const name = testInfo.title.split(' ')[1]
   await copyFile(testInfo.snapshotPath(`${name}.png`), `public/reports/${name}.png`)
 })

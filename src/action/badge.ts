@@ -1,17 +1,15 @@
 import {DefaultArtifactClient} from '@actions/artifact'
 import {getInput, isDebug as isDebugCore, setFailed, setOutput} from '@actions/core'
 import {HttpClient} from '@actions/http-client'
-import {createTRPCClient, httpLink} from '@trpc/client'
+import {clientUpload} from '@artifact/domain/artifact/client-upload'
+import {UploadRequest, UploadResponse} from '@artifact/domain/github/upload-types'
+import {logger} from '@artifact/domain/logging/tag-logger'
 import {makeBadge} from 'badge-maker'
 import * as fs from 'fs/promises'
 import {readFile} from 'fs/promises'
 import * as path from 'path'
 import {z} from 'zod'
 import {EventType} from './types'
-import {clientUpload} from '~/app/artifact/view/[owner]/[repo]/[aliasType]/[identifier]/[artifactName]/client-upload'
-import {UploadRequest, UploadResponse} from '~/app/github/upload/types'
-import {AppRouter} from '~/server/trpc'
-import {logger} from '~/tag-logger'
 
 async function main() {
   const event = JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH!, {encoding: 'utf8'})) as EventType
@@ -42,11 +40,9 @@ async function main() {
 
   logger.debug({env, branchName})
 
-  let defaultBackend = 'https://www.artifact.ci'
-  if (env.GITHUB_REPOSITORY === 'mmkal/artifact.ci' && branchName !== 'main') {
-    // use vercel preview url - this isn't an exact match for their slugify algorithm but for simple branch names it works: https://github.com/orgs/vercel/discussions/472
-    defaultBackend = `https://artifactci-git-${branchName.replaceAll(/\W/g, '-')}-mmkals-projects.vercel.app`
-  }
+  // Always default to prod. The previous Vercel-preview URL fallback is
+  // dead since prod moved to Cloudflare; same fix applied to upload.ts.
+  const defaultBackend = 'https://www.artifact.ci'
   /** camelCase version of the inputs in action.yml. Note that *most* don't have defaults because the defaults are defined in action.yml */
   const Inputs = z.object({
     name: z
@@ -141,14 +137,8 @@ async function main() {
     const records = await clientUpload({
       artifactId: result.artifactId,
       onProgress: (stage, message) => logger.debug(`${stage}: ${message}`),
-      trpcClient: createTRPCClient<AppRouter>({
-        links: [
-          httpLink({
-            url: artifactciOrigin + '/api/trpc',
-            headers: {'artifactci-upload-token': result.uploadToken},
-          }),
-        ],
-      }),
+      trpcUrl: artifactciOrigin + '/api/trpc',
+      uploadToken: result.uploadToken,
     })
     logger.debug('clientUpload done', records)
 

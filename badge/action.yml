@@ -31,4 +31,4 @@ inputs:
     type: string
 runs:
   using: node20
-  main: ../bundled-action/badge.min.js
+  main: ../bundled-action/badge.min.cjs

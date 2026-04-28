@@ -1,0 +1,9 @@
+{
+  "name": "@artifact/docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build"
+  }
+}

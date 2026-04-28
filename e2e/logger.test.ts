@@ -1,5 +1,5 @@
 import {expect, test} from '@playwright/test'
-import {TagLogger} from '../src/tag-logger'
+import {TagLogger} from '../packages/domain/src/logging/tag-logger'
 
 const createLogger = () => {
   const argses: any[][] = []

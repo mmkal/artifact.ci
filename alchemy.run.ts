@@ -1,0 +1,197 @@
+import {createPrivateKey} from 'node:crypto'
+
+// Pin the Cloudflare account wrangler + alchemy talk to. Can be overridden
+// in .env for deploys that need a different account.
+process.env.CLOUDFLARE_PROFILE ||= 'mishagmail'
+
+import {writeFile} from 'node:fs/promises'
+import alchemy from 'alchemy'
+import {AccountId, D1Database, R2Bucket, TanStackStart, Tunnel, Website, Worker} from 'alchemy/cloudflare'
+
+const APP_DEV_PORT = 43_111
+const DOCS_DEV_PORT = 43_112
+
+// Tunnel hostname is deterministic, so we can seed PUBLIC_DEV_URL
+// before worker bindings evaluate. Otherwise the app worker binds an
+// empty string and Better Auth falls through to whatever stale URL
+// happens to be in .env. Only meaningful in dev; prod pins
+// BETTER_AUTH_URL directly and doesn't want the dev tunnel URL baked
+// into its worker vars.
+const TUNNEL_HOSTNAME = process.env.ARTIFACTCI_TUNNEL_HOSTNAME?.replace(/^https?:\/\//, '') || 'artifactci.dev'
+const STAGE =
+  process.argv.find(a => a.startsWith('--stage='))?.slice('--stage='.length) ??
+  (process.argv.includes('--stage') ? process.argv[process.argv.indexOf('--stage') + 1] : undefined)
+if (STAGE !== 'prod') {
+  process.env.PUBLIC_DEV_URL ||= `https://${TUNNEL_HOSTNAME}`
+}
+
+const app = await alchemy('artifact-ci', {
+  // Required to serialize the Tunnel resource's run token (a Secret) into
+  // .alchemy/artifact-ci state. Any stable local value works — state is
+  // gitignored and machine-local.
+  password: process.env.ALCHEMY_PASSWORD || 'artifact-ci-dev-state-password',
+})
+
+const accountId = await AccountId()
+const artifactDb = await D1Database('artifact-db', {
+  name: `artifact-ci-${app.stage}-db`,
+  migrationsDir: './migrations',
+  adopt: true,
+})
+// Browser PUTs to presigned R2 URLs (lazy-rebuild path) require a CORS
+// allow-origin rule on the bucket — without it the preflight fails and
+// the upload returns "Failed to fetch". Eager mode runs in Node so it's
+// unaffected, which is why the e2e showcase didn't catch this. Allow the
+// app's own origins per stage.
+const r2AllowedOrigins =
+  app.stage === 'prod'
+    ? ['https://artifact.ci', 'https://www.artifact.ci']
+    : [`https://${TUNNEL_HOSTNAME}`, 'http://localhost:1337']
+
+const artifactBlobs = await R2Bucket('artifact-blobs', {
+  name: `artifact-ci-${app.stage}-blobs`,
+  adopt: true,
+  // miniflare's local R2 isn't S3-compatible (custom binding-only
+  // protocol) so signed PUT URLs can't reach it in dev. Bind directly
+  // to real CF R2 in dev too — the bucket is stage-scoped so dev never
+  // touches prod's bucket.
+  dev: {remote: true},
+  cors: [
+    {
+      allowed: {
+        methods: ['PUT', 'GET', 'HEAD'],
+        origins: r2AllowedOrigins,
+        headers: ['*'],
+      },
+      exposeHeaders: ['ETag'],
+      maxAgeSeconds: 3600,
+    },
+  ],
+})
+
+/**
+ * workerd's bundled octokit ships universal-github-app-jwt, which only
+ * accepts PKCS#8 private keys. GitHub Apps issue keys in PKCS#1 by default.
+ * Node can round-trip them, so we normalise once here before binding.
+ */
+const normalizePrivateKey = (value: string | undefined) => {
+  if (!value) return ''
+  if (value.includes('BEGIN PRIVATE KEY')) return value
+  return createPrivateKey({key: value, format: 'pem'}).export({format: 'pem', type: 'pkcs8'}) as string
+}
+
+const passthroughEnv = (names: string[]): Record<string, string> => {
+  const out: Record<string, string> = {}
+  for (const name of names) {
+    const raw = process.env[name] ?? ''
+    out[name] = name === 'GITHUB_APP_PRIVATE_KEY' ? normalizePrivateKey(raw) : raw
+  }
+  return out
+}
+
+const appBindings = passthroughEnv([
+  'BETTER_AUTH_SECRET',
+  'BETTER_AUTH_URL',
+  'AUTH_URL',
+  'AUTH_SECRET',
+  'GITHUB_APP_ID',
+  'GITHUB_APP_PRIVATE_KEY',
+  'GITHUB_APP_CLIENT_ID',
+  'GITHUB_APP_CLIENT_SECRET',
+  'GITHUB_APP_WEBHOOK_SECRET',
+  'R2_ACCESS_KEY_ID',
+  'R2_SECRET_ACCESS_KEY',
+  'POSTHOG_PROJECT_API_KEY',
+  'POSTHOG_HOST',
+  'PUBLIC_DEV_URL',
+])
+
+export const appWorker = await TanStackStart('app', {
+  cwd: './apps/app',
+  name: `${app.name}-${app.stage}-app`,
+  // Re-deploy on top of any worker that already exists at this name.
+  // Without adopt:true a partial first deploy leaves CF holding the
+  // worker and the next attempt fails with "already exists".
+  adopt: true,
+  compatibility: 'node',
+  entrypoint: 'dist/server/index.js',
+  build: {
+    command: 'vite build',
+  },
+  dev: {
+    command: `vite dev --host 127.0.0.1 --port ${APP_DEV_PORT} --strictPort`,
+  },
+  bindings: {
+    ...appBindings,
+    ARTIFACT_DB: artifactDb,
+    ARTIFACT_BLOBS: artifactBlobs,
+    ARTIFACT_BLOBS_BUCKET: artifactBlobs.name,
+    CLOUDFLARE_ACCOUNT_ID: accountId,
+  },
+})
+
+export const docsWorker = await Website('docs', {
+  cwd: './apps/docs',
+  name: `${app.name}-${app.stage}-docs`,
+  adopt: true,
+  build: {
+    command: 'astro build',
+  },
+  dev: {
+    // -u so python flushes, 2>&1 so python's "Serving HTTP on …" banner lands
+    // on stdout (alchemy's URL extractor reads stdout only), --bind so we get
+    // an IPv4 address — the extractor's regex doesn't recognise [::] form.
+    command: `sh -c "python3 -u -m http.server ${DOCS_DEV_PORT} -d dist --bind 127.0.0.1 2>&1"`,
+  },
+  // Workers Assets defaults to html_handling: "auto-trailing-slash"
+  // which 30x's `/foo/index.html` → `/foo/`. Combined with our
+  // frontdoor's `/foo/` → `/foo` 308 that's an infinite loop. Tell
+  // assets to serve files at the literal path the frontdoor asked
+  // for and let the frontdoor own URL semantics.
+  assets: {directory: 'dist', html_handling: 'none'},
+})
+
+export const frontdoorWorker = await Worker('frontdoor', {
+  name: `${app.name}-${app.stage}-frontdoor`,
+  adopt: true,
+  entrypoint: './apps/frontdoor/src/index.ts',
+  compatibility: 'node',
+  url: true,
+  // In prod, bind the apex (+ www) to this Worker so artifact.ci goes
+  // straight to the frontdoor. Requires the zone to already exist on
+  // this Cloudflare account.
+  ...(app.stage === 'prod' ? {domains: ['artifact.ci', 'www.artifact.ci']} : {}),
+  bindings: {
+    APP: appWorker,
+    DOCS: docsWorker,
+    APP_URL: appWorker.url || `http://127.0.0.1:${APP_DEV_PORT}`,
+    DOCS_URL: docsWorker.url || `http://127.0.0.1:${DOCS_DEV_PORT}`,
+    ARTIFACT_BLOBS: artifactBlobs,
+  },
+})
+
+// Dev tunnel. Creating via alchemy (Cloudflare API) instead of
+// `cloudflared tunnel login / create / route dns` means no origin cert
+// required locally — alchemy reuses the same CF creds it uses for Worker
+// deploys. The token flows to scripts/tunnel.sh which runs cloudflared
+// as a detached daemon.
+// Cloudflared tunnel is a dev-only thing — in prod artifact.ci is served
+// by the frontdoor Worker behind a real Cloudflare route/domain.
+if (app.phase === 'up' && app.stage !== 'prod' && process.env.ARTIFACTCI_DEV_TUNNEL !== 'off') {
+  const hostname = TUNNEL_HOSTNAME
+  const tunnel = await Tunnel('dev-tunnel', {
+    name: `${app.name}-${app.stage}-dev-tunnel`,
+    adopt: true,
+    ingress: [{hostname, service: `http://127.0.0.1:1337`}, {service: 'http_status:404'}],
+  })
+  await writeFile('.alchemy/tunnel-token.txt', tunnel.token.unencrypted)
+  await writeFile('.alchemy/tunnel-url.txt', `https://${hostname}`)
+}
+
+console.log({
+  appUrl: appWorker.url,
+  docsUrl: docsWorker.url,
+  frontdoorUrl: frontdoorWorker.url,
+})
+
+await app.finalize()
