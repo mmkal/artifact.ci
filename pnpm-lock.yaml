@@ -114,8 +114,8 @@ importers:
         specifier: ^0.5.21
         version: 0.5.21
       sqlfu:
-        specifier: https://pkg.pr.new/mmkal/sqlfu/sqlfu@main
-        version: https://pkg.pr.new/mmkal/sqlfu/sqlfu@main(@trpc/server@11.0.0-rc.553)(ws@8.19.0)
+        specifier: https://pkg.pr.new/mmkal/sqlfu/sqlfu@b25d208
+        version: https://pkg.pr.new/mmkal/sqlfu/sqlfu@b25d208(@trpc/server@11.0.0-rc.553)(ws@8.19.0)
       supports-color:
         specifier: 8.1.1
         version: 8.1.1
@@ -7817,8 +7817,8 @@ packages:
   sprintf-js@1.0.3:
     resolution: {integrity: sha512-D9cPgkvLlV3t3IzL0D0YLvGA9Ahk4PcvVwUbN0dSGr1aP0Nrt4AEnTUbuGvquEC0mA64Gqt1fzirlRs5ibXx8g==}
 
-  sqlfu@https://pkg.pr.new/mmkal/sqlfu/sqlfu@main:
-    resolution: {tarball: https://pkg.pr.new/mmkal/sqlfu/sqlfu@main}
+  sqlfu@https://pkg.pr.new/mmkal/sqlfu/sqlfu@b25d208:
+    resolution: {tarball: https://pkg.pr.new/mmkal/sqlfu/sqlfu@b25d208}
     version: 0.0.3-7
     hasBin: true
     peerDependencies:
@@ -17727,7 +17727,7 @@ snapshots:
 
   sprintf-js@1.0.3: {}
 
-  sqlfu@https://pkg.pr.new/mmkal/sqlfu/sqlfu@main(@trpc/server@11.0.0-rc.553)(ws@8.19.0):
+  sqlfu@https://pkg.pr.new/mmkal/sqlfu/sqlfu@b25d208(@trpc/server@11.0.0-rc.553)(ws@8.19.0):
     dependencies:
       '@clack/prompts': 1.2.0
       '@orpc/server': 1.14.0(ws@8.19.0)
