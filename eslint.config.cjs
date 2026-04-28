@@ -34,6 +34,7 @@ module.exports = [
   {
     ignores: [
       '**/generated/**',
+      '**/.generated/**',
       '**/dist/**',
       '**/.alchemy/**',
       '**/.astro/**',
