@@ -29,6 +29,9 @@ module.exports = [
       // Cosmetic; not changing string literals like 'utf-8' → 'utf8'.
       'unicorn/text-encoding-identifier-case': 'off',
       'unicorn/prefer-code-point': 'off',
+      // Tests use node's strict assert (assert.deepEqual etc.) by design;
+      // the rule only knows about expect() unless we tell it otherwise.
+      'vitest/expect-expect': ['error', {assertFunctionNames: ['expect', 'assert', 'assert.*']}],
     },
   },
   {
