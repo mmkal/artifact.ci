@@ -40,6 +40,11 @@ const artifactDb = await D1Database('artifact-db', {
 const artifactBlobs = await R2Bucket('artifact-blobs', {
   name: `artifact-ci-${app.stage}-blobs`,
   adopt: true,
+  // miniflare's local R2 isn't S3-compatible (custom binding-only
+  // protocol) so signed PUT URLs can't reach it in dev. Bind directly
+  // to real CF R2 in dev too — the bucket is stage-scoped so dev never
+  // touches prod's bucket.
+  dev: {remote: true},
 })
 
 /**
