@@ -6,7 +6,7 @@ process.env.CLOUDFLARE_PROFILE ||= 'mishagmail'
 
 import {writeFile} from 'node:fs/promises'
 import alchemy from 'alchemy'
-import {AccountApiToken, AccountId, D1Database, R2Bucket, TanStackStart, Tunnel, Website, Worker} from 'alchemy/cloudflare'
+import {AccountId, D1Database, R2Bucket, TanStackStart, Tunnel, Website, Worker} from 'alchemy/cloudflare'
 
 const APP_DEV_PORT = 43_111
 const DOCS_DEV_PORT = 43_112
@@ -47,21 +47,6 @@ const artifactBlobs = await R2Bucket('artifact-blobs', {
   dev: {remote: true},
 })
 
-// R2 access key for the worker to mint S3 SigV4 presigned PUT URLs.
-// Cloudflare only returns the secret on creation; alchemy persists it
-// in encrypted state so re-runs reuse the same token. If state is lost
-// the resource regenerates and we just rotate.
-const r2Token = await AccountApiToken('r2-token', {
-  name: `artifact-ci-${app.stage}-r2`,
-  policies: [
-    {
-      effect: 'allow',
-      permissionGroups: ['Workers R2 Storage Write'],
-      resources: {[`com.cloudflare.edge.r2.bucket.${artifactBlobs.name}`]: '*'},
-    },
-  ],
-})
-
 /**
  * workerd's bundled octokit ships universal-github-app-jwt, which only
  * accepts PKCS#8 private keys. GitHub Apps issue keys in PKCS#1 by default.
@@ -93,6 +78,8 @@ const appBindings = passthroughEnv([
   'GITHUB_APP_CLIENT_ID',
   'GITHUB_APP_CLIENT_SECRET',
   'GITHUB_APP_WEBHOOK_SECRET',
+  'R2_ACCESS_KEY_ID',
+  'R2_SECRET_ACCESS_KEY',
   'POSTHOG_PROJECT_API_KEY',
   'POSTHOG_HOST',
   'PUBLIC_DEV_URL',
@@ -119,8 +106,6 @@ export const appWorker = await TanStackStart('app', {
     ARTIFACT_BLOBS: artifactBlobs,
     ARTIFACT_BLOBS_BUCKET: artifactBlobs.name,
     CLOUDFLARE_ACCOUNT_ID: accountId,
-    R2_ACCESS_KEY_ID: r2Token.accessKeyId,
-    R2_SECRET_ACCESS_KEY: r2Token.secretAccessKey,
   },
 })
 
