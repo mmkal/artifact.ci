@@ -4,10 +4,7 @@ import {test} from 'node:test'
 import {toArtifactFileUrl} from './artifact-url'
 
 void test('direct action file output uses the blob route', () => {
-  const url = toArtifactFileUrl(
-    'https://artifact.ci/artifact/view/mmkal/artifact.ci/sha/5da99a9/result',
-    'badge.svg',
-  )
+  const url = toArtifactFileUrl('https://artifact.ci/artifact/view/mmkal/artifact.ci/sha/5da99a9/result', 'badge.svg')
 
   assert.equal(url, 'https://artifact.ci/artifact/blob/mmkal/artifact.ci/sha/5da99a9/result/badge.svg')
 })
