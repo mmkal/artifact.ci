@@ -27,7 +27,7 @@ Decision recap (recorded so future-me doesn't re-litigate):
 ### Tooling decisions
 
 - **sqlfu** for the SQLite client + migrations + query type generation,
-  installed from pkg.pr.new (`https://pkg.pr.new/mmkal/sqlfu/sqlfu@main`).
+  installed from pkg.pr.new (`https://pkg.pr.new/mmkal/sqlfu/sqlfu@b25d208`).
   If we hit an sqlfu rough edge that needs upstream changes, we can pin
   to a branch URL instead while we iterate on sqlfu.
   - Adapter: `createD1Client(env.ARTIFACT_DB)` →
@@ -164,7 +164,7 @@ Decision recap (recorded so future-me doesn't re-litigate):
 ## Implementation notes
 
 - `pnpm exec sqlfu generate` passed with the SQLite schema.
-- `pnpm exec sqlfu draft --name initial_schema` with a local fixed sqlfu package generated `migrations/0000_initial_schema.sql`; the migration preserves quoted Better Auth identifier casing and SQLite timestamp format strings.
+- `pnpm exec sqlfu draft --name initial_schema` with the fixed sqlfu package generated `migrations/0000_initial_schema.sql`; the migration preserves quoted Better Auth identifier casing and SQLite timestamp format strings.
 - `pnpm exec tsc --noEmit` passed.
 - `pnpm build` passed.
 - `pnpm dev` started the local frontdoor at `http://localhost:1337/`;
