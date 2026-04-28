@@ -9,6 +9,7 @@ import {logger} from '@artifact/domain/logging/tag-logger'
 import {readFile, stat} from 'fs/promises'
 import * as path from 'path'
 import {z} from 'zod'
+import {toArtifactFileUrl} from './artifact-url'
 import {EventType} from './types'
 
 async function main() {
@@ -162,7 +163,9 @@ async function main() {
 
       const {entrypoints} = records.entrypoints
       entrypoints.forEach((e, i) => {
-        const url = `${result.urls.at(-1)?.url}/${e.path}`
+        const lastUrl = result.urls.at(-1)
+        if (!lastUrl) throw new Error('expected at least one artifact.ci URL')
+        const url = toArtifactFileUrl(lastUrl.url, e.path)
         logger.info(`🔗 ${e.shortened}: ${url}`)
         setOutput(`artifactci-entrypoint-${i}`, url)
       })

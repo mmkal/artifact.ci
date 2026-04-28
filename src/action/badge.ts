@@ -9,6 +9,7 @@ import * as fs from 'fs/promises'
 import {readFile} from 'fs/promises'
 import * as path from 'path'
 import {z} from 'zod'
+import {toArtifactFileUrl} from './artifact-url'
 import {EventType} from './types'
 
 async function main() {
@@ -147,7 +148,7 @@ async function main() {
     if (entrypoints.length !== 1) logger.warn(`expected 1 entrypoint, got ${entrypoints.length}`)
     result.urls.forEach(u => {
       const e = entrypoints[0]
-      const badgeUrl = `${u.url}/${e.path}`
+      const badgeUrl = toArtifactFileUrl(u.url, e.path)
       const outputName = `badge-url-${u.aliasType}`
       logger.info(outputName, badgeUrl)
       setOutput(outputName, badgeUrl)
