@@ -1,5 +1,6 @@
 import {handleArtifactRequest, type ArtifactHandlerEnv} from './artifact-handler'
 import {getWwwToApexRedirect} from './canonical-host'
+import {getLegacyArtifactFileRedirect} from './legacy-artifact-file'
 import {routeRequest} from './routing'
 
 export interface FrontdoorEnv extends ArtifactHandlerEnv {
@@ -155,6 +156,9 @@ async function handle(request: Request, env: FrontdoorEnv): Promise<Response> {
   if (url.pathname === '/app') {
     return Response.redirect(new URL('/login', url.origin), 307)
   }
+
+  const legacyArtifactFileRedirect = getLegacyArtifactFileRedirect(request)
+  if (legacyArtifactFileRedirect) return legacyArtifactFileRedirect
 
   // Old /app/artifacts/* URLs predate the rename to /artifact/view/*.
   // Keep previously-issued check-run links working.
