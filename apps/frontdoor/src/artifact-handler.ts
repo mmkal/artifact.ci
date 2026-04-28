@@ -8,6 +8,7 @@ import {ARTIFACT_BLOB_ROUTE_PREFIX} from '@artifact/config/routes'
 
 export interface ArtifactHandlerEnv {
   APP: {fetch(request: Request): Promise<Response>}
+  ARTIFACT_BLOBS: R2BucketBinding
   /**
    * Optional public URL for the app worker. In local dev the app is vite
    * (http://127.0.0.1:43111), not a real Worker, so env.APP service-binding
@@ -15,8 +16,18 @@ export interface ArtifactHandlerEnv {
    * local http:// origin we bypass the service binding and fetch directly.
    */
   APP_URL?: string
-  SUPABASE_PROJECT_URL: string
-  SUPABASE_SERVICE_ROLE_KEY: string
+}
+
+interface R2BucketBinding {
+  get(key: string): Promise<R2ObjectBody | null>
+}
+
+interface R2ObjectBody {
+  body: ReadableStream | null
+  httpEtag?: string
+  size?: number
+  uploaded?: Date
+  writeHttpMetadata?(headers: Headers): void
 }
 
 const isLocalHttpOrigin = (origin: string | undefined) =>
@@ -55,7 +66,7 @@ export async function handleArtifactRequest(request: Request, env: ArtifactHandl
     resolveResult.storagePathname,
     resolveResult.params,
     {
-      getObjectResponse: storagePathname => fetchSupabaseObject(storagePathname, env),
+      getObjectResponse: storagePathname => fetchR2Object(storagePathname, env),
     },
     {raw: resolveResult.raw},
   )
@@ -122,14 +133,15 @@ function copyHeader(source: Headers, target: Headers, name: string) {
   if (value) target.set(name, value)
 }
 
-async function fetchSupabaseObject(storagePathname: string, env: ArtifactHandlerEnv) {
-  const encodedSegments = storagePathname.split('/').map(encodeURIComponent).join('/')
-  return fetch(`${env.SUPABASE_PROJECT_URL}/storage/v1/object/artifact_files/${encodedSegments}`, {
-    headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-    },
-  })
+async function fetchR2Object(storagePathname: string, env: ArtifactHandlerEnv) {
+  const object = await env.ARTIFACT_BLOBS.get(storagePathname)
+  if (!object) return new Response('not found', {status: 404})
+  const headers = new Headers()
+  object.writeHttpMetadata?.(headers)
+  if (object.httpEtag) headers.set('etag', object.httpEtag)
+  if (object.size != null) headers.set('content-length', object.size.toString())
+  if (object.uploaded) headers.set('last-modified', object.uploaded.toUTCString())
+  return new Response(object.body, {headers})
 }
 
 function parseBlobPath(pathname: string) {
@@ -137,4 +149,3 @@ function parseBlobPath(pathname: string) {
   const [owner, repo, aliasType, identifier, artifactName, ...filepath] = segments
   return PathParams.parse({owner, repo, aliasType, identifier, artifactName, filepath})
 }
-

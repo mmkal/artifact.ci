@@ -5,7 +5,7 @@ description: Where the UI shell ends and edge delivery begins.
 
 # Viewing artifacts
 
-The signed-in browser UI lives under `/app/artifacts/...`.
+The browser UI lives under `/artifact/view/...`.
 
 The bytes themselves live under `/artifact/blob/...`.
 

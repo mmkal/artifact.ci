@@ -6,7 +6,7 @@ process.env.CLOUDFLARE_PROFILE ||= 'mishagmail'
 
 import {writeFile} from 'node:fs/promises'
 import alchemy from 'alchemy'
-import {TanStackStart, Tunnel, Website, Worker} from 'alchemy/cloudflare'
+import {AccountId, D1Database, R2Bucket, TanStackStart, Tunnel, Website, Worker} from 'alchemy/cloudflare'
 
 const APP_DEV_PORT = 43_111
 const DOCS_DEV_PORT = 43_112
@@ -31,6 +31,43 @@ const app = await alchemy('artifact-ci', {
   password: process.env.ALCHEMY_PASSWORD || 'artifact-ci-dev-state-password',
 })
 
+const accountId = await AccountId()
+const artifactDb = await D1Database('artifact-db', {
+  name: `artifact-ci-${app.stage}-db`,
+  migrationsDir: './migrations',
+  adopt: true,
+})
+// Browser PUTs to presigned R2 URLs (lazy-rebuild path) require a CORS
+// allow-origin rule on the bucket — without it the preflight fails and
+// the upload returns "Failed to fetch". Eager mode runs in Node so it's
+// unaffected, which is why the e2e showcase didn't catch this. Allow the
+// app's own origins per stage.
+const r2AllowedOrigins =
+  app.stage === 'prod'
+    ? ['https://artifact.ci', 'https://www.artifact.ci']
+    : [`https://${TUNNEL_HOSTNAME}`, 'http://localhost:1337']
+
+const artifactBlobs = await R2Bucket('artifact-blobs', {
+  name: `artifact-ci-${app.stage}-blobs`,
+  adopt: true,
+  // miniflare's local R2 isn't S3-compatible (custom binding-only
+  // protocol) so signed PUT URLs can't reach it in dev. Bind directly
+  // to real CF R2 in dev too — the bucket is stage-scoped so dev never
+  // touches prod's bucket.
+  dev: {remote: true},
+  cors: [
+    {
+      allowed: {
+        methods: ['PUT', 'GET', 'HEAD'],
+        origins: r2AllowedOrigins,
+        headers: ['*'],
+      },
+      exposeHeaders: ['ETag'],
+      maxAgeSeconds: 3600,
+    },
+  ],
+})
+
 /**
  * workerd's bundled octokit ships universal-github-app-jwt, which only
  * accepts PKCS#8 private keys. GitHub Apps issue keys in PKCS#1 by default.
@@ -53,8 +90,6 @@ const passthroughEnv = (names: string[]): Record<string, string> => {
 }
 
 const appBindings = passthroughEnv([
-  'DATABASE_URL',
-  'PGKIT_CONNECTION_STRING',
   'BETTER_AUTH_SECRET',
   'BETTER_AUTH_URL',
   'AUTH_URL',
@@ -64,8 +99,8 @@ const appBindings = passthroughEnv([
   'GITHUB_APP_CLIENT_ID',
   'GITHUB_APP_CLIENT_SECRET',
   'GITHUB_APP_WEBHOOK_SECRET',
-  'SUPABASE_PROJECT_URL',
-  'SUPABASE_SERVICE_ROLE_KEY',
+  'R2_ACCESS_KEY_ID',
+  'R2_SECRET_ACCESS_KEY',
   'POSTHOG_PROJECT_API_KEY',
   'POSTHOG_HOST',
   'PUBLIC_DEV_URL',
@@ -78,6 +113,7 @@ export const appWorker = await TanStackStart('app', {
   // Without adopt:true a partial first deploy leaves CF holding the
   // worker and the next attempt fails with "already exists".
   adopt: true,
+  compatibility: 'node',
   entrypoint: 'dist/server/index.js',
   build: {
     command: 'vite build',
@@ -85,7 +121,13 @@ export const appWorker = await TanStackStart('app', {
   dev: {
     command: `vite dev --host 127.0.0.1 --port ${APP_DEV_PORT} --strictPort`,
   },
-  bindings: appBindings,
+  bindings: {
+    ...appBindings,
+    ARTIFACT_DB: artifactDb,
+    ARTIFACT_BLOBS: artifactBlobs,
+    ARTIFACT_BLOBS_BUCKET: artifactBlobs.name,
+    CLOUDFLARE_ACCOUNT_ID: accountId,
+  },
 })
 
 export const docsWorker = await Website('docs', {
@@ -124,8 +166,7 @@ export const frontdoorWorker = await Worker('frontdoor', {
     DOCS: docsWorker,
     APP_URL: appWorker.url || `http://127.0.0.1:${APP_DEV_PORT}`,
     DOCS_URL: docsWorker.url || `http://127.0.0.1:${DOCS_DEV_PORT}`,
-    SUPABASE_PROJECT_URL: process.env.SUPABASE_PROJECT_URL || '',
-    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    ARTIFACT_BLOBS: artifactBlobs,
   },
 })
 

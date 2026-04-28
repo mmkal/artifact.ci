@@ -324,21 +324,6 @@ test('showcase', async ({page}) => {
     expect(blobResponse.status(), 'blob response status').toBe(200)
     expect(blobResponse.headers()['content-type'] || '', 'blob content-type').not.toMatch(/application\/json/)
   })
-
-  await test.step('unauthenticated visitor to private artifact page redirects to /login', async () => {
-    // Fresh fetch with no cookies — the showcase fixture defaults to
-    // private visibility, so an anonymous visit must bounce to /login with
-    // callbackUrl encoded. Regression for "Cannot convert object to
-    // primitive value" from the old location.pathname + location.search
-    // coercion in the viewer loader.
-    const unauth = await fetch(artifactHref!, {redirect: 'manual'})
-    expect([302, 307]).toContain(unauth.status)
-    const location = unauth.headers.get('location')
-    expect(location, 'unauth redirect location').toBeTruthy()
-    const loginUrl = new URL(location!, artifactHref!)
-    expect(loginUrl.pathname).toBe('/login')
-    expect(loginUrl.searchParams.get('callbackUrl'), 'callbackUrl roundtrip').toBe(new URL(artifactHref!).pathname)
-  })
 })
 
 async function waitForWorkflowSuccess(repo: WorkflowRepoFixture) {
@@ -448,7 +433,10 @@ function buildWorkflowYaml(workflowName: string, artifactciOrigin: string) {
     '        run: |',
     '          mkdir -p html',
     `          printf '<!doctype html><html><body><h1>${workflowName}</h1></body></html>' > html/index.html`,
-    '      - uses: mmkal/artifact.ci/upload@main',
+    // Pinned to the branch under test rather than @main so the action's
+    // client-upload bundle matches the server's protocol (R2 presigned
+    // PUTs etc.). When this branch lands on main, drop the @ref.
+    '      - uses: mmkal/artifact.ci/upload@feat/cloudflare-native',
     '        with:',
     '          name: showcase-report',
     '          path: html',

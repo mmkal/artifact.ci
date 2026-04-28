@@ -1,4 +1,3 @@
-import {Client} from 'pg'
 import {fromError} from 'zod-validation-error'
 import {AppWebhookEvent} from '@artifact/domain/github/events-types'
 import {getInstallationOctokit} from '@artifact/domain/github/installations'
@@ -6,17 +5,8 @@ import {validateGithubWebhook} from '@artifact/domain/github/webhook-validator'
 import {logger} from '@artifact/domain/logging/tag-logger'
 import {captureServerEvent} from '@artifact/domain/analytics/posthog-server'
 import {toAppArtifactPath} from '@artifact/domain/artifact/path-params'
-import {insertArtifactRecord} from './upload'
-
-async function withPg<T>(fn: (c: Client) => Promise<T>): Promise<T> {
-  const c = new Client({connectionString: process.env.DATABASE_URL || process.env.PGKIT_CONNECTION_STRING})
-  await c.connect()
-  try {
-    return await fn(c)
-  } finally {
-    await c.end().catch(() => {})
-  }
-}
+import {getDb} from '../cloudflare-env'
+import {insertArtifactRecord, storeInstallationAndRepo} from './upload'
 
 export async function handleWebhookRequest(request: Request): Promise<Response> {
   try {
@@ -57,31 +47,15 @@ async function handleEvent(request: Request, event: AppWebhookEvent) {
       const [owner, name] = r.full_name.split('/')
       return {owner, name}
     })
-    const createdRepos = await withPg(async c => {
-      const {rows} = await c.query<{id: string; owner: string; name: string; installation_id: string}>(
-        `with new_installation as (
-           insert into github_installations (github_id)
-           values ($1)
-           on conflict (github_id) do update set updated_at = excluded.updated_at
-           returning id
-         )
-         insert into repos (owner, name, installation_id)
-         select owner, name, new_installation.id as installation_id
-         from jsonb_populate_recordset(null::repos, $2::jsonb)
-         join new_installation on true
-         on conflict (owner, name) do update set
-           installation_id = excluded.installation_id
-         returning id, owner, name, installation_id`,
-        [event.installation.id, JSON.stringify(addedRepos)],
-      )
-      return rows
-    })
+    const createdRepos = await Promise.all(addedRepos.map(repo => {
+      return storeInstallationAndRepo({owner: repo.owner, repo: repo.name, installationId: event.installation.id})
+    }))
     captureServerEvent({
       distinctId: event.installation.id.toString(),
       event: 'installation_created',
       properties: {
         githubInstallationId: event.installation.id,
-        dbInstallationId: createdRepos[0]?.installation_id,
+        dbInstallationId: createdRepos[0]?.dbInstallationId,
         repos: event.installation.repositories_added.map(r => r.full_name).join(','),
       },
     })
@@ -89,16 +63,15 @@ async function handleEvent(request: Request, event: AppWebhookEvent) {
   }
 
   if (event.eventType === 'installation_removed') {
-    const removedInstallation = await withPg(async c => {
-      const {rows} = await c.query<{id: string; github_id: number}>(
-        `update github_installations
-         set removed_at = current_timestamp
-         where github_id = $1
-         returning id, github_id`,
-        [event.installation.id],
-      )
-      return rows[0]
-    })
+    const db = getDb()
+    const rows = await db.sql.all<{id: string; github_id: number}>`
+      update github_installations
+      set removed_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+        updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+      where github_id = ${event.installation.id}
+      returning id, github_id
+    `
+    const removedInstallation = rows[0]
     captureServerEvent({
       distinctId: event.installation.id.toString(),
       event: 'installation_removed',
@@ -142,19 +115,7 @@ async function handleEvent(request: Request, event: AppWebhookEvent) {
     const artifacts = await Promise.all(
       dedupedArtifacts.map(async a => {
         return logger.run(`artifact=${a.name}`, async () => {
-          await withPg(async c => {
-            await c.query(
-              `insert into github_installations (github_id) values ($1)
-               on conflict (github_id) do nothing`,
-              [event.installation.id],
-            )
-            await c.query(
-              `insert into repos (owner, name, installation_id)
-               values ($1, $2, (select id from github_installations where github_id = $3))
-               on conflict (owner, name) do nothing`,
-              [owner, repo, event.installation.id],
-            )
-          })
+          await storeInstallationAndRepo({owner, repo, installationId: event.installation.id})
 
           const txResult = await insertArtifactRecord({
             owner,

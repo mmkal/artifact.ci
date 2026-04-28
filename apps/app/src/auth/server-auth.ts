@@ -1,40 +1,25 @@
-import {Client} from 'pg'
 import {betterAuth} from 'better-auth'
 import {tanstackStartCookies} from 'better-auth/tanstack-start'
+import {getAppEnv} from '../cloudflare-env'
 
-const getConnectionString = () => {
-  return process.env.DATABASE_URL || process.env.PGKIT_CONNECTION_STRING || 'postgresql://postgres:postgres@localhost:5500/postgres'
+const currentEnv = () => {
+  try {
+    return getAppEnv()
+  } catch (error) {
+    if (process.env.BETTER_AUTH_SCHEMA_GENERATE === '1') return null
+    throw error
+  }
 }
 
-// Minimal pg.Pool shim for Better Auth. better-auth detects
-// `"connect" in db` and hands the object to Kysely as
-// `new PostgresDialect({pool: db})`. Kysely calls pool.connect() to
-// get a client, runs queries on it, then calls client.release() to
-// return it. With a real pg.Pool this hangs after a few queries in
-// workerd (same shape as the upload/events hang we already fixed),
-// so we hand out a brand-new Client per connect() and end() it on
-// release(). Aggressive, but reliable through miniflare.
-const connectFreshClient = async () => {
-  const client = new Client({connectionString: getConnectionString()})
-  await client.connect()
-  return Object.assign(client, {
-    release: async () => {
-      await client.end().catch(() => {})
-    },
-  })
+const envValue = (name: keyof ReturnType<typeof getAppEnv>) => {
+  const env = currentEnv() as unknown as Record<string, string> | null
+  return (env && env[name]) || process.env[name] || ''
 }
 
-const freshPerConnectPool = {
-  connect: connectFreshClient,
-  // Kysely's PostgresDriver only calls these when it's shutting the pool
-  // down (which better-auth never does in a request lifecycle). Stubs
-  // here so the surface matches pg.Pool closely enough.
-  end: async () => {},
-  on: () => {},
-  off: () => {},
+const authDatabase = () => {
+  const env = currentEnv()
+  return env?.ARTIFACT_DB
 }
-
-export const getPool = () => freshPerConnectPool
 
 const getBaseUrl = () => {
   // Prefer an explicit BETTER_AUTH_URL (prod deploys / tests), then the
@@ -43,15 +28,15 @@ const getBaseUrl = () => {
   // run `pnpm dev` and still has an old value lying around), then the
   // localhost fallback.
   return (
-    process.env.BETTER_AUTH_URL ||
-    process.env.PUBLIC_DEV_URL ||
-    process.env.AUTH_URL ||
+    envValue('BETTER_AUTH_URL') ||
+    envValue('PUBLIC_DEV_URL') ||
+    envValue('AUTH_URL') ||
     'http://localhost:3000'
   )
 }
 
 const getTrustedOrigins = () => {
-  const extras = [process.env.PUBLIC_DEV_URL, process.env.BETTER_AUTH_URL, process.env.AUTH_URL]
+  const extras = [envValue('PUBLIC_DEV_URL'), envValue('BETTER_AUTH_URL'), envValue('AUTH_URL')]
     .filter(Boolean)
   return Array.from(new Set(['http://localhost:3000', 'http://artifactci.localhost:1355', 'https://artifact.ci', ...extras]))
 }
@@ -61,8 +46,8 @@ export const createServerAuth = () => {
     appName: 'artifact.ci',
     baseURL: getBaseUrl(),
     basePath: '/api/auth',
-    secret: process.env.BETTER_AUTH_SECRET || 'dev-only-not-for-production',
-    database: getPool(),
+    secret: envValue('BETTER_AUTH_SECRET') || 'dev-only-not-for-production',
+    database: authDatabase(),
     trustedOrigins: getTrustedOrigins(),
     user: {
       additionalFields: {
@@ -73,11 +58,11 @@ export const createServerAuth = () => {
         },
       },
     },
-    socialProviders: process.env.GITHUB_APP_CLIENT_ID && process.env.GITHUB_APP_CLIENT_SECRET
+    socialProviders: envValue('GITHUB_APP_CLIENT_ID') && envValue('GITHUB_APP_CLIENT_SECRET')
       ? {
           github: {
-            clientId: process.env.GITHUB_APP_CLIENT_ID,
-            clientSecret: process.env.GITHUB_APP_CLIENT_SECRET,
+            clientId: envValue('GITHUB_APP_CLIENT_ID'),
+            clientSecret: envValue('GITHUB_APP_CLIENT_SECRET'),
             mapProfileToUser: profile => ({
               githubLogin: typeof profile.login === 'string' ? profile.login : undefined,
             }),
