@@ -34,6 +34,7 @@ const app = await alchemy('artifact-ci', {
 const accountId = await AccountId()
 const artifactDb = await D1Database('artifact-db', {
   name: `artifact-ci-${app.stage}-db`,
+  migrationsDir: './migrations',
   adopt: true,
 })
 const artifactBlobs = await R2Bucket('artifact-blobs', {

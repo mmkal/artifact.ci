@@ -3,18 +3,18 @@
 
 export type AccountRow = {
 	id: string;
-	accountid: string;
-	providerid: string;
-	userid: string;
-	accesstoken: string | null;
-	refreshtoken: string | null;
-	idtoken: string | null;
-	accesstokenexpiresat: string | null;
-	refreshtokenexpiresat: string | null;
+	accountId: string;
+	providerId: string;
+	userId: string;
+	accessToken: string | null;
+	refreshToken: string | null;
+	idToken: string | null;
+	accessTokenExpiresAt: string | null;
+	refreshTokenExpiresAt: string | null;
 	scope: string | null;
 	password: string | null;
-	createdat: string;
-	updatedat: string;
+	createdAt: string;
+	updatedAt: string;
 };
 
 export type ArtifactEntriesRow = {
@@ -68,14 +68,14 @@ export type ReposRow = {
 
 export type SessionRow = {
 	id: string;
-	expiresat: string;
+	expiresAt: string;
 	token: string;
-	createdat: string;
-	updatedat: string;
-	ipaddress: string | null;
-	useragent: string | null;
-	userid: string;
-	impersonatedby: string | null;
+	createdAt: string;
+	updatedAt: string;
+	ipAddress: string | null;
+	userAgent: string | null;
+	userId: string;
+	impersonatedBy: string | null;
 };
 
 export type SponsorsRow = {
@@ -110,22 +110,22 @@ export type UserRow = {
 	id: string;
 	name: string;
 	email: string;
-	emailverified: number;
+	emailVerified: number;
 	image: string | null;
-	createdat: string;
-	updatedat: string;
+	createdAt: string;
+	updatedAt: string;
 	role: string | null;
 	banned: number | null;
-	banreason: string | null;
-	banexpires: string | null;
-	githublogin: string | null;
+	banReason: string | null;
+	banExpires: string | null;
+	githubLogin: string | null;
 };
 
 export type VerificationRow = {
 	id: string;
 	identifier: string;
 	value: string;
-	expiresat: string;
-	createdat: string;
-	updatedat: string;
+	expiresAt: string;
+	createdAt: string;
+	updatedAt: string;
 };

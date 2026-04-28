@@ -8,11 +8,11 @@ size: large
 ## Status
 
 Branch implementation is complete up to the cutover gate. SQLite/D1
-schema, sqlfu config, D1/R2 bindings, Better Auth-on-D1, upload-token
-replacement, R2 presigned uploads, frontdoor R2 reads, dependency
-cleanup, action bundle regeneration, and the cutover script/runbook are
-in place. Missing by design: the prod deploy/cutover command and
-Supabase cancellation.
+schema, sqlfu config and initial D1 migration, D1/R2 bindings, Better
+Auth-on-D1, upload-token replacement, R2 presigned uploads, frontdoor
+R2 reads, dependency cleanup, action bundle regeneration, and the
+cutover runbook are in place. Missing by design: the prod deploy/cutover
+command and Supabase cancellation.
 
 Decision recap (recorded so future-me doesn't re-litigate):
 - **D1** for metadata. Edge-local; removes pg-in-workerd hangs and the
@@ -66,7 +66,7 @@ Decision recap (recorded so future-me doesn't re-litigate):
   - [x] Drop RLS / GRANT statements (D1 doesn't have them). _Removed from `definitions.sql`._
 - [x] Decide migration strategy for D1 — pgkit equivalent? Probably
   just one-shot `definitions.sql` apply on bootstrap, since we're
-  starting empty. _Decision kept: `dangerdanger-cloudflare-native.ignoreme.cjs` applies `definitions.sql` once._
+  starting empty. _Normal D1 migrations are now used instead: `migrations/0000_initial_schema.sql` is applied through Alchemy's `migrationsDir`._
 
 ### DB driver swap (pg → D1 binding)
 
@@ -130,9 +130,8 @@ Decision recap (recorded so future-me doesn't re-litigate):
 
 - [x] Same plan as the Cloudflare cutover that just landed:
   - DNS already lives on CF, no DNS change.
-  - Deploy the new alchemy stack with D1 + R2 bindings.
-  - Run a one-shot script to apply the SQLite `definitions.sql` to
-    the freshly-provisioned D1 db.
+  - Deploy the new alchemy stack with D1 + R2 bindings; Alchemy applies
+    the D1 migrations from `migrations/`.
   - Existing Supabase data is abandoned. Recent artifacts (within
     GitHub's 90-day retention) lazy-rebuild from GitHub on first
     visit. Old artifacts and old user sessions disappear — confirmed
@@ -155,11 +154,8 @@ Decision recap (recorded so future-me doesn't re-litigate):
 2. Ensure `.env.prod` has the usual GitHub/Better Auth/PostHog values plus
    `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` for the target R2 bucket.
 3. Deploy after merge with `pnpm deploy:prod`.
-4. Apply the empty-D1 schema:
-   ```sh
-   CONFIRM_CLOUDFLARE_NATIVE_CUTOVER=artifact-ci-prod-db \
-     node --env-file=.env.prod dangerdanger-cloudflare-native.ignoreme.cjs
-   ```
+4. Verify Alchemy applied `migrations/0000_initial_schema.sql` to the
+   empty prod D1 database during deploy.
 5. Smoke test sign-in, artifact lazy rebuild from GitHub, direct artifact
    blob serving, and upload-action output URLs.
 6. Keep Supabase running for roughly a week; cancel it only after the new
@@ -168,6 +164,7 @@ Decision recap (recorded so future-me doesn't re-litigate):
 ## Implementation notes
 
 - `pnpm exec sqlfu generate` passed with the SQLite schema.
+- `pnpm exec sqlfu draft --name initial_schema` with a local fixed sqlfu package generated `migrations/0000_initial_schema.sql`; the migration preserves quoted Better Auth identifier casing and SQLite timestamp format strings.
 - `pnpm exec tsc --noEmit` passed.
 - `pnpm build` passed.
 - `pnpm dev` started the local frontdoor at `http://localhost:1337/`;
