@@ -1,4 +1,5 @@
 import {handleArtifactRequest, type ArtifactHandlerEnv} from './artifact-handler'
+import {getWwwToApexRedirect} from './canonical-host'
 import {routeRequest} from './routing'
 
 export interface FrontdoorEnv extends ArtifactHandlerEnv {
@@ -107,7 +108,7 @@ export default {
   async fetch(request: Request, env: FrontdoorEnv): Promise<Response> {
     try {
       const url = new URL(request.url)
-      return applyDevCacheDefaults(await handle(request, env), url, env)
+      return applyDevCacheDefaults(getWwwToApexRedirect(request) || (await handle(request, env)), url, env)
     } catch (error) {
       console.error('frontdoor request failed', {url: request.url, method: request.method, error: String(error)})
       return new Response('Bad Gateway', {status: 502})

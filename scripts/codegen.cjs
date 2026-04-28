@@ -4,7 +4,7 @@ module.exports.generateReadme = ({dependencies: {fs}}) => {
   let readmeMd = websiteIndexMd
     .replace('# artifact.ci', '') // rm title
     .trim()
-    .replaceAll(/\(\/(\S*)\)/g, `(https://www.artifact.ci/$1)`)
+    .replaceAll(/\(\/(\S*)\)/g, `(https://artifact.ci/$1)`)
     .replaceAll('codegen:start', 'codegen:disabled')
   const customComponentsStart = readmeMd.indexOf('import')
   const customComponentsEnd = readmeMd.indexOf('## Why')

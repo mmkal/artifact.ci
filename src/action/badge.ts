@@ -42,7 +42,7 @@ async function main() {
 
   // Always default to prod. The previous Vercel-preview URL fallback is
   // dead since prod moved to Cloudflare; same fix applied to upload.ts.
-  const defaultBackend = 'https://www.artifact.ci'
+  const defaultBackend = 'https://artifact.ci'
   /** camelCase version of the inputs in action.yml. Note that *most* don't have defaults because the defaults are defined in action.yml */
   const Inputs = z.object({
     name: z

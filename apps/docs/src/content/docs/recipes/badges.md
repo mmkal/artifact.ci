@@ -19,11 +19,11 @@ artifact.ci also provides a `badge` action, a thin wrapper around the artifact u
 
 The result will be a URL looking something like this (available as a step output named `badge-url-branch`):
 
-`https://www.artifact.ci/artifact/view/mmkal/artifact.ci/branch/main/result/badge.svg`
+`https://artifact.ci/artifact/view/mmkal/artifact.ci/branch/main/result/badge.svg`
 
 It will render like this:
 
-![result checkmate](https://www.artifact.ci/artifact/view/mmkal/artifact.ci/branch/main/result/badge.svg)
+![result checkmate](https://artifact.ci/artifact/view/mmkal/artifact.ci/branch/main/result/badge.svg)
 
 The advantage of using the badge action over, say, the shields.io API, is that the URL will be stable, but the badge itself will update when the workflow is run again.
 

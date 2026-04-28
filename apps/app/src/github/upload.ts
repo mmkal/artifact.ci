@@ -6,6 +6,7 @@ import {logger} from '@artifact/domain/logging/tag-logger'
 import {fromError} from 'zod-validation-error'
 import {getAppEnv, getDb} from '../cloudflare-env'
 import {createUploadToken} from '../upload-tokens'
+import {getArtifactOrigin} from './origin'
 
 export async function handleUploadRequest(request: Request): Promise<Response> {
   try {
@@ -68,7 +69,7 @@ async function handleUploadRequestInner(request: Request): Promise<Response> {
   })
   console.log('[upload] step 6/7 upload_tokens insert')
 
-  const origin = getAppEnv().PUBLIC_DEV_URL || new URL(request.url).origin
+  const origin = getArtifactOrigin(request)
   const uploadToken = await createUploadToken(getDb(), owner)
   console.log('[upload] step 7/7 respond')
   const responseBody = UploadResponse.parse({

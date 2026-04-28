@@ -34,7 +34,7 @@ asset paths in its own artifact preview.
 
 Take an artifact preview URL of this shape:
 
-`https://www.artifact.ci/artifact/view/mmkal/sqlfu/run/24728275564.1/website/ui?demo=1`
+`https://artifact.ci/artifact/view/mmkal/sqlfu/run/24728275564.1/website/ui?demo=1`
 
 The artifact contains both `ui.html` (at the website root) and a
 `ui/` directory (containing static assets but no `index.html`). Hit
@@ -48,7 +48,7 @@ the URL above:
 
 Appending `.html` explicitly works as a workaround:
 
-`https://www.artifact.ci/artifact/view/mmkal/sqlfu/run/24728275564.1/website/ui.html?demo=1`
+`https://artifact.ci/artifact/view/mmkal/sqlfu/run/24728275564.1/website/ui.html?demo=1`
 
 …which confirms the file exists and renders correctly; artifact.ci
 just isn't finding it via extensionless URL.

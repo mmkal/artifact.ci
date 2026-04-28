@@ -25,27 +25,27 @@ Guides for common tools:
 
 ### Testing frameworks
 
-- [Vitest](https://www.artifact.ci/recipes/testing/vitest)
-- [Playwright](https://www.artifact.ci/recipes/testing/playwright)
-- [Jest](https://www.artifact.ci/recipes/testing/jest)
-- [Mocha](https://www.artifact.ci/recipes/testing/mocha)
-- [AVA](https://www.artifact.ci/recipes/testing/ava)
+- [Vitest](https://artifact.ci/recipes/testing/vitest)
+- [Playwright](https://artifact.ci/recipes/testing/playwright)
+- [Jest](https://artifact.ci/recipes/testing/jest)
+- [Mocha](https://artifact.ci/recipes/testing/mocha)
+- [AVA](https://artifact.ci/recipes/testing/ava)
 
 ### Other languages
 
-- [Python](https://www.artifact.ci/recipes/other-languages/python)
-- [Go](https://www.artifact.ci/recipes/other-languages/go)
+- [Python](https://artifact.ci/recipes/other-languages/python)
+- [Go](https://artifact.ci/recipes/other-languages/go)
 
 ### More
 
-- [Static websites](https://www.artifact.ci/recipes/more/website)
-- [PDFs](https://www.artifact.ci/recipes/more/pdf)
+- [Static websites](https://artifact.ci/recipes/more/website)
+- [PDFs](https://artifact.ci/recipes/more/pdf)
 
 ...you get the idea. If you can render it statically in a web browser, you can upload it to artifact.ci.
 
 ## Security
 
-The app requires minimal permissions, operates read-only, and uses GitHub's APIs and authentication. It maintains your repository's existing access controls. See [the privacy policy](https://www.artifact.ci/privacy) for more details.
+The app requires minimal permissions, operates read-only, and uses GitHub's APIs and authentication. It maintains your repository's existing access controls. See [the privacy policy](https://artifact.ci/privacy) for more details.
 
 ## Who
 
@@ -57,7 +57,7 @@ The actual service doesn't have a paywall for now, and usage is free to start ou
 
 ## Usage and Availability
 
-There's no API surface right now. Just install the app and it should "just work" - it'll find your artifacts automatically. There are a small number of options that can be customised, see [advanced usage docs](https://www.artifact.ci/advanced). Usage limits may be introduced in future, or a proper payments setup.
+There's no API surface right now. Just install the app and it should "just work" - it'll find your artifacts automatically. There are a small number of options that can be customised, see [advanced usage docs](https://artifact.ci/advanced). Usage limits may be introduced in future, or a proper payments setup.
 
 Note that the GitHub team have mentioned a built-in solution is on their radar, so hopefully this will only be necessary for a short while.
 <!-- codegen:end -->

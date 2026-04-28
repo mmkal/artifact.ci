@@ -57,7 +57,7 @@ async function main() {
     // every branch. Now that prod is on Cloudflare and the Vercel
     // project is abandoned, those preview URLs return HTML 404s and
     // crash the action when it tries to JSON.parse the response.
-    artifactciOrigin: z.string().default('https://www.artifact.ci'),
+    artifactciOrigin: z.string().default('https://artifact.ci'),
     artifactciVisibility: z.enum(['private', 'public']).optional(),
     artifactciAliasTypes: z
       .string()

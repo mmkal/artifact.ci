@@ -6,6 +6,7 @@ import {validateGithubWebhook} from '@artifact/domain/github/webhook-validator'
 import {logger} from '@artifact/domain/logging/tag-logger'
 import {fromError} from 'zod-validation-error'
 import {getDb} from '../cloudflare-env'
+import {getArtifactOrigin} from './origin'
 import {insertArtifactRecord, storeInstallationAndRepo} from './upload'
 
 export async function handleWebhookRequest(request: Request): Promise<Response> {
@@ -113,7 +114,7 @@ async function handleEvent(request: Request, event: AppWebhookEvent) {
 
     const dedupedArtifacts = Object.values(Object.fromEntries(data.artifacts.map(a => [a.name, a])))
 
-    const origin = process.env.PUBLIC_DEV_URL || new URL(request.url).origin
+    const origin = getArtifactOrigin(request)
     const artifacts = await Promise.all(
       dedupedArtifacts.map(async a => {
         return logger.run(`artifact=${a.name}`, async () => {
