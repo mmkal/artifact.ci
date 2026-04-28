@@ -448,7 +448,10 @@ function buildWorkflowYaml(workflowName: string, artifactciOrigin: string) {
     '        run: |',
     '          mkdir -p html',
     `          printf '<!doctype html><html><body><h1>${workflowName}</h1></body></html>' > html/index.html`,
-    '      - uses: mmkal/artifact.ci/upload@main',
+    // Pinned to the branch under test rather than @main so the action's
+    // client-upload bundle matches the server's protocol (R2 presigned
+    // PUTs etc.). When this branch lands on main, drop the @ref.
+    '      - uses: mmkal/artifact.ci/upload@feat/cloudflare-native',
     '        with:',
     '          name: showcase-report',
     '          path: html',
