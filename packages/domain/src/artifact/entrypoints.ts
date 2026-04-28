@@ -1,3 +1,5 @@
+// Browser-friendly path shim — kept dependency-free so this file can be
+// imported from client components without pulling in node:path.
 const path = {
   parse: (filepath: string) => {
     const pathParts = filepath.split('/')
