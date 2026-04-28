@@ -190,6 +190,21 @@ var logger = new TagLogger();
 import { readFile, stat } from "fs/promises";
 import * as path from "path";
 import { z as z3 } from "./vendor.js";
+
+// src/action/artifact-url.ts
+var artifactViewPrefix = "/artifact/view/";
+var artifactBlobPrefix = "/artifact/blob/";
+function toArtifactFileUrl(artifactViewUrl, entryPath) {
+  const url = new URL(artifactViewUrl);
+  if (!url.pathname.startsWith(artifactViewPrefix)) {
+    throw new Error(`artifact URL must start with ${artifactViewPrefix}: ${artifactViewUrl}`);
+  }
+  url.pathname = url.pathname.replace(artifactViewPrefix, artifactBlobPrefix);
+  url.pathname = `${url.pathname.replace(/\/+$/, "")}/${entryPath.replace(/^\/+/, "")}`;
+  return url.toString();
+}
+
+// src/action/upload.ts
 async function main() {
   const event = JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH, { encoding: "utf8" }));
   function isDebug() {
@@ -312,7 +327,9 @@ async function main() {
       });
       const { entrypoints } = records.entrypoints;
       entrypoints.forEach((e, i) => {
-        const url = `${result.urls.at(-1)?.url}/${e.path}`;
+        const lastUrl = result.urls.at(-1);
+        if (!lastUrl) throw new Error("expected at least one artifact.ci URL");
+        const url = toArtifactFileUrl(lastUrl.url, e.path);
         logger.info(`\u{1F517} ${e.shortened}: ${url}`);
         setOutput(`artifactci-entrypoint-${i}`, url);
       });
