@@ -1,4 +1,4 @@
-import {chromium, expect, test as setup, type Browser, type BrowserContext, type Page} from '@playwright/test'
+import {chromium, expect, test as setup, type Browser, type BrowserContext} from '@playwright/test'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import {STORAGE_STATE} from '../playwright.config'
@@ -66,7 +66,7 @@ async function createStorageStateInteractively() {
     console.log(interactiveInstructions())
     await manualPage.locator('body').waitFor({timeout: 15_000})
 
-    watcher = watchForSuccessfulLogin(context, manualPage)
+    watcher = watchForSuccessfulLogin(context)
     await waitForStorageStateFile()
     console.log(`[e2e] Saved Playwright auth state to ${STORAGE_STATE}`)
   } finally {
@@ -75,18 +75,27 @@ async function createStorageStateInteractively() {
   }
 }
 
-async function watchForSuccessfulLogin(context: BrowserContext, page: Page) {
+async function watchForSuccessfulLogin(context: BrowserContext) {
+  // Poll on a separate page in the same context — cookies are shared at
+  // the context level, so the probe sees the login the moment it
+  // succeeds, but the user's hands-on page is never navigated and they
+  // can complete email/2FA verification at their own pace.
+  const probe = await context.newPage()
   const started = Date.now()
 
-  while (Date.now() - started < MANUAL_LOGIN_TIMEOUT_MS) {
-    try {
-      await page.goto(REPO_URL, {waitUntil: 'domcontentloaded'})
-      await page.locator(REPO_READY_SELECTOR).waitFor({timeout: 5000})
-      await context.storageState({path: STORAGE_STATE})
-      return
-    } catch {
-      await new Promise(resolve => setTimeout(resolve, 2000))
+  try {
+    while (Date.now() - started < MANUAL_LOGIN_TIMEOUT_MS) {
+      try {
+        await probe.goto(REPO_URL, {waitUntil: 'domcontentloaded'})
+        await probe.locator(REPO_READY_SELECTOR).waitFor({timeout: 5000})
+        await context.storageState({path: STORAGE_STATE})
+        return
+      } catch {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+      }
     }
+  } finally {
+    await probe.close().catch(() => {})
   }
 }
 
