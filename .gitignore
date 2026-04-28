@@ -18,6 +18,7 @@ yarn.lock
 
 .env
 .env.*
+!.env.*.example
 .DS_Store
 .eslint-config-inspector
 test-results
