@@ -3,9 +3,9 @@ import handler, {createServerEntry} from '@tanstack/react-start/server-entry'
 import {resolveArtifactForEdge} from './artifacts/resolve'
 import {getRequestSession} from './auth/request-session'
 import {createServerAuth} from './auth/server-auth'
+import {type AppEnv, runWithAppEnv} from './cloudflare-env'
 import {handleWebhookRequest} from './github/events'
 import {handleUploadRequest} from './github/upload'
-import {type AppEnv, runWithAppEnv} from './cloudflare-env'
 import {handleTrpcRequest} from './trpc/server'
 
 export default createServerEntry({

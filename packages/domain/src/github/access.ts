@@ -10,7 +10,10 @@ export type GetCollaborationLevelParams = {owner: string; repo: string; username
 export const getCollaborationLevel = async (octokit: Octokit, params: GetCollaborationLevelParams) => {
   if (params.username === params.owner) return 'admin'
   if (!params.username) return 'none'
-  const {data: collaboration} = await octokit.rest.repos.getCollaboratorPermissionLevel({...params, username: params.username})
+  const {data: collaboration} = await octokit.rest.repos.getCollaboratorPermissionLevel({
+    ...params,
+    username: params.username,
+  })
   const parsed = z.object({permission: z.enum(['none', 'read', 'write', 'admin'])}).safeParse(collaboration)
   if (!parsed.success) logger.error({collaboration}, 'getCollaborationLevel: failed to parse collaboration')
   return parsed.success ? parsed.data.permission : 'none'
@@ -48,54 +51,58 @@ export const checkCreditStatus = async (params: CheckCreditStatusParams, options
         and a.visibility = 'public'
     )
   `
-    if (credits.length > 1) logger.warn('checkCanAccess: multiple credits', {credits, params})
+  if (credits.length > 1) logger.warn('checkCanAccess: multiple credits', {credits, params})
 
-    if (credits.length === 0) {
-      let freeTrial: queries.FreeTrial | null = null
-      if (githubLogin) {
-        const priorRows = await options.db.sql.all<{prior_free_trial_count: number}>`
-          select count(*) as prior_free_trial_count
-          from usage_credits
-          where github_login = ${githubLogin}
-            and expiry < ${now}
-            and reason = 'free_trial'
+  if (credits.length === 0) {
+    let freeTrial: queries.FreeTrial | null = null
+    if (githubLogin) {
+      const priorRows = await options.db.sql.all<{prior_free_trial_count: number}>`
+        select count(*) as prior_free_trial_count
+        from usage_credits
+        where github_login = ${githubLogin}
+          and expiry < ${now}
+          and reason = 'free_trial'
+      `
+      const priorFreeTrialCount = Number(priorRows[0]?.prior_free_trial_count || 0)
+      if (priorFreeTrialCount < 10) {
+        const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        const rows = await options.db.sql.all<Omit<queries.FreeTrial, 'prior_free_trial_count'>>`
+          insert into usage_credits (id, github_login, reason, expiry)
+          values (${createPrefixedId('usage_credit')}, ${githubLogin}, 'free_trial', ${expiry})
+          returning id, github_login, expiry, sponsor_id, reason, created_at, updated_at
         `
-        const priorFreeTrialCount = Number(priorRows[0]?.prior_free_trial_count || 0)
-        if (priorFreeTrialCount < 10) {
-          const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-          const rows = await options.db.sql.all<Omit<queries.FreeTrial, 'prior_free_trial_count'>>`
-            insert into usage_credits (id, github_login, reason, expiry)
-            values (${createPrefixedId('usage_credit')}, ${githubLogin}, 'free_trial', ${expiry})
-            returning id, github_login, expiry, sponsor_id, reason, created_at, updated_at
-          `
-          if (rows[0]) freeTrial = {...rows[0], prior_free_trial_count: priorFreeTrialCount}
-        }
+        if (rows[0]) freeTrial = {...rows[0], prior_free_trial_count: priorFreeTrialCount}
       }
-      logger.warn(`checkCanAccess: ${freeTrial?.prior_free_trial_count} prior free trial credits`, freeTrial)
-      if (freeTrial) {
-        captureServerEvent({
-          distinctId: githubLogin || 'anonymous',
-          event: 'free_trial_credit_created',
-          properties: {
-            artifact_id: params.artifactId,
-            expiry: freeTrial.expiry,
-            count: freeTrial.prior_free_trial_count + 1,
-          },
-        })
-        return {
-          canAccess: true,
-          code: 'created_free_trial_credit',
-          reason: `created free trial credit: ${freeTrial.reason} (#${freeTrial.prior_free_trial_count + 1})`,
-        } as const
-      }
-      return {canAccess: false, code: 'no_credit', reason: 'no_credit'} as const
     }
+    logger.warn(`checkCanAccess: ${freeTrial?.prior_free_trial_count} prior free trial credits`, freeTrial)
+    if (freeTrial) {
+      captureServerEvent({
+        distinctId: githubLogin || 'anonymous',
+        event: 'free_trial_credit_created',
+        properties: {
+          artifact_id: params.artifactId,
+          expiry: freeTrial.expiry,
+          count: freeTrial.prior_free_trial_count + 1,
+        },
+      })
+      return {
+        canAccess: true,
+        code: 'created_free_trial_credit',
+        reason: `created free trial credit: ${freeTrial.reason} (#${freeTrial.prior_free_trial_count + 1})`,
+      } as const
+    }
+    return {canAccess: false, code: 'no_credit', reason: 'no_credit'} as const
+  }
 
-    const isPublic = credits.some(c => c.visibility === 'public')
-    return {canAccess: true, code: 'has_credit', reason: credits.map(c => c.reason).join(';'), isPublic} as const
+  const isPublic = credits.some(c => c.visibility === 'public')
+  return {canAccess: true, code: 'has_credit', reason: credits.map(c => c.reason).join(';'), isPublic} as const
 }
 
-export const checkCanAccess = async (octokit: Octokit, params: CheckCreditStatusParams, options: CheckCanAccessOptions) => {
+export const checkCanAccess = async (
+  octokit: Octokit,
+  params: CheckCreditStatusParams,
+  options: CheckCanAccessOptions,
+) => {
   const creditStatus = await checkCreditStatus(params, options)
   if (!creditStatus.canAccess) return creditStatus
 

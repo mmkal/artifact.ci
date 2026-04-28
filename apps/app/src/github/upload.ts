@@ -1,9 +1,9 @@
-import {fromError} from 'zod-validation-error'
-import {AliasType, UploadRequest, UploadResponse} from '@artifact/domain/github/upload-types'
-import {getInstallationOctokit, lookupRepoInstallation} from '@artifact/domain/github/installations'
-import {logger} from '@artifact/domain/logging/tag-logger'
 import {toAppArtifactPath} from '@artifact/domain/artifact/path-params'
 import {createPrefixedId} from '@artifact/domain/db/client'
+import {getInstallationOctokit, lookupRepoInstallation} from '@artifact/domain/github/installations'
+import {AliasType, UploadRequest, UploadResponse} from '@artifact/domain/github/upload-types'
+import {logger} from '@artifact/domain/logging/tag-logger'
+import {fromError} from 'zod-validation-error'
 import {getAppEnv, getDb} from '../cloudflare-env'
 import {createUploadToken} from '../upload-tokens'
 
@@ -93,7 +93,11 @@ async function ensureInstallationAndRepo(owner: string, repo: string) {
   return storeInstallationAndRepo({owner, repo, installationId: installation.id})
 }
 
-export async function storeInstallationAndRepo({owner, repo, installationId}: {
+export async function storeInstallationAndRepo({
+  owner,
+  repo,
+  installationId,
+}: {
   owner: string
   repo: string
   installationId: number
@@ -180,22 +184,32 @@ export const insertArtifactRecord = async ({
   const artifactVisibilityOverride = a.visibility || null
   const d1 = getAppEnv().ARTIFACT_DB
   const statements = [
-    d1.prepare(`
-      insert into artifacts (id, repo_id, name, github_id, installation_id, visibility)
-      values (?, ?, ?, ?, ?, ?)
-      on conflict (repo_id, name, github_id) do update set
-        installation_id = excluded.installation_id,
-        visibility = coalesce(?, artifacts.visibility),
-        updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-      returning id, repo_id, name, github_id, installation_id, visibility
-    `).bind(artifactId, dbRepo.repo_id, a.name, a.id, dbRepo.installation_id, visibility, artifactVisibilityOverride),
-    ...identifiers.map(identifier => d1.prepare(`
-      insert into artifact_identifiers (id, artifact_id, type, value)
-      values (?, (select id from artifacts where repo_id = ? and name = ? and github_id = ?), ?, ?)
-      on conflict (artifact_id, type, value) do update set
-        updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-      returning id, artifact_id, type, value
-    `).bind(createPrefixedId('artifact_identifier'), dbRepo.repo_id, a.name, a.id, identifier.type, identifier.value)),
+    d1
+      .prepare(
+        `
+          insert into artifacts (id, repo_id, name, github_id, installation_id, visibility)
+          values (?, ?, ?, ?, ?, ?)
+          on conflict (repo_id, name, github_id) do update set
+            installation_id = excluded.installation_id,
+            visibility = coalesce(?, artifacts.visibility),
+            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+          returning id, repo_id, name, github_id, installation_id, visibility
+        `,
+      )
+      .bind(artifactId, dbRepo.repo_id, a.name, a.id, dbRepo.installation_id, visibility, artifactVisibilityOverride),
+    ...identifiers.map(identifier =>
+      d1
+        .prepare(
+          `
+            insert into artifact_identifiers (id, artifact_id, type, value)
+            values (?, (select id from artifacts where repo_id = ? and name = ? and github_id = ?), ?, ?)
+            on conflict (artifact_id, type, value) do update set
+              updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            returning id, artifact_id, type, value
+          `,
+        )
+        .bind(createPrefixedId('artifact_identifier'), dbRepo.repo_id, a.name, a.id, identifier.type, identifier.value),
+    ),
   ]
   const results = await d1.batch(statements)
   const dbArtifact = results[0]?.results[0] as InsertArtifactRow | undefined

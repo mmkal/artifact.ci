@@ -1,13 +1,13 @@
+import {getEntrypoints} from '@artifact/domain/artifact/entrypoints'
+import {Id, createPrefixedId} from '@artifact/domain/db/client'
+import {checkCanAccess} from '@artifact/domain/github/access'
+import {getInstallationOctokit} from '@artifact/domain/github/installations'
+import {logger} from '@artifact/domain/logging/tag-logger'
 import {initTRPC, TRPCError} from '@trpc/server'
 import {AwsClient} from 'aws4fetch'
 import mime from 'mime'
 import pMap from 'p-suite/p-map'
 import {z} from 'zod'
-import {Id, createPrefixedId} from '@artifact/domain/db/client'
-import {getEntrypoints} from '@artifact/domain/artifact/entrypoints'
-import {checkCanAccess} from '@artifact/domain/github/access'
-import {getInstallationOctokit} from '@artifact/domain/github/installations'
-import {logger} from '@artifact/domain/logging/tag-logger'
 import {getAppEnv, getDb, parseJsonStringArray, type AppEnv} from '../cloudflare-env'
 import {lookupUploadToken} from '../upload-tokens'
 
@@ -67,12 +67,16 @@ export const artifactAccessProcedure = unmodifiedTRPC.procedure
     const octokit = await getInstallationOctokit(artifact.installation_github_id)
     console.log('[trpc-mw] got octokit')
 
-    const canAccess = await checkCanAccess(octokit, {
-      owner: artifact.owner,
-      repo: artifact.repo,
-      username: githubLogin,
-      artifactId: input.artifactId,
-    }, {db})
+    const canAccess = await checkCanAccess(
+      octokit,
+      {
+        owner: artifact.owner,
+        repo: artifact.repo,
+        username: githubLogin,
+        artifactId: input.artifactId,
+      },
+      {db},
+    )
     console.log('[trpc-mw] access:', canAccess)
     if (!canAccess.canAccess) {
       throw new TRPCError({
@@ -152,27 +156,35 @@ export const appRouter = router({
 
       const d1 = getAppEnv().ARTIFACT_DB
       const results = payload.length
-        ? await d1.batch(payload.map(entry => d1.prepare(`
-          insert into artifact_entries (
-            id,
-            artifact_id,
-            entry_name,
-            aliases,
-            storage_pathname
+        ? await d1.batch(
+            payload.map(entry =>
+              d1
+                .prepare(
+                  `
+                    insert into artifact_entries (
+                      id,
+                      artifact_id,
+                      entry_name,
+                      aliases,
+                      storage_pathname
+                    )
+                    values (?, ?, ?, ?, ?)
+                    on conflict (artifact_id, entry_name) do update set
+                      aliases = excluded.aliases,
+                      storage_pathname = excluded.storage_pathname,
+                      updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                    returning entry_name, aliases, storage_pathname
+                  `,
+                )
+                .bind(
+                  createPrefixedId('artifact_entry'),
+                  input.artifactId,
+                  entry.entry_name,
+                  JSON.stringify(entry.aliases),
+                  entry.storage_pathname,
+                ),
+            ),
           )
-          values (?, ?, ?, ?, ?)
-          on conflict (artifact_id, entry_name) do update set
-            aliases = excluded.aliases,
-            storage_pathname = excluded.storage_pathname,
-            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-          returning entry_name, aliases, storage_pathname
-        `).bind(
-          createPrefixedId('artifact_entry'),
-          input.artifactId,
-          entry.entry_name,
-          JSON.stringify(entry.aliases),
-          entry.storage_pathname,
-        )))
         : []
       const records = results
         .flatMap(result => result.results as Array<{entry_name: string; aliases: string; storage_pathname: string}>)
@@ -217,12 +229,16 @@ export const appRouter = router({
 })
 
 function createR2PresignedPutUrl(env: AppEnv, signer: AwsClient, key: string) {
-  const url = new URL(`https://${env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com/${env.ARTIFACT_BLOBS_BUCKET}/${encodeR2Key(key)}`)
+  const url = new URL(
+    `https://${env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com/${env.ARTIFACT_BLOBS_BUCKET}/${encodeR2Key(key)}`,
+  )
   url.searchParams.set('X-Amz-Expires', '600')
-  return signer.sign(url, {
-    method: 'PUT',
-    aws: {signQuery: true},
-  }).then(request => request.url)
+  return signer
+    .sign(url, {
+      method: 'PUT',
+      aws: {signQuery: true},
+    })
+    .then(request => request.url)
 }
 
 const encodeR2Key = (key: string) => key.split('/').map(encodeURIComponent).join('/')

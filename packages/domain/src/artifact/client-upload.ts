@@ -69,7 +69,10 @@ export async function clientUpload({
     const chunk = allEntries.slice(i, i + SIGNING_CHUNK)
     const result = await client.createUploadTokens.mutate({artifactId, entries: chunk})
     uploads.push(...result.tokens)
-    onProgress('preparing', `Getting upload tokens (${Math.min(i + SIGNING_CHUNK, allEntries.length)}/${allEntries.length})`)
+    onProgress(
+      'preparing',
+      `Getting upload tokens (${Math.min(i + SIGNING_CHUNK, allEntries.length)}/${allEntries.length})`,
+    )
   }
 
   onProgress('uploading', 'Uploading files')

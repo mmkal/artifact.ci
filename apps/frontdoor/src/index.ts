@@ -14,26 +14,27 @@ const VITE_DEV_PREFIXES = ['/@vite/', '/__vite']
 // Drop-in replacement for /@vite/client when running through the tunnel.
 // Preserves the exports transformed vite modules import (createHotContext
 // etc.) as no-ops so hydration doesn't throw, but doesn't connect to HMR.
-const VITE_CLIENT_STUB = `const noop = () => {};
-const hot = {
-  get data() { return {}; },
-  accept: noop,
-  acceptExports: noop,
-  dispose: noop,
-  prune: noop,
-  decline: noop,
-  invalidate: noop,
-  on: noop,
-  off: noop,
-  send: noop,
-};
-export const createHotContext = () => hot;
-export const updateStyle = noop;
-export const removeStyle = noop;
-export const injectQuery = (url) => url;
-export class ErrorOverlay extends (globalThis.HTMLElement || class {}) {
-  constructor() { super(); }
-}
+const VITE_CLIENT_STUB = `
+  const noop = () => {};
+  const hot = {
+    get data() { return {}; },
+    accept: noop,
+    acceptExports: noop,
+    dispose: noop,
+    prune: noop,
+    decline: noop,
+    invalidate: noop,
+    on: noop,
+    off: noop,
+    send: noop,
+  };
+  export const createHotContext = () => hot;
+  export const updateStyle = noop;
+  export const removeStyle = noop;
+  export const injectQuery = (url) => url;
+  export class ErrorOverlay extends (globalThis.HTMLElement || class {}) {
+    constructor() { super(); }
+  }
 `
 
 const proxyToOrigin = async (request: Request, origin: string) => {
@@ -117,97 +118,96 @@ export default {
 async function handle(request: Request, env: FrontdoorEnv): Promise<Response> {
   const url = new URL(request.url)
 
-      // Vite's HMR client doesn't survive a Cloudflare Tunnel: the HMR
-      // WebSocket's upgrade gets mangled, the client reports "server
-      // connection lost", then polls with a "vite-ping" WebSocket to the
-      // same URL. As soon as the ping WS looks like it succeeds, the
-      // client calls location.reload() — which is the infinite-refresh
-      // loop at https://artifactci.dev/<app-route>. hmr:false in
-      // vite.config doesn't stop tanstack-start from injecting the
-      // client, so we short-circuit the client script itself: return an
-      // empty module and the page never sets up HMR or polling.
-      if (
-        url.pathname === '/@vite/client' ||
-        url.pathname === `${APP_DEV_PREFIX}/@vite/client`
-      ) {
-        return new Response(VITE_CLIENT_STUB, {
-          status: 200,
-          headers: {'content-type': 'application/javascript; charset=utf-8'},
-        })
-      }
+  // Vite's HMR client doesn't survive a Cloudflare Tunnel: the HMR
+  // WebSocket's upgrade gets mangled, the client reports "server
+  // connection lost", then polls with a "vite-ping" WebSocket to the
+  // same URL. As soon as the ping WS looks like it succeeds, the
+  // client calls location.reload() — which is the infinite-refresh
+  // loop at https://artifactci.dev/<app-route>. hmr:false in
+  // vite.config doesn't stop tanstack-start from injecting the
+  // client, so we short-circuit the client script itself: return an
+  // empty module and the page never sets up HMR or polling.
+  if (url.pathname === '/@vite/client' || url.pathname === `${APP_DEV_PREFIX}/@vite/client`) {
+    return new Response(VITE_CLIENT_STUB, {
+      status: 200,
+      headers: {'content-type': 'application/javascript; charset=utf-8'},
+    })
+  }
 
-      if (isWebsocketUpgrade(request)) {
-        if (url.pathname.startsWith(APP_DEV_PREFIX) || isViteWebsocketPath(url.pathname)) {
-          const appPath = url.pathname.startsWith(APP_DEV_PREFIX) ? url.pathname.slice(APP_DEV_PREFIX.length) || '/' : url.pathname
-          return proxyToOrigin(new Request(new URL(`${appPath}${url.search}`, env.APP_URL), request), env.APP_URL)
-        }
+  if (isWebsocketUpgrade(request)) {
+    if (url.pathname.startsWith(APP_DEV_PREFIX) || isViteWebsocketPath(url.pathname)) {
+      const appPath = url.pathname.startsWith(APP_DEV_PREFIX)
+        ? url.pathname.slice(APP_DEV_PREFIX.length) || '/'
+        : url.pathname
+      return proxyToOrigin(new Request(new URL(`${appPath}${url.search}`, env.APP_URL), request), env.APP_URL)
+    }
 
-        const refererTarget = getRefererTarget(request)
-        if (refererTarget === 'app') {
-          return proxyToOrigin(request, env.APP_URL)
-        }
-        if (refererTarget === 'docs') {
-          return proxyToOrigin(request, env.DOCS_URL)
-        }
-      }
-
-      if (url.pathname === '/app') {
-        return Response.redirect(new URL('/login', url.origin), 307)
-      }
-
-      // Old /app/artifacts/* URLs predate the rename to /artifact/view/*.
-      // Keep previously-issued check-run links working.
-      if (url.pathname.startsWith('/app/artifacts/') || url.pathname === '/app/artifacts') {
-        const next = url.pathname.replace(/^\/app\/artifacts/, '/artifact/view')
-        return Response.redirect(new URL(`${next}${url.search}`, url.origin), 308)
-      }
-
-      if (url.pathname.startsWith(APP_DEV_PREFIX)) {
-        const appPath = url.pathname.slice(APP_DEV_PREFIX.length) || '/'
-        return proxyAppResponse(new Request(new URL(`${appPath}${url.search}`, env.APP_URL), request), env.APP_URL)
-      }
-
-      if (isDevAssetPath(url.pathname)) {
-        const refererTarget = getRefererTarget(request)
-        if (refererTarget === 'app' && isLocalOrigin(env.APP_URL)) {
-          return proxyToOrigin(request, env.APP_URL)
-        }
-        if (refererTarget === 'docs') {
-          return proxyToFirstAvailable(request, [env.DOCS_URL, env.APP_URL])
-        }
-        return proxyToFirstAvailable(request, [env.APP_URL, env.DOCS_URL])
-      }
-
-      const target = routeRequest(url.pathname)
-
-      if (target === 'artifact') {
-        return handleArtifactRequest(request, env)
-      }
-
-      if (target === 'app') {
-        if (isLocalOrigin(env.APP_URL)) {
-          return proxyAppResponse(request, env.APP_URL)
-        }
-
-        return env.APP.fetch(request)
-      }
-
-      // Docs target — canonicalise to no trailing slash, then map
-      // extensionless paths onto Astro's `/foo/index.html` output.
-      // Workers Assets is set to html_handling: 'none' in prod so it
-      // serves files at literal paths only; we have to spell out the
-      // index.html lookup ourselves, including for the root.
-      if (url.pathname.length > 1 && url.pathname.endsWith('/')) {
-        const stripped = url.pathname.replace(/\/+$/, '') || '/'
-        return Response.redirect(new URL(stripped + url.search, url.origin), 308)
-      }
-      const hasExtension = /\.[\da-z]+$/i.test(url.pathname)
-      if (!hasExtension) {
-        const upstreamPath = url.pathname === '/' ? '/index.html' : `${url.pathname}/index.html`
-        const docsUrl = new URL(`${upstreamPath}${url.search}`, env.DOCS_URL)
-        return proxyToOrigin(new Request(docsUrl, request), env.DOCS_URL)
-      }
+    const refererTarget = getRefererTarget(request)
+    if (refererTarget === 'app') {
+      return proxyToOrigin(request, env.APP_URL)
+    }
+    if (refererTarget === 'docs') {
       return proxyToOrigin(request, env.DOCS_URL)
+    }
+  }
+
+  if (url.pathname === '/app') {
+    return Response.redirect(new URL('/login', url.origin), 307)
+  }
+
+  // Old /app/artifacts/* URLs predate the rename to /artifact/view/*.
+  // Keep previously-issued check-run links working.
+  if (url.pathname.startsWith('/app/artifacts/') || url.pathname === '/app/artifacts') {
+    const next = url.pathname.replace(/^\/app\/artifacts/, '/artifact/view')
+    return Response.redirect(new URL(`${next}${url.search}`, url.origin), 308)
+  }
+
+  if (url.pathname.startsWith(APP_DEV_PREFIX)) {
+    const appPath = url.pathname.slice(APP_DEV_PREFIX.length) || '/'
+    return proxyAppResponse(new Request(new URL(`${appPath}${url.search}`, env.APP_URL), request), env.APP_URL)
+  }
+
+  if (isDevAssetPath(url.pathname)) {
+    const refererTarget = getRefererTarget(request)
+    if (refererTarget === 'app' && isLocalOrigin(env.APP_URL)) {
+      return proxyToOrigin(request, env.APP_URL)
+    }
+    if (refererTarget === 'docs') {
+      return proxyToFirstAvailable(request, [env.DOCS_URL, env.APP_URL])
+    }
+    return proxyToFirstAvailable(request, [env.APP_URL, env.DOCS_URL])
+  }
+
+  const target = routeRequest(url.pathname)
+
+  if (target === 'artifact') {
+    return handleArtifactRequest(request, env)
+  }
+
+  if (target === 'app') {
+    if (isLocalOrigin(env.APP_URL)) {
+      return proxyAppResponse(request, env.APP_URL)
+    }
+
+    return env.APP.fetch(request)
+  }
+
+  // Docs target — canonicalise to no trailing slash, then map
+  // extensionless paths onto Astro's `/foo/index.html` output.
+  // Workers Assets is set to html_handling: 'none' in prod so it
+  // serves files at literal paths only; we have to spell out the
+  // index.html lookup ourselves, including for the root.
+  if (url.pathname.length > 1 && url.pathname.endsWith('/')) {
+    const stripped = url.pathname.replace(/\/+$/, '') || '/'
+    return Response.redirect(new URL(stripped + url.search, url.origin), 308)
+  }
+  const hasExtension = /\.[\da-z]+$/i.test(url.pathname)
+  if (!hasExtension) {
+    const upstreamPath = url.pathname === '/' ? '/index.html' : `${url.pathname}/index.html`
+    const docsUrl = new URL(`${upstreamPath}${url.search}`, env.DOCS_URL)
+    return proxyToOrigin(new Request(docsUrl, request), env.DOCS_URL)
+  }
+  return proxyToOrigin(request, env.DOCS_URL)
 }
 
 async function proxyAppResponse(request: Request, origin: string) {

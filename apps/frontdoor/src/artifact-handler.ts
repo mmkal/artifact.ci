@@ -1,10 +1,7 @@
-import {buildArtifactFileResponse} from '@artifact/domain/artifact/build-file-response'
-import {
-  type ArtifactResolveRequest,
-  type ArtifactResolveResponse,
-} from '@artifact/domain/artifact/edge-contract'
-import {PathParams} from '@artifact/domain/artifact/path-params'
 import {ARTIFACT_BLOB_ROUTE_PREFIX} from '@artifact/config/routes'
+import {buildArtifactFileResponse} from '@artifact/domain/artifact/build-file-response'
+import {type ArtifactResolveRequest, type ArtifactResolveResponse} from '@artifact/domain/artifact/edge-contract'
+import {PathParams} from '@artifact/domain/artifact/path-params'
 
 export interface ArtifactHandlerEnv {
   APP: {fetch(request: Request): Promise<Response>}
@@ -39,7 +36,8 @@ export async function handleArtifactRequest(request: Request, env: ArtifactHandl
   if (!url.pathname.startsWith(ARTIFACT_BLOB_ROUTE_PREFIX)) {
     return Response.json(
       {
-        message: 'Unsupported artifact route (only /artifact/blob/* is served by the artifact worker; /artifact/view/* is rendered by the app).',
+        message:
+          'Unsupported artifact route (only /artifact/blob/* is served by the artifact worker; /artifact/view/* is rendered by the app).',
         supportedPrefixes: [ARTIFACT_BLOB_ROUTE_PREFIX],
       },
       {status: 404},
@@ -86,9 +84,7 @@ export async function handleArtifactRequest(request: Request, env: ArtifactHandl
  */
 function withBlobCaching(response: Response, aliasType: string): Response {
   const isImmutable = aliasType === 'run' || aliasType === 'sha'
-  const cacheControl = isImmutable
-    ? 'public, max-age=31536000, immutable'
-    : 'no-store'
+  const cacheControl = isImmutable ? 'public, max-age=31536000, immutable' : 'no-store'
   const headers = new Headers(response.headers)
   headers.set('Cache-Control', cacheControl)
   if (!isImmutable) headers.delete('Etag')

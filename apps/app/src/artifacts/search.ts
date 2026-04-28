@@ -64,12 +64,16 @@ export const searchRepos = createServerFn({method: 'GET'})
 
     const octokit = await getInstallationOctokit(rows[0].installation_github_id)
     for (const repo of rows) {
-      const canAccess = await checkCanAccess(octokit, {
-        owner: repo.owner,
-        repo: repo.repo,
-        username: githubLogin,
-        artifactId: '',
-      }, {db})
+      const canAccess = await checkCanAccess(
+        octokit,
+        {
+          owner: repo.owner,
+          repo: repo.repo,
+          username: githubLogin,
+          artifactId: '',
+        },
+        {db},
+      )
       if (!canAccess.canAccess) return {code: 'no_access', results: [], viewerLogin: githubLogin}
     }
     return {code: 'ok', results: rows, viewerLogin: githubLogin}
@@ -78,12 +82,13 @@ export const searchRepos = createServerFn({method: 'GET'})
 export const searchArtifacts = createServerFn({method: 'GET'})
   .inputValidator((input: z.input<typeof SearchInput>) => SearchInput.parse(input))
   .handler(async ({data: params}): Promise<ListResponse<ArtifactResult>> => {
-    const [{getCurrentSession}, {getInstallationOctokit}, {checkCanAccess}, {getDb, parseJsonStringArray}] = await Promise.all([
-      import('../auth/session'),
-      import('@artifact/domain/github/installations'),
-      import('@artifact/domain/github/access'),
-      import('../cloudflare-env'),
-    ])
+    const [{getCurrentSession}, {getInstallationOctokit}, {checkCanAccess}, {getDb, parseJsonStringArray}] =
+      await Promise.all([
+        import('../auth/session'),
+        import('@artifact/domain/github/installations'),
+        import('@artifact/domain/github/access'),
+        import('../cloudflare-env'),
+      ])
     const db = getDb()
     const session = await getCurrentSession()
     const githubLogin = session.user?.githubLogin ?? undefined
@@ -133,12 +138,16 @@ export const searchArtifacts = createServerFn({method: 'GET'})
       const key = `${row.owner}/${row.repo}`
       if (seenRepos.has(key)) continue
       seenRepos.add(key)
-      const canAccess = await checkCanAccess(octokit, {
-        owner: row.owner,
-        repo: row.repo,
-        username: githubLogin,
-        artifactId: row.artifact_id,
-      }, {db})
+      const canAccess = await checkCanAccess(
+        octokit,
+        {
+          owner: row.owner,
+          repo: row.repo,
+          username: githubLogin,
+          artifactId: row.artifact_id,
+        },
+        {db},
+      )
       if (!canAccess.canAccess) return {code: 'no_access', results: [], viewerLogin: githubLogin}
     }
 
