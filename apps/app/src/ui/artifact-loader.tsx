@@ -9,7 +9,6 @@ export type ArtifactLoaderProps = PathParams & {
   artifactId: string
   githubLogin: string | undefined
   entry: string | null
-  reload: boolean
 }
 
 export function ArtifactLoader(props: ArtifactLoaderProps) {
@@ -21,7 +20,6 @@ export function ArtifactLoader(props: ArtifactLoaderProps) {
 }
 
 function ArtifactLoaderInner(props: ArtifactLoaderProps) {
-  const {reload} = props
   const initialUpdates: Update[] = [{stage: 'welcome', message: 'Welcome, ' + (props.githubLogin || 'guest')}]
 
   const [updates, setUpdates] = useState<Update[]>(initialUpdates)
@@ -52,11 +50,11 @@ function ArtifactLoaderInner(props: ArtifactLoaderProps) {
   })
 
   useEffect(() => {
-    if (mutation.status === 'idle' && props.artifactId && !reload) {
+    if (mutation.status === 'idle' && props.artifactId) {
       const timeout = setTimeout(() => mutation.mutate({artifactId: props.artifactId}), 200)
       return () => clearTimeout(timeout)
     }
-  }, [mutation.status, props.artifactId, mutation, reload])
+  }, [mutation.status, props.artifactId, mutation])
 
   return (
     <div className="browser__loader">

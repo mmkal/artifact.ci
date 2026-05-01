@@ -108,7 +108,7 @@ function ArtifactBrowserPage() {
       <TrpcProvider>
         <section className="page browser">
           {header}
-          <ArtifactLoader {...loaderProps} reload={reload} />
+          <ArtifactLoader {...loaderProps} />
         </section>
       </TrpcProvider>
     )
