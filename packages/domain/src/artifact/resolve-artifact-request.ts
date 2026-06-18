@@ -7,6 +7,23 @@ export interface ArtifactSummary {
   entries: string[] | null
 }
 
+// Why we couldn't find a row for the requested artifact. Used to give the
+// user (and the UI) a specific message + offer the right next step (install
+// the GitHub App, fetch the artifact on demand, etc.) instead of a generic
+// "not found".
+export type MissingDiagnostic =
+  | {kind: 'repo_not_registered'; owner: string; repo: string}
+  | {kind: 'no_artifact_in_repo'; owner: string; repo: string; artifactName: string}
+  | {
+      kind: 'no_identifier_for_artifact'
+      owner: string
+      repo: string
+      artifactName: string
+      aliasType: string
+      identifier: string
+    }
+  | {kind: 'unknown'}
+
 export interface ArtifactAccessResult {
   canAccess: boolean
   code: string
@@ -26,6 +43,7 @@ export type ResolveArtifactRequestResult =
       message: string
       githubLogin?: string
       artifactInfo: null
+      missing: MissingDiagnostic
     }
   | {
       code: 'not_authorized'
@@ -56,6 +74,15 @@ export type ResolveArtifactRequestResult =
 
 export interface ResolveArtifactRequestDeps {
   findArtifactInfo(params: PathParams & {entry: string | null}): Promise<ArtifactSummary | null>
+  // Called only when findArtifactInfo returns null, to drill down on which
+  // row was missing (repo / artifact / identifier) so the UI can show a
+  // specific message + the right call-to-action.
+  //
+  // Implementations MUST gate any kind that confirms the repo exists in our
+  // DB (i.e. anything other than 'repo_not_registered' / 'unknown') behind a
+  // GitHub-level access check — otherwise hitting an arbitrary URL would
+  // reveal the existence of private repos to outsiders.
+  diagnoseMissingArtifact(params: PathParams, githubLogin: string | undefined): Promise<MissingDiagnostic>
   checkAccess(input: {
     installationGithubId: number
     artifactId: string
@@ -76,11 +103,13 @@ export async function resolveArtifactRequest(
 
   const artifactInfo = await deps.findArtifactInfo({...params, entry})
   if (!artifactInfo) {
+    const missing = await deps.diagnoseMissingArtifact(params, normalizedGithubLogin)
     return {
       code: 'artifact_not_found',
       message: `Artifact ${params.artifactName} not found`,
       githubLogin: normalizedGithubLogin,
       artifactInfo,
+      missing,
     }
   }
 

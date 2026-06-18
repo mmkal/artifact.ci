@@ -21,7 +21,7 @@ export const loadArtifactForBrowser = createServerFn({method: 'GET'})
   .inputValidator((input: PathParams) => PathParams.parse(input))
   .handler(async ({data: params}): Promise<LoadArtifactResult> => {
     const [
-      {checkCanAccess},
+      {checkCanAccess, getCollaborationLevel},
       {getInstallationOctokit, lookupRepoInstallation},
       {resolveArtifactRequest},
       {getCurrentSession},
@@ -71,6 +71,45 @@ export const loadArtifactForBrowser = createServerFn({method: 'GET'})
             visibility: artifactInfo.visibility,
             entries: parseJsonStringArray(artifactInfo.entries_json),
           }
+        },
+        async diagnoseMissingArtifact({owner, repo, aliasType, identifier, artifactName}, githubLogin) {
+          const repoRows = await db.sql.all<{id: string; installation_github_id: number}>`
+            select r.id as id, gi.github_id as installation_github_id
+            from repos r
+            join github_installations gi on gi.id = r.installation_id
+            where r.owner = ${owner} and r.name = ${repo}
+            limit 1
+          `
+          if (!repoRows[0]) return {kind: 'repo_not_registered', owner, repo}
+
+          // Repo is registered. From here on, every other 'missing.kind'
+          // confirms the repo exists in our DB → confirms it exists on GitHub.
+          // Gate on the user having read access to the repo on GitHub before
+          // returning anything more specific than 'unknown'.
+          if (!githubLogin) return {kind: 'unknown'}
+          const octokit = await getInstallationOctokit(repoRows[0].installation_github_id).catch(() => null)
+          if (!octokit) return {kind: 'unknown'}
+          const level = await getCollaborationLevel(octokit, {owner, repo, username: githubLogin}).catch(() => 'none')
+          if (level === 'none') return {kind: 'unknown'}
+
+          const artifactRows = await db.sql.all<{id: string}>`
+            select id from artifacts
+            where repo_id = ${repoRows[0].id} and name = ${artifactName}
+            order by created_at desc
+            limit 1
+          `
+          if (!artifactRows[0]) return {kind: 'no_artifact_in_repo', owner, repo, artifactName}
+
+          const idRows = await db.sql.all<{id: string}>`
+            select id from artifact_identifiers
+            where artifact_id = ${artifactRows[0].id}
+              and type = ${aliasType}
+              and value = ${identifier}
+            limit 1
+          `
+          if (!idRows[0]) return {kind: 'no_identifier_for_artifact', owner, repo, artifactName, aliasType, identifier}
+
+          return {kind: 'unknown'}
         },
         async checkAccess({installationGithubId, artifactId, owner, repo, githubLogin}) {
           // The stored installation_github_id is whichever App was used to

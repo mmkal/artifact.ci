@@ -39,12 +39,41 @@ function ArtifactBrowserPage() {
   const allowDelete = search.delete === 'true'
 
   if (data.resolved.code === 'artifact_not_found') {
+    const missing = data.resolved.missing
     return (
       <section className="page browser">
         <div className="eyebrow">Artifact Browser</div>
         <h1>{params.artifactName}</h1>
-        <p>Not found. Double-check the owner, repo, alias, identifier, and artifact name.</p>
-        <pre className="browser__debug">{JSON.stringify(data.resolved, null, 2)}</pre>
+        {missing.kind === 'repo_not_registered' ? (
+          <p>
+            The artifact-ci GitHub App isn&apos;t installed on a repo at this URL.{' '}
+            <a href="https://github.com/apps/artifact-ci" rel="noreferrer noopener" target="_blank">
+              Install it
+            </a>{' '}
+            to start collecting artifacts. (If you&apos;re sure it should already be installed, double-check the
+            owner and repo in the URL.)
+          </p>
+        ) : missing.kind === 'no_artifact_in_repo' ? (
+          <p>
+            No artifact named <code>{missing.artifactName}</code> has been recorded for{' '}
+            <code>
+              {missing.owner}/{missing.repo}
+            </code>
+            . If GitHub Actions just produced it, our webhook may not have fired — open an issue and we&apos;ll
+            help backfill it.
+          </p>
+        ) : missing.kind === 'no_identifier_for_artifact' ? (
+          <p>
+            We have an artifact named <code>{missing.artifactName}</code> in{' '}
+            <code>
+              {missing.owner}/{missing.repo}
+            </code>
+            , but no <code>{missing.aliasType}</code> alias for{' '}
+            <code>{missing.identifier}</code>. Double-check the identifier in the URL.
+          </p>
+        ) : (
+          <p>Not found. Double-check the owner, repo, alias, identifier, and artifact name.</p>
+        )}
       </section>
     )
   }
