@@ -30,7 +30,7 @@ function IdentifierArtifacts() {
       <p className="eyebrow">
         {params.aliasType}: <code>{params.identifier}</code>
       </p>
-      <ArtifactList data={data} />
+      <ArtifactList data={data} filters={params} />
     </section>
   )
 }

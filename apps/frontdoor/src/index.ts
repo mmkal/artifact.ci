@@ -1,5 +1,6 @@
 import {handleArtifactRequest, type ArtifactHandlerEnv} from './artifact-handler'
 import {getWwwToApexRedirect} from './canonical-host'
+import {getGithubUrlRedirect} from './github-url'
 import {getLegacyArtifactFileRedirect} from './legacy-artifact-file'
 import {routeRequest} from './routing'
 
@@ -156,6 +157,9 @@ async function handle(request: Request, env: FrontdoorEnv): Promise<Response> {
   if (url.pathname === '/app') {
     return Response.redirect(new URL('/login', url.origin), 307)
   }
+
+  const githubUrlRedirect = getGithubUrlRedirect(request)
+  if (githubUrlRedirect) return githubUrlRedirect
 
   const legacyArtifactFileRedirect = getLegacyArtifactFileRedirect(request)
   if (legacyArtifactFileRedirect) return legacyArtifactFileRedirect

@@ -1,6 +1,8 @@
 import {toAppArtifactPath} from '@artifact/domain/artifact/path-params'
 import type {ArtifactResult, ListResponse, RepoResult} from '../artifacts/search'
 
+type ArtifactListFilters = {aliasType?: string; identifier?: string}
+
 const toViewPath = (params: {owner?: string; repo?: string; aliasType?: string; identifier?: string}) => {
   const segments = ['/artifact/view']
   for (const k of ['owner', 'repo', 'aliasType', 'identifier'] as const) {
@@ -58,7 +60,7 @@ export function RepoList({data}: {data: ListResponse<RepoResult>}) {
   )
 }
 
-export function ArtifactList({data}: {data: ListResponse<ArtifactResult>}) {
+export function ArtifactList({data, filters}: {data: ListResponse<ArtifactResult>; filters?: ArtifactListFilters}) {
   if (data.code === 'not_logged_in') {
     return (
       <div className="search__empty">
@@ -74,6 +76,22 @@ export function ArtifactList({data}: {data: ListResponse<ArtifactResult>}) {
     return <div className="search__empty">The GitHub App can&apos;t confirm access for this repository.</div>
   }
   if (data.results.length === 0) {
+    if (filters?.aliasType === 'run' && filters.identifier) {
+      return (
+        <div className="search__empty">
+          No artifacts have been recorded for run <code>{filters.identifier}</code>. GitHub may not have uploaded any
+          artifacts for that run, or artifact.ci may not have received the completed-job webhook yet.
+        </div>
+      )
+    }
+    if (filters?.aliasType === 'pr' && filters.identifier) {
+      return (
+        <div className="search__empty">
+          No artifacts have been recorded for PR <code>{filters.identifier}</code>. Its branch may not have produced any
+          artifacts yet, or artifact.ci may not have received the completed-job webhook yet.
+        </div>
+      )
+    }
     return <div className="search__empty">No artifacts match these filters.</div>
   }
   return (

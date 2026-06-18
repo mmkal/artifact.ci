@@ -82,13 +82,17 @@ export const searchRepos = createServerFn({method: 'GET'})
 export const searchArtifacts = createServerFn({method: 'GET'})
   .inputValidator((input: z.input<typeof SearchInput>) => SearchInput.parse(input))
   .handler(async ({data: params}): Promise<ListResponse<ArtifactResult>> => {
-    const [{getCurrentSession}, {getInstallationOctokit}, {checkCanAccess}, {getDb, parseJsonStringArray}] =
-      await Promise.all([
-        import('../auth/session'),
-        import('@artifact/domain/github/installations'),
-        import('@artifact/domain/github/access'),
-        import('../cloudflare-env'),
-      ])
+    const [
+      {getCurrentSession},
+      {getInstallationOctokit, lookupRepoInstallation},
+      {checkCanAccess, getCollaborationLevel},
+      {getDb, parseJsonStringArray},
+    ] = await Promise.all([
+      import('../auth/session'),
+      import('@artifact/domain/github/installations'),
+      import('@artifact/domain/github/access'),
+      import('../cloudflare-env'),
+    ])
     const db = getDb()
     const session = await getCurrentSession()
     const githubLogin = session.user?.githubLogin ?? undefined
@@ -105,9 +109,31 @@ export const searchArtifacts = createServerFn({method: 'GET'})
       created_at: string
     }
     const repo = params.repo || null
-    const aliasType = params.aliasType || null
-    const identifier = params.identifier || null
+    let aliasType = params.aliasType || null
+    let identifier = params.identifier || null
     const artifactName = params.artifactName || null
+    if (aliasType === 'pr' && repo && identifier) {
+      const pullNumber = Number(identifier)
+      if (!Number.isInteger(pullNumber) || pullNumber < 1) {
+        aliasType = 'branch'
+        identifier = '__invalid_pr_number__'
+      } else {
+        const installation = await lookupRepoInstallation(owner, repo).catch(() => null)
+        if (!installation) return {code: 'no_access', results: [], viewerLogin: githubLogin}
+        const octokit = await getInstallationOctokit(installation.id)
+        const level = await getCollaborationLevel(octokit, {owner, repo, username: githubLogin}).catch(() => 'none')
+        if (level === 'none') return {code: 'no_access', results: [], viewerLogin: githubLogin}
+
+        const pull = await octokit.rest.pulls
+          .get({owner, repo, pull_number: pullNumber})
+          .then(response => response.data)
+          .catch(() => null)
+        aliasType = 'branch'
+        identifier = pull ? pull.head.ref.replaceAll('/', '__') : '__pull_request_not_found__'
+      }
+    }
+    const runIdentifierPrefix =
+      aliasType === 'run' && identifier && !identifier.includes('.') ? `${identifier}.%` : null
     const rows = await db.sql.all<Row>`
       select
         a.id as artifact_id,
@@ -124,7 +150,11 @@ export const searchArtifacts = createServerFn({method: 'GET'})
       where r.owner = ${owner}
         and (${repo} is null or r.name = ${repo})
         and (${aliasType} is null or ai.type = ${aliasType})
-        and (${identifier} is null or ai.value = ${identifier})
+        and (
+          ${identifier} is null
+          or ai.value = ${identifier}
+          or (${runIdentifierPrefix} is not null and ai.type = 'run' and ai.value like ${runIdentifierPrefix})
+        )
         and (${artifactName} is null or a.name = ${artifactName})
       group by a.id, a.name, r.owner, r.name, gi.github_id
       order by max(a.created_at) desc, a.name
