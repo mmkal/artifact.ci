@@ -30,10 +30,39 @@ async function clientUpload({
   const client = trpcClient || createUploadClient({ trpcUrl, uploadToken });
   onProgress("start", "Getting artifact information");
   const download = await client.getDownloadUrl.query({ artifactId });
-  onProgress("downloading", "Downloading archive " + download.githubId);
+  onProgress("downloading", `Downloading archive ${download.githubId}`);
   const response = await fetch(download.url);
+  if (!response.ok || !response.body) {
+    throw new Error(`failed to download archive: ${response.status} ${response.statusText}`);
+  }
+  const total = Number(response.headers.get("content-length")) || 0;
+  const reader = response.body.getReader();
+  const chunks = [];
+  let received = 0;
+  let lastReport = 0;
+  const fmtMb = (b) => (b / 1024 / 1024).toFixed(1);
+  for (; ; ) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    received += value.length;
+    const now = Date.now();
+    if (now - lastReport >= 200) {
+      lastReport = now;
+      const msg = total ? `Downloading archive (${fmtMb(received)} / ${fmtMb(total)} MB)` : `Downloading archive (${fmtMb(received)} MB)`;
+      onProgress("downloading", msg);
+    }
+  }
+  onProgress("downloading", `Downloaded archive (${fmtMb(received)} MB)`);
+  const buf = new Uint8Array(received);
+  let offset = 0;
+  for (const c of chunks) {
+    buf.set(c, offset);
+    offset += c.length;
+  }
+  chunks.length = 0;
   onProgress("extracting", "Extracting archive");
-  const { entries } = await unzip(await response.arrayBuffer());
+  const { entries } = await unzip(buf.buffer);
   onProgress("preparing", "Getting upload tokens");
   const allEntries = Object.keys(entries);
   const SIGNING_CHUNK = 200;

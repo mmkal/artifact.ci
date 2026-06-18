@@ -50,8 +50,8 @@ function ArtifactBrowserPage() {
             <a href="https://github.com/apps/artifact-ci" rel="noreferrer noopener" target="_blank">
               Install it
             </a>{' '}
-            to start collecting artifacts. (If you&apos;re sure it should already be installed, double-check the
-            owner and repo in the URL.)
+            to start collecting artifacts. (If you&apos;re sure it should already be installed, double-check the owner
+            and repo in the URL.)
           </p>
         ) : missing.kind === 'no_artifact_in_repo' ? (
           <p>
@@ -59,8 +59,8 @@ function ArtifactBrowserPage() {
             <code>
               {missing.owner}/{missing.repo}
             </code>
-            . If GitHub Actions just produced it, our webhook may not have fired — open an issue and we&apos;ll
-            help backfill it.
+            . If GitHub Actions just produced it, our webhook may not have fired — open an issue and we&apos;ll help
+            backfill it.
           </p>
         ) : missing.kind === 'no_identifier_for_artifact' ? (
           <p>
@@ -68,8 +68,8 @@ function ArtifactBrowserPage() {
             <code>
               {missing.owner}/{missing.repo}
             </code>
-            , but no <code>{missing.aliasType}</code> alias for{' '}
-            <code>{missing.identifier}</code>. Double-check the identifier in the URL.
+            , but no <code>{missing.aliasType}</code> alias for <code>{missing.identifier}</code>. Double-check the
+            identifier in the URL.
           </p>
         ) : (
           <p>Not found. Double-check the owner, repo, alias, identifier, and artifact name.</p>
