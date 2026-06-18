@@ -1,5 +1,6 @@
 import {createServerFn} from '@tanstack/react-start'
 import {z} from 'zod'
+import {resolvePullRequestArtifactFilters} from './pr-artifact-filters'
 
 const SearchInput = z.object({
   owner: z.string().optional(),
@@ -111,6 +112,8 @@ export const searchArtifacts = createServerFn({method: 'GET'})
     const repo = params.repo || null
     let aliasType = params.aliasType || null
     let identifier = params.identifier || null
+    let additionalAliasType: string | null = null
+    let additionalIdentifier: string | null = null
     const artifactName = params.artifactName || null
     if (aliasType === 'pr' && repo && identifier) {
       const pullNumber = Number(identifier)
@@ -128,8 +131,46 @@ export const searchArtifacts = createServerFn({method: 'GET'})
           .get({owner, repo, pull_number: pullNumber})
           .then(response => response.data)
           .catch(() => null)
-        aliasType = 'branch'
-        identifier = pull ? pull.head.ref.replaceAll('/', '__') : '__pull_request_not_found__'
+        if (pull) {
+          const filters = await resolvePullRequestArtifactFilters({
+            pull,
+            listCommits: async () => {
+              const commits = await octokit.paginate(octokit.rest.pulls.listCommits, {
+                owner,
+                repo,
+                pull_number: pullNumber,
+                per_page: 100,
+              })
+              return commits.map(commit => ({sha: commit.sha}))
+            },
+            listCheckRunsForRef: async ref => {
+              const response = await octokit.rest.checks.listForRef({owner, repo, ref, per_page: 100}).catch(() => null)
+              return response ? response.data.check_runs.map(run => ({status: run.status})) : []
+            },
+            countArtifactsForSha: async shaIdentifier => {
+              const rows = await db.sql.all<{artifact_count: number}>`
+                select count(distinct a.id) as artifact_count
+                from artifacts a
+                join artifact_identifiers ai on ai.artifact_id = a.id
+                join repos r on r.id = a.repo_id
+                where r.owner = ${owner}
+                  and r.name = ${repo}
+                  and ai.type = 'sha'
+                  and ai.value = ${shaIdentifier}
+              `
+              return Number(rows[0]?.artifact_count || 0)
+            },
+          }).catch(() => [{type: 'branch' as const, value: pull.head.ref.replaceAll('/', '__')}])
+          const primaryFilter = filters[0]
+          const shaFilter = filters.find(filter => filter.type === 'sha') || null
+          aliasType = primaryFilter.type
+          identifier = primaryFilter.value
+          additionalAliasType = shaFilter?.type || null
+          additionalIdentifier = shaFilter?.value || null
+        } else {
+          aliasType = 'branch'
+          identifier = '__pull_request_not_found__'
+        }
       }
     }
     const runIdentifierPrefix =
@@ -141,19 +182,37 @@ export const searchArtifacts = createServerFn({method: 'GET'})
         r.owner,
         r.name as repo,
         gi.github_id as installation_github_id,
-        json_group_array(ai.type || '/' || ai.value) as aggregated_identifiers_json,
+        (
+          select json_group_array(ai.type || '/' || ai.value)
+          from artifact_identifiers ai
+          where ai.artifact_id = a.id
+        ) as aggregated_identifiers_json,
         max(a.created_at) as created_at
       from artifacts a
-      join artifact_identifiers ai on ai.artifact_id = a.id
+      join artifact_identifiers matched_ai on matched_ai.artifact_id = a.id
       join repos r on r.id = a.repo_id
       join github_installations gi on gi.id = a.installation_id
       where r.owner = ${owner}
         and (${repo} is null or r.name = ${repo})
-        and (${aliasType} is null or ai.type = ${aliasType})
         and (
-          ${identifier} is null
-          or ai.value = ${identifier}
-          or (${runIdentifierPrefix} is not null and ai.type = 'run' and ai.value like ${runIdentifierPrefix})
+          ${aliasType} is null
+          or (
+            matched_ai.type = ${aliasType}
+            and (
+              ${identifier} is null
+              or matched_ai.value = ${identifier}
+              or (
+                ${runIdentifierPrefix} is not null
+                and matched_ai.type = 'run'
+                and matched_ai.value like ${runIdentifierPrefix}
+              )
+            )
+          )
+          or (
+            ${additionalAliasType} is not null
+            and matched_ai.type = ${additionalAliasType}
+            and matched_ai.value = ${additionalIdentifier}
+          )
         )
         and (${artifactName} is null or a.name = ${artifactName})
       group by a.id, a.name, r.owner, r.name, gi.github_id
