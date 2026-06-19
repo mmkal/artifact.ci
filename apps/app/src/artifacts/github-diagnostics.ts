@@ -3,7 +3,7 @@ import {getInstallationOctokit, lookupRepoInstallation} from '@artifact/domain/g
 import {TRPCError} from '@trpc/server'
 import {type Octokit} from 'octokit'
 import {z} from 'zod'
-import {insertArtifactRecord} from '../github/upload'
+import {insertArtifactRecord, storeInstallationAndRepo} from '../github/upload'
 import {summarizeUploadArtifactLog, type UploadArtifactLogSummary} from './github-log-diagnostics'
 
 const maxRuns = 5
@@ -65,11 +65,21 @@ export async function diagnoseArtifactRequest(
 ): Promise<ArtifactDiagnosticResult> {
   if (!input.githubLogin) throw new TRPCError({code: 'UNAUTHORIZED', message: 'Sign in to check GitHub again.'})
 
-  const installation = await lookupRepoInstallation(input.owner, input.repo).catch(() => null)
-  if (!installation) {
+  const liveInstallation = await lookupRepoInstallation(input.owner, input.repo).catch(() => null)
+  if (!liveInstallation) {
     throw new TRPCError({code: 'NOT_FOUND', message: 'GitHub App installation was not found for this repository.'})
   }
-  const octokit = await getInstallationOctokit(installation.id)
+  const installation = await storeInstallationAndRepo({
+    owner: input.owner,
+    repo: input.repo,
+    installationId: liveInstallation.id,
+  }).catch(error => {
+    throw new TRPCError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: `GitHub App installation was found but could not be stored: ${messageFromError(error)}`,
+    })
+  })
+  const octokit = await getInstallationOctokit(liveInstallation.id)
   const level = await getCollaborationLevel(octokit, {
     owner: input.owner,
     repo: input.repo,
@@ -117,6 +127,10 @@ export async function diagnoseArtifactRequest(
           let recordError: string | null = null
           if (!artifact.expired) {
             try {
+              const aliasTypes: ArtifactAliasType[] = ['run']
+              if (run.head_sha) aliasTypes.push('sha')
+              if (run.head_branch) aliasTypes.push('branch')
+
               await insertArtifactRecord({
                 owner: input.owner,
                 repo: input.repo,
@@ -129,7 +143,7 @@ export async function diagnoseArtifactRequest(
                 artifact: {
                   id: artifact.id,
                   name: artifact.name,
-                  aliasTypes: ['run', 'sha', 'branch'],
+                  aliasTypes,
                 },
                 installation,
               })
@@ -372,3 +386,5 @@ type Job = {
   conclusion?: string | null
   html_url?: string | null
 }
+
+type ArtifactAliasType = 'run' | 'sha' | 'branch'
