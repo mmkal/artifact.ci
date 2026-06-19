@@ -443,6 +443,62 @@ a.search__title:hover { text-decoration: underline; }
 
 .browser__action[disabled] { opacity: 0.55; cursor: default; }
 
+.diagnostic {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.diagnostic__result,
+.diagnostic__run,
+.diagnostic__job {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+.diagnostic__summary,
+.diagnostic__empty,
+.diagnostic__error,
+.diagnostic__notes,
+.diagnostic__list,
+.diagnostic__jobs,
+.diagnostic__log-lines {
+  color: var(--muted);
+}
+
+.diagnostic__error { color: var(--danger); }
+
+.diagnostic__reload,
+.diagnostic__run a,
+.diagnostic__job a {
+  color: var(--ink-strong);
+}
+
+.diagnostic__runs,
+.diagnostic__jobs {
+  display: grid;
+  gap: 8px;
+}
+
+.diagnostic__run-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.diagnostic__notes,
+.diagnostic__list,
+.diagnostic__log-lines {
+  margin: 0;
+  padding-left: 18px;
+}
+
 .browser__debug {
   margin-top: 12px;
   padding: 12px;

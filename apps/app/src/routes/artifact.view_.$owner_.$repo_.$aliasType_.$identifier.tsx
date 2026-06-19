@@ -2,8 +2,10 @@
 import {toBreadcrumbs} from '@artifact/domain/artifact/path-params'
 import {createFileRoute} from '@tanstack/react-router'
 import {searchArtifacts} from '../artifacts/search'
+import {CheckAgainButton} from '../ui/check-again-button'
 import {Crumbs} from '../ui/crumbs'
 import {ArtifactList} from '../ui/search-lists'
+import {TrpcProvider} from '../ui/trpc-provider'
 
 export const Route = createFileRoute('/artifact/view_/$owner_/$repo_/$aliasType_/$identifier')({
   loader: async ({params}) =>
@@ -23,23 +25,26 @@ function IdentifierArtifacts() {
   const data = Route.useLoaderData()
   const githubPullRequestUrl = toGithubPullRequestUrl(params)
   return (
-    <section className="page">
-      <Crumbs trail={toBreadcrumbs(params)} />
-      <h1>
-        {params.owner}/{params.repo}
-      </h1>
-      <p className="eyebrow">
-        {params.aliasType}: <code>{params.identifier}</code>
-      </p>
-      {githubPullRequestUrl && (
-        <p>
-          <a href={githubPullRequestUrl} rel="noreferrer noopener" target="_blank">
-            Open pull request on GitHub
-          </a>
+    <TrpcProvider>
+      <section className="page">
+        <Crumbs trail={toBreadcrumbs(params)} />
+        <h1>
+          {params.owner}/{params.repo}
+        </h1>
+        <p className="eyebrow">
+          {params.aliasType}: <code>{params.identifier}</code>
         </p>
-      )}
-      <ArtifactList data={data} filters={params} />
-    </section>
+        {githubPullRequestUrl && (
+          <p>
+            <a href={githubPullRequestUrl} rel="noreferrer noopener" target="_blank">
+              Open pull request on GitHub
+            </a>
+          </p>
+        )}
+        <CheckAgainButton {...params} />
+        <ArtifactList data={data} filters={params} />
+      </section>
+    </TrpcProvider>
   )
 }
 

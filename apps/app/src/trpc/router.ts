@@ -8,6 +8,7 @@ import {AwsClient} from 'aws4fetch'
 import mime from 'mime'
 import pMap from 'p-suite/p-map'
 import {z} from 'zod'
+import {ArtifactDiagnosticInput, diagnoseArtifactRequest} from '../artifacts/github-diagnostics'
 import {getAppEnv, getDb, parseJsonStringArray, type AppEnv} from '../cloudflare-env'
 import {lookupUploadToken} from '../upload-tokens'
 
@@ -93,6 +94,9 @@ export const appRouter = router({
     const stack = new Error('test error for stack trace').stack
     logger.info(stack, {requestId: logger.getTag('requestId')})
     return {requestId: logger.getTag('requestId')}
+  }),
+  diagnoseArtifactRequest: publicProcedure.input(ArtifactDiagnosticInput).mutation(async ({input, ctx}) => {
+    return diagnoseArtifactRequest({...input, githubLogin: ctx.githubLogin})
   }),
   getDownloadUrl: artifactAccessProcedure.query(async ({ctx}) => {
     const archiveResponse = await ctx.octokit.rest.actions.downloadArtifact({
