@@ -449,16 +449,10 @@ a.search__title:hover { text-decoration: underline; }
   gap: 10px;
 }
 
-.diagnostic__result,
-.diagnostic__run,
-.diagnostic__job {
+.diagnostic__result {
   width: 100%;
   display: grid;
   gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--line-soft);
-  border-radius: 4px;
-  background: var(--panel);
 }
 
 .diagnostic__summary,
@@ -485,11 +479,26 @@ a.search__title:hover { text-decoration: underline; }
   gap: 8px;
 }
 
+.diagnostic__run {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.diagnostic__run:first-child { border-top: 0; padding-top: 4px; }
+
 .diagnostic__run-head {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 10px;
+}
+
+.diagnostic__job {
+  display: grid;
+  gap: 4px;
 }
 
 .diagnostic__notes,

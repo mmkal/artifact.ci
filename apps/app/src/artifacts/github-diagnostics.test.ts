@@ -1,5 +1,5 @@
 import {expect, test} from 'vitest'
-import {summarizeUploadArtifactLog} from './github-log-diagnostics'
+import {explainJobLogDownloadFailure, summarizeUploadArtifactLog} from './github-log-diagnostics'
 
 test('summarizes upload-artifact log output with empty path warnings', () => {
   const summary = summarizeUploadArtifactLog(`
@@ -28,4 +28,8 @@ test('summarizes logs without upload-artifact steps', () => {
     hasEmptyUpload: false,
     messages: [],
   })
+})
+
+test('explains expired GitHub job logs', () => {
+  expect(explainJobLogDownloadFailure({status: 410, message: 'Server Error'})).toBe('GitHub job logs have expired.')
 })

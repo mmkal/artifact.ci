@@ -4,7 +4,11 @@ import {TRPCError} from '@trpc/server'
 import {type Octokit} from 'octokit'
 import {z} from 'zod'
 import {insertArtifactRecord, storeInstallationAndRepo} from '../github/upload'
-import {summarizeUploadArtifactLog, type UploadArtifactLogSummary} from './github-log-diagnostics'
+import {
+  explainJobLogDownloadFailure,
+  summarizeUploadArtifactLog,
+  type UploadArtifactLogSummary,
+} from './github-log-diagnostics'
 
 const maxRuns = 5
 const maxPrCommitsToCheck = 10
@@ -331,15 +335,16 @@ async function downloadJobLogText({
   const response = await octokit.rest.actions
     .downloadJobLogsForWorkflowRun({owner, repo, job_id: jobId, request: {redirect: 'manual'}})
     .catch((error: unknown) => ({error}))
-  if ('error' in response) return {ok: false, message: messageFromError(response.error)}
+  if ('error' in response) return {ok: false, message: explainJobLogDownloadFailure(githubErrorDetails(response.error))}
   if (typeof response.data === 'string') return {ok: true, text: response.data.slice(0, 1_000_000)}
 
   const location = response.headers.location
   if (!location) return {ok: false, message: 'GitHub did not return a job log URL. Logs may have expired.'}
   const logResponse = await fetch(location).catch((error: unknown) => ({error}))
   if ('error' in logResponse) return {ok: false, message: messageFromError(logResponse.error)}
-  if (!logResponse.ok)
-    return {ok: false, message: `GitHub log download returned ${logResponse.status}. Logs may have expired.`}
+  if (!logResponse.ok) {
+    return {ok: false, message: explainJobLogDownloadFailure({status: logResponse.status, message: null})}
+  }
   return {ok: true, text: (await logResponse.text()).slice(0, 1_000_000)}
 }
 
@@ -363,6 +368,36 @@ function toDiagnosticJob(
 
 function messageFromError(error: unknown) {
   return error instanceof Error ? error.message : String(error)
+}
+
+function githubErrorDetails(error: unknown) {
+  const errorObject = asRecord(error)
+  const responseObject = asRecord(errorObject.response)
+  const dataObject = asRecord(responseObject.data)
+  return {
+    status:
+      numberFromUnknown(errorObject.status) ||
+      numberFromUnknown(responseObject.status) ||
+      numberFromUnknown(dataObject.status),
+    message: stringFromUnknown(dataObject.message) || stringFromUnknown(errorObject.message),
+  }
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+}
+
+function numberFromUnknown(value: unknown) {
+  if (typeof value === 'number') return value
+  if (typeof value === 'string' && value) {
+    const number = Number(value)
+    if (Number.isFinite(number)) return number
+  }
+  return null
+}
+
+function stringFromUnknown(value: unknown) {
+  return typeof value === 'string' && value ? value : null
 }
 
 type WorkflowRun = {

@@ -4,6 +4,11 @@ export type UploadArtifactLogSummary = {
   messages: string[]
 }
 
+export type JobLogDownloadFailure = {
+  status: number | null
+  message: string | null
+}
+
 export function summarizeUploadArtifactLog(logText: string): UploadArtifactLogSummary {
   const messages = logText.split(/\r?\n/).map(cleanLogLine).filter(Boolean).filter(isRelevantUploadLine).slice(0, 8)
 
@@ -12,6 +17,15 @@ export function summarizeUploadArtifactLog(logText: string): UploadArtifactLogSu
     hasEmptyUpload: messages.some(isEmptyUploadLine),
     messages,
   }
+}
+
+export function explainJobLogDownloadFailure(failure: JobLogDownloadFailure) {
+  if (failure.status === 410) return 'GitHub job logs have expired.'
+  if (failure.status === 404) return 'GitHub job logs were not found.'
+  if (failure.status === 403) return 'GitHub denied access to the job logs.'
+  if (failure.status) return `GitHub returned ${failure.status} while downloading job logs.`
+  if (failure.message) return failure.message
+  return 'GitHub did not return job logs.'
 }
 
 function isRelevantUploadLine(line: string) {

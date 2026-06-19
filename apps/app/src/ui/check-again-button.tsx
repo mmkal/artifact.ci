@@ -38,9 +38,9 @@ function DiagnosticResult({data}: {data: ArtifactDiagnosticResult}) {
           ))}
         </ul>
       )}
-      <div className="diagnostic__runs">
+      <div className="diagnostic__runs" role="list">
         {data.runs.map(run => (
-          <div key={run.id} className="diagnostic__run">
+          <div key={run.id} className="diagnostic__run" role="listitem">
             <div className="diagnostic__run-head">
               <a href={run.htmlUrl} rel="noreferrer noopener" target="_blank">
                 {run.name}
