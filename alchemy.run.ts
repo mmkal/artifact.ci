@@ -121,6 +121,8 @@ export const appWorker = await TanStackStart('app', {
   dev: {
     command: `vite dev --host 127.0.0.1 --port ${APP_DEV_PORT} --strictPort`,
   },
+  // poll Depot CI for new artifacts on connected repos (depot has no webhooks)
+  crons: ['*/2 * * * *'],
   bindings: {
     ...appBindings,
     ARTIFACT_DB: artifactDb,

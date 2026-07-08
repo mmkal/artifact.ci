@@ -23,7 +23,8 @@ interface ArtifactRow extends Record<string, unknown> {
   name: string
   created_at: string
   updated_at: string
-  github_id: number
+  github_id: number | null
+  depot_artifact_id: string | null
   installation_id: string
   visibility: string
   installation_github_id: number
@@ -98,7 +99,21 @@ export const appRouter = router({
   diagnoseArtifactRequest: publicProcedure.input(ArtifactDiagnosticInput).mutation(async ({input, ctx}) => {
     return diagnoseArtifactRequest({...input, githubLogin: ctx.githubLogin})
   }),
-  getDownloadUrl: artifactAccessProcedure.query(async ({ctx}) => {
+  getDownloadUrl: artifactAccessProcedure.query(async ({ctx}): Promise<{url: string; githubId: number | null}> => {
+    if (ctx.artifact.depot_artifact_id) {
+      // Depot's presigned S3 URLs have no CORS, so the browser downloads via
+      // a same-origin proxy route instead of hitting depot storage directly.
+      return {
+        url: `/api/depot/artifact-zip/${ctx.artifact.id}`,
+        githubId: null,
+      }
+    }
+    if (typeof ctx.artifact.github_id !== 'number') {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: `artifact ${ctx.artifact.id} has no download source`,
+      })
+    }
     const archiveResponse = await ctx.octokit.rest.actions.downloadArtifact({
       owner: ctx.artifact.owner,
       repo: ctx.artifact.repo,

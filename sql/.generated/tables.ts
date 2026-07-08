@@ -40,10 +40,34 @@ export type ArtifactsRow = {
 	id: string;
 	repo_id: string;
 	name: string;
-	github_id: number;
+	github_id: number | null;
+	depot_artifact_id: string | null;
 	download_url: string | null;
 	installation_id: string;
 	visibility: string;
+	created_at: string;
+	updated_at: string;
+};
+
+export type DepotConnectionsRow = {
+	id: string;
+	owner: string;
+	repo: string;
+	depot_org_id: string;
+	api_token: string;
+	created_at: string;
+	updated_at: string;
+};
+
+export type DepotRunsRow = {
+	id: string;
+	connection_id: string;
+	depot_run_id: string;
+	head_sha: string;
+	ref: string | null;
+	status: string;
+	artifact_count: number;
+	run_created_at: string;
 	created_at: string;
 	updated_at: string;
 };
