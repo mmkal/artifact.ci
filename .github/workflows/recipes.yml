@@ -112,7 +112,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: eslint
-          path: .eslint-config-inspector
+          # config-inspector moved its build output from .eslint-config-inspector
+          path: dist/__eslint-config-inspector
           include-hidden-files: true
           if-no-files-found: error
 
