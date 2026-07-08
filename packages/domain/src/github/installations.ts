@@ -11,6 +11,9 @@ export const getOctokitApp = () => {
   return new App({appId: env.GITHUB_APP_ID, privateKey: env.GITHUB_APP_PRIVATE_KEY})
 }
 
+/** injectable for integration tests; real GitHub otherwise */
+const githubApiUrl = () => process.env.GITHUB_API_URL || 'https://api.github.com'
+
 /**
  * Returns an Octokit instance authenticated as a specific installation.
  *
@@ -23,7 +26,7 @@ export const getOctokitApp = () => {
 export const getInstallationOctokit = async (installationId: number): Promise<Octokit> => {
   const env = GithubAppEnv.parse(process.env)
   const jwt = await makeAppJwt(env.GITHUB_APP_ID, env.GITHUB_APP_PRIVATE_KEY)
-  const response = await fetch(`https://api.github.com/app/installations/${installationId}/access_tokens`, {
+  const response = await fetch(`${githubApiUrl()}/app/installations/${installationId}/access_tokens`, {
     method: 'POST',
     headers: githubHeaders(jwt),
   })
@@ -31,7 +34,7 @@ export const getInstallationOctokit = async (installationId: number): Promise<Oc
     throw new Error(`mint installation token for ${installationId} failed: ${response.status} ${await response.text()}`)
   }
   const payload = (await response.json()) as {token: string}
-  return new Octokit({auth: payload.token})
+  return new Octokit({auth: payload.token, baseUrl: githubApiUrl()})
 }
 
 /**
@@ -49,7 +52,7 @@ export const lookupRepoInstallation = async (owner: string, repo: string): Promi
     'private key length:',
     env.GITHUB_APP_PRIVATE_KEY.length,
   )
-  const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/installation`, {
+  const response = await fetch(`${githubApiUrl()}/repos/${owner}/${repo}/installation`, {
     headers: githubHeaders(jwt),
   })
   if (response.status === 404) return null
