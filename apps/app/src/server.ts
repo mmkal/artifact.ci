@@ -8,11 +8,28 @@ import {handleWebhookRequest} from './github/events'
 import {handleUploadRequest} from './github/upload'
 import {handleTrpcRequest} from './trpc/server'
 
-export default createServerEntry({
+const serverEntry = createServerEntry({
   fetch: (async (request: Request, env: AppEnv): Promise<Response> => {
     return runWithAppEnv(env, () => handleRequest(request))
   }) as never,
 })
+
+export default {
+  ...serverEntry,
+  // cron: poll Depot CI for new runs/artifacts (Depot has no webhooks)
+  scheduled: (controller: unknown, env: AppEnv, ctx: {waitUntil(promise: Promise<unknown>): void}) => {
+    ctx.waitUntil(
+      Promise.resolve().then(() =>
+        runWithAppEnv(env, async () => {
+          const {syncAllDepotConnections} = await import('./depot/sync')
+          const origin = env.PUBLIC_DEV_URL || env.BETTER_AUTH_URL
+          const results = await syncAllDepotConnections({origin})
+          console.log('[depot-sync] scheduled sync complete', JSON.stringify(results).slice(0, 1000))
+        }),
+      ),
+    )
+  },
+}
 
 async function handleRequest(request: Request): Promise<Response> {
   const url = new URL(request.url)
@@ -36,6 +53,20 @@ async function handleRequest(request: Request): Promise<Response> {
 
   if (url.pathname === '/github/events' && request.method === 'POST') {
     return handleWebhookRequest(request)
+  }
+
+  if (url.pathname === '/api/depot/sync' && request.method === 'POST') {
+    const session = await getRequestSession(request)
+    if (!session.githubLogin) return Response.json({error: 'not authenticated'}, {status: 401})
+    const {syncAllDepotConnections} = await import('./depot/sync')
+    const {getArtifactOrigin} = await import('./github/origin')
+    const results = await syncAllDepotConnections({origin: getArtifactOrigin(request)})
+    return Response.json({ok: true, results})
+  }
+
+  if (url.pathname.startsWith('/api/depot/artifact-zip/') && request.method === 'GET') {
+    const {handleDepotArtifactZipRequest} = await import('./depot/zip')
+    return handleDepotArtifactZipRequest(request)
   }
 
   if (url.pathname === '/api/internal/artifacts/resolve' && request.method === 'POST') {

@@ -3,7 +3,7 @@ import pMap from 'p-suite/p-map'
 import {unzip} from 'unzipit'
 
 type UploadClient = {
-  getDownloadUrl: {query(input: {artifactId: string}): Promise<{url: string; githubId: number}>}
+  getDownloadUrl: {query(input: {artifactId: string}): Promise<{url: string; githubId: number | null}>}
   createUploadTokens: {
     mutate(input: {artifactId: string; entries: string[]}): Promise<{
       tokens: Array<{entry: string; artifactFullPath: string; uploadUrl: string; contentType: string}>
@@ -52,7 +52,7 @@ export async function clientUpload({
 
   onProgress('start', 'Getting artifact information')
   const download = await client.getDownloadUrl.query({artifactId})
-  onProgress('downloading', `Downloading archive ${download.githubId}`)
+  onProgress('downloading', `Downloading archive${download.githubId ? ` ${download.githubId}` : ''}`)
 
   const response = await fetch(download.url)
   if (!response.ok || !response.body) {

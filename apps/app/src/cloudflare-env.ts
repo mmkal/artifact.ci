@@ -53,6 +53,8 @@ export interface AppEnv {
   POSTHOG_PROJECT_API_KEY: string
   POSTHOG_HOST: string
   PUBLIC_DEV_URL: string
+  /** override for the depot.dev API base URL, used by tests and local fakes */
+  DEPOT_API_URL?: string
 }
 
 const envStorage = new AsyncLocalStorage<AppEnv>()
