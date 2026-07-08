@@ -32,7 +32,7 @@ async function clientUpload({
   const client = trpcClient || createUploadClient({ trpcUrl, uploadToken });
   onProgress("start", "Getting artifact information");
   const download = await client.getDownloadUrl.query({ artifactId });
-  onProgress("downloading", `Downloading archive ${download.githubId}`);
+  onProgress("downloading", `Downloading archive${download.githubId ? ` ${download.githubId}` : ""}`);
   const response = await fetch(download.url);
   if (!response.ok || !response.body) {
     throw new Error(`failed to download archive: ${response.status} ${response.statusText}`);
