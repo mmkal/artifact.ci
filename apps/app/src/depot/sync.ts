@@ -17,6 +17,11 @@ export interface DepotConnectionRow extends Record<string, unknown> {
 /** how far back to look for runs; runs older than this are never (re)processed */
 const lookbackMs = 48 * 60 * 60 * 1000
 const maxRunListPages = 10
+/**
+ * cap per sync pass so a busy repo's backlog (e.g. the first-ever sync) drains
+ * over several cron ticks instead of blowing worker subrequest limits
+ */
+const maxRunsPerSync = 25
 
 export async function syncAllDepotConnections(params: {origin: string}) {
   const db = getDb()
@@ -67,8 +72,8 @@ export async function syncDepotConnection(connection: DepotConnectionRow, {origi
   )
 
   const processed = []
-  // oldest first so check runs land in chronological order
-  for (const run of newRuns.reverse()) {
+  // newest first: with the per-pass cap, fresh runs shouldn't wait behind a backlog
+  for (const run of newRuns.slice(0, maxRunsPerSync)) {
     const result = await processDepotRun({connection, client, run, origin}).catch((error: unknown) => {
       // don't record the run as processed: the next sync retries it (inserts are idempotent upserts)
       logger.error('[depot-sync] run failed', {runId: run.runId, error: String(error)})

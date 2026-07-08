@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: implemented-needs-prod-setup
 size: large
 branch: depot-ci-support
 ---
@@ -8,9 +8,12 @@ branch: depot-ci-support
 
 ## Status summary
 
-Spec written after investigating the Depot CI platform and the iterate/iterate
-testbed. Implementation not yet started. Main pieces: Depot API client, schema
-additions, cron-driven run sync + check runs, and a zip download proxy.
+Implemented and verified. Sync, check-run creation, and the zip download
+proxy all pass integration tests (real SQL via node:sqlite, fake Depot +
+GitHub servers) plus a **live smoke test against the real depot.dev API**
+that synced actual iterate/iterate runs and streamed a real 5.7MB artifact
+zip through the proxy. Remaining: prod setup (Depot org token + connection
+row) after merge, then watch the first cron pass.
 
 ## Problem
 
@@ -39,7 +42,7 @@ Testbed: **iterate/iterate**, Depot org `0p91s0lz49`, workflows in
 ## Verified Depot API facts (2026-07-08, tested with real org + CLI token)
 
 Connect-RPC JSON over HTTPS at `https://api.depot.dev` (override:
-`DEPOT_API_URL`). Headers: `Authorization: Bearer <token>`,
+`DEPOT_API_URL` in AppEnv). Headers: `Authorization: Bearer <token>`,
 `x-depot-org: <org-id>`, `content-type: application/json`. Endpoints (from
 [depot/cli](https://github.com/depot/cli) `pkg/proto/depot/ci/v1`):
 
@@ -50,105 +53,99 @@ Connect-RPC JSON over HTTPS at `https://api.depot.dev` (override:
   always pass status explicitly. `ref` is e.g. `refs/pull/1758/merge`.
 - `POST /depot.ci.v1.CIService/ListArtifacts` `{runId, pageSize, pageToken}`
   → `{artifacts: [{artifactId: "019f4231-…" (uuidv7), runId, workflowId,
-  workflowPath, jobId, jobKey, attemptId, attempt, name, sizeBytes, createdAt}]}`
+  workflowPath, jobId, jobKey, attemptId, attempt, name, sizeBytes (int64 →
+  string in JSON), createdAt}]}`
 - `POST /depot.ci.v1.CIService/GetArtifactDownloadURL` `{artifactId}`
   → `{artifact, url, expiresAt}` — `url` is a ~5-min presigned S3 GET.
   **No CORS on the S3 bucket** (verified: OPTIONS preflight → 403), so
-  browsers cannot fetch it directly; the worker must proxy the zip.
-  The zip is a plain zip of the uploaded files (same shape as GitHub's).
+  browsers cannot fetch it directly; the worker proxies the zip.
 
 `depot ci artifacts list/download` in the CLI wraps exactly these RPCs.
-Depot CI has no webhooks (nothing in docs/changelog), and GitHub only delivers
-`check_run` events to the app that created the check, so Depot's check runs
-can't trigger us → **polling is the only discovery mechanism**.
+Depot CI has no webhooks, and GitHub only delivers `check_run` events to the
+app that created the check, so Depot's check runs can't trigger us →
+**polling is the only discovery mechanism**.
 
-## Design
+## What was built
 
-### Config: who is connected to Depot?
-
-New table `depot_connections`: `(id, owner, repo, depot_org_id, api_token,
-created_at, updated_at, unique(owner, repo))`. Rows inserted manually for now
-(SQL via sqlfu against prod, documented below). The token should be a Depot
-**org token** (Depot dashboard → org settings → API tokens). No UI yet —
-that's follow-up work.
-
-### Ingestion: cron poll
-
-- Cron (every 2 min in prod) → for each `depot_connections` row:
-  `ListRuns(repo, status=[finished,failed,cancelled])`, page until runs older
-  than a 48h lookback or already seen.
-- Dedupe via new table `depot_runs`: `(id, connection_id, depot_run_id unique,
-  head_sha, ref, status, artifact_count, created_at, processed_at)`.
-- For each new run: `ListArtifacts(runId)`; insert artifacts +
-  identifiers; post one artifact.ci **check run** on `headSha` (reuse the
-  summary-building logic from `apps/app/src/github/events.ts`) when the run
-  produced artifacts.
-- Aliases for a depot run:
-  - `run` → depot runId (string, fits the free-form identifier column/paths)
-  - `sha` → `headSha.slice(0, 7)`
-  - `branch` → from `ref` when it's `refs/heads/<branch>` (replaceAll `/`→`__`)
-  - (PR runs have `ref: refs/pull/N/merge`; the existing `pr` alias view
-    derives from sha/branch identifiers, so no special-casing needed — verify
-    while implementing.)
-
-### Artifact rows
-
-`artifacts.github_id` becomes nullable; new column `depot_artifact_id text`
-with partial unique index `(repo_id, name, depot_artifact_id) where
-depot_artifact_id is not null`. A row is a depot artifact iff
-`depot_artifact_id is not null`. (SQLite treats NULLs as distinct in the
-existing `unique(repo_id, name, github_id)`, so github rows keep their
-semantics.)
-
-### Download: same-origin zip proxy
-
-- trpc `getDownloadUrl` branches: depot artifact → return
-  `/api/artifact-zip/<artifactId>` (same-origin); github artifact → unchanged.
-- New route `GET /api/artifact-zip/:artifactId` in `server.ts`: session/upload
-  token auth + `checkCanAccess` (same as the trpc middleware), look up the
-  repo's depot connection, `GetArtifactDownloadURL`, fetch the S3 URL
-  server-side, stream the body through with `content-type: application/zip`.
-- `clientUpload` then works unchanged (same-origin fetch sends session
-  cookies by default).
-
-### Cron plumbing
-
-Alchemy `TanStackStart` props extend `WorkerProps`, so `crons: [...]` passes
-through. The server entry (`createServerEntry({fetch})`) needs a `scheduled`
-export — spread it into the default export. If the TanStack build/runtime
-fights this, fall back to a tiny dedicated `depot-sync` Worker with the cron
-that POSTs `/api/depot/sync` with a shared-secret binding. A manual
-`POST /api/depot/sync` (secret-gated) is useful for testing either way.
+- `packages/domain/src/depot/client.ts` — Connect-JSON client
+  (ListRuns/ListArtifacts/GetArtifactDownloadURL) + `depotRunAliases`
+  (run = depot runId, sha = headSha[0:7], branch only for `refs/heads/*`;
+  PR merge-refs get no branch alias — the PR view derives from sha/branch
+  via the GitHub pulls API anyway).
+- Schema: `depot_connections` (owner/repo → org + api token),
+  `depot_runs` (dedupe/audit of processed runs), `artifacts.github_id` now
+  nullable, `artifacts.depot_artifact_id` with a partial unique index
+  `(repo_id, name, depot_artifact_id) where depot_artifact_id is not null`.
+  Migration `0001_depot_ci_support.sql` (sqlfu draft; replay-tested against
+  a DB with existing artifact rows).
+- `apps/app/src/depot/sync.ts` — per-connection poll (48h lookback, capped
+  at 25 new runs per pass so first-sync backlogs drain over several cron
+  ticks without hitting worker subrequest limits), artifact + identifier
+  upserts, check-run posting in the same format as the webhook flow.
+- Cron `*/2 * * * *` on the app worker (`scheduled` handler spread into the
+  TanStack server entry) + `POST /api/depot/sync` for signed-in users.
+- `GET /api/depot/artifact-zip/:artifactId` — access-checked (session or
+  upload token, `checkCanAccess`) same-origin streaming proxy;
+  `getDownloadUrl` returns this path for depot artifacts so the existing
+  browser unzip→R2 lazy-load pipeline works unchanged.
+- Test seam: `GITHUB_API_URL` env override in
+  `packages/domain/src/github/installations.ts` (DI instead of mocks).
 
 ## Checklist
 
-- [ ] schema: `depot_connections`, `depot_runs`, nullable `github_id`,
-      `depot_artifact_id` + partial unique index (sqlfu migration)
-- [ ] domain: `packages/domain/src/depot/client.ts` (ListRuns, ListArtifacts,
-      GetArtifactDownloadURL; injectable base URL) + vitest against local fake
-      server
-- [ ] sync: `apps/app/src/depot/sync.ts` + insert path for depot artifacts +
-      check run posting shared with `events.ts`
-- [ ] cron: alchemy `crons` + `scheduled` handler (or fallback sync worker) +
-      secret-gated manual sync route
-- [ ] download: `/api/artifact-zip/:artifactId` proxy + `getDownloadUrl`
-      branch for depot artifacts
-- [ ] tests: fake depot API end-to-end-ish test of sync + proxy
-- [ ] verify with iterate/iterate locally (real token, real artifact renders
-      in browser)
-- [ ] document prod setup: create Depot org token, insert `depot_connections`
-      row via sqlfu
+- [x] schema + migration _(0001_depot_ci_support.sql, replay-tested with data)_
+- [x] domain depot client + unit tests _(client.test.ts, fake connect server)_
+- [x] sync + check runs _(sync.ts; sync.test.ts covers record/idempotency/no-artifact runs)_
+- [x] cron + manual sync route _(alchemy crons + scheduled handler; POST /api/depot/sync)_
+- [x] zip proxy + getDownloadUrl branch _(zip.ts; zip.test.ts covers stream/401/non-depot)_
+- [x] live verification against depot.dev _(live.test.ts, gated on DEPOT_LIVE_TOKEN:
+      synced real iterate runs, built correct check payloads against a fake GitHub,
+      streamed a real 5.7MB preview-os-test-artifacts zip — PK magic bytes verified)_
+- [ ] prod setup after merge (below) + watch first cron pass and a real
+      check run appear on an iterate/iterate commit
+- ~~[ ] browser-level dev-stack walkthrough~~ _(local dev stack is currently
+      broken on this machine independent of this branch — wrangler remote-proxy
+      session failure in the main checkout too; the browser-side code path is
+      unchanged except the URL the zip is fetched from, and the proxy is
+      covered by tests + live smoke)_
 
 ## Prod setup (once merged)
 
-1. In Depot dashboard for org `0p91s0lz49`: create an org API token scoped to
-   CI read access.
-2. Insert the connection row (sqlfu prod target):
-   `insert into depot_connections (id, owner, repo, depot_org_id, api_token)
-   values ('depot_connection_<ulid>', 'iterate', 'iterate', '0p91s0lz49', '<token>')`
-3. Wait for the cron (or hit the manual sync route) and check a recent
-   iterate/iterate PR commit for the artifact.ci check run.
+1. In the Depot dashboard for org `0p91s0lz49`: create an org API token
+   (CI read access is enough).
+2. Insert the connection row (e.g. `SQLFU_TARGET=prod` sqlfu, or wrangler d1):
+   ```sql
+   insert into depot_connections (id, owner, repo, depot_org_id, api_token)
+   values ('depot_connection_' || lower(hex(randomblob(8))), 'iterate', 'iterate', '0p91s0lz49', '<token>');
+   ```
+3. The cron picks it up within 2 minutes. First pass processes the 25 most
+   recent runs with artifacts from the last 48h; older backlog drains on
+   subsequent ticks. Check a recent iterate/iterate commit for the
+   artifact.ci check run and click through to the artifact view.
+
+Note: the prod artifact.ci GitHub App is installed on iterate/iterate; the
+dev app is not (dev app is mmkal-account only), which is why live
+verification faked the GitHub side.
+
+## Follow-up ideas (deliberately out of scope)
+
+- UI for managing depot connections (currently manual SQL).
+- `artifactci/upload` action support inside Depot CI jobs (would need a
+  non-GitHub validation path in `/github/upload` — e.g. upload tokens as
+  Depot secrets — since Depot's GITHUB_RUN_ID is synthetic).
+- 'Check again' diagnostics awareness of depot connections (currently
+  GitHub-only).
+- Backfill beyond 48h on first connection (bump lookback or a one-off
+  backfill script) if desired.
 
 ## Implementation log
 
-(append notes here as work proceeds)
+- 2026-07-08: investigated Depot CI via iterate/iterate + depot/cli source;
+  verified all three RPCs and the no-CORS presigned URL by hand with a real
+  token. Spec committed first, then schema (sqlfu draft), client, sync,
+  proxy, tests. Live smoke test initially timed out processing the full
+  48h iterate backlog (~hundreds of runs) — added the 25-runs-per-pass cap,
+  after which it passed in ~13s. Local `alchemy dev` was broken on this
+  machine (wrangler remote proxy session failure, also on main), so
+  browser-level verification was replaced by the live smoke test at the
+  handler level.
